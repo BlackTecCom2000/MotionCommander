@@ -1,0 +1,237 @@
+<Window x:Class="Win11CopyDialog.Views.Dialogs.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Параметры и настройка — Motion Commander"
+        Height="720" Width="960" MinWidth="800" MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource PrimaryTextBrush}">
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Шапка -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+            <DockPanel>
+                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                    <TextBlock Text="⚙" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Параметры и тонкая настройка системы" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock Text="Персонализация интерфейса, выбор неоновых тем, параметры I/O пайплайна и редактор конфигурации" FontSize="11" Style="{StaticResource MutedText}"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Вкладки настроек -->
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+            <!-- Темы и Персонализация -->
+            <TabItem Header="🎨 Темы и Визуализация" FontSize="12" Padding="14,8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+                        <!-- Выбор темы оформления -->
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Тема оформления интерфейса" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                                <TextBlock Text="Выберите один из 10 дизайнерских пресетов, оптимизированных для современных дисплеев и OLED" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2*"/>
+                                        <ColumnDefinition Width="3*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="ThemesComboBox" FontSize="12" Padding="10,6" SelectionChanged="ThemesComboBox_SelectionChanged"/>
+                                    <Border Grid.Column="1" Margin="14,0,0,0" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="12,8">
+                                        <TextBlock x:Name="ThemeDescriptionText" Text="Описание темы..." FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Выбор акцентного цвета -->
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Цветовой акцент и неоновое свечение" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                                <TextBlock Text="Выделите элементы управления, графики скорости и индикаторы прогресса любимым цветом" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                <WrapPanel x:Name="AccentsWrapPanel" Margin="0,0,0,8"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Эффекты фона Windows 11 -->
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="Материал фона окна (Windows 11 DWM)" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                                <TextBlock Text="Аппаратное размытие рабочего стола под окнами приложения" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="BackdropMicaRadio" Content="◈ Mica Alt (Премиальный матовый)" IsChecked="True" Margin="0,0,16,0" Checked="BackdropRadio_Checked"/>
+                                    <RadioButton x:Name="BackdropAcrylicRadio" Content="⬣ Fluent Acrylic (Глубокое размытие)" Margin="0,0,16,0" Checked="BackdropRadio_Checked"/>
+                                    <RadioButton x:Name="BackdropSolidRadio" Content="⬛ Сплошной непрозрачный фон" Margin="0,0,16,0" Checked="BackdropRadio_Checked"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Звук и Тактильность -->
+            <TabItem Header="🔊 Звук и Haptics" FontSize="12" Padding="14,8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,10">
+                                    <CheckBox x:Name="HapticsEnabledCheckBox" Content="Включить тактильный аудио-отклик (Haptic Audio Synth)" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Checked="HapticsCheckBox_Changed" Unchecked="HapticsCheckBox_Changed"/>
+                                </DockPanel>
+                                <TextBlock Text="Синтезирует легкие щелчки и мелодичные уведомления в реальном времени через встроенный генератор частот без лагов" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,16"/>
+
+                                <TextBlock Text="Тестирование звуковых импульсов:" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,8"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="🔘 Тест клика" Margin="0,0,8,8" Padding="12,6" Click="TestClick_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="✨ Тест наведения" Margin="0,0,8,8" Padding="12,6" Click="TestHover_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="🎵 Звук успеха" Margin="0,0,8,8" Padding="12,6" Click="TestSuccess_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="📜 Тик скролла" Margin="0,0,8,8" Padding="12,6" Click="TestScroll_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Движок передачи данных -->
+            <TabItem Header="⚡ Параметры I/O" FontSize="12" Padding="14,8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="Оптимизация высокоскоростного копирования" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                                <TextBlock Text="Тонкая настройка системных вызовов CreateFileW, кольцевых буферов и кэширования Windows" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,14"/>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Размер I/O буфера по умолчанию:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                                    <ComboBox x:Name="DefaultBufferCombo" Grid.Column="1" Width="200" HorizontalAlignment="Left" SelectedIndex="2">
+                                        <ComboBoxItem Content="256 КБ (Для USB 2.0 / HDD)"/>
+                                        <ComboBoxItem Content="512 КБ (Сбалансированный)"/>
+                                        <ComboBoxItem Content="1 МБ (Рекомендуется для NVMe)"/>
+                                        <ComboBoxItem Content="2 МБ (Высокая скорость)"/>
+                                        <ComboBoxItem Content="4 МБ (Максимальный поток)"/>
+                                        <ComboBoxItem Content="8 МБ (Экстремальный RAM)"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Параллельные потоки:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                                    <ComboBox x:Name="ThreadsCombo" Grid.Column="1" Width="200" HorizontalAlignment="Left" SelectedIndex="3">
+                                        <ComboBoxItem Content="1 поток (Строго по очереди)"/>
+                                        <ComboBoxItem Content="2 потока"/>
+                                        <ComboBoxItem Content="4 потока (Оптимально)"/>
+                                        <ComboBoxItem Content="8 потоков (Для SSD массивов)"/>
+                                        <ComboBoxItem Content="16 потоков (Максимум I/O)"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <CheckBox x:Name="DirectIoCheck" Content="Обход файлового кэша Windows (Direct I/O / FILE_FLAG_NO_BUFFERING)" Margin="0,6,0,6" IsChecked="False"/>
+                                <CheckBox x:Name="SequentialScanCheck" Content="Подсказка планировщику ядра (FILE_FLAG_SEQUENTIAL_SCAN)" Margin="0,0,0,6" IsChecked="True"/>
+                                <CheckBox x:Name="VerifyCrcCheck" Content="Автоматический расчёт CRC-32 контрольной суммы на лету" Margin="0,0,0,6" IsChecked="True"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Интерактивный редактор конфигурации -->
+            <TabItem Header="📝 Редактор конфигурации" FontSize="12" Padding="14,8">
+                <Grid Margin="0,10,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,8">
+                        <DockPanel>
+                            <Button Style="{StaticResource CyberToolButton}" Content="📂 Открыть папку конфига" DockPanel.Dock="Right" Padding="10,4" Click="OpenConfigFolder_Click"/>
+                            <TextBlock Text="Прямой просмотр и правка конфигурационного файла appsettings.json:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="11"/>
+                        </DockPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Padding="8">
+                        <TextBox x:Name="ConfigEditorBox" Background="{DynamicResource InputBackgroundBrush}" BorderThickness="0"
+                                 Foreground="#00F0FF" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="12"
+                                 AcceptsReturn="True" AcceptsTab="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"/>
+                    </Border>
+
+                    <DockPanel Grid.Row="2" Margin="0,8,0,0">
+                        <Button Style="{StaticResource CyberToolButton}" Content="🔄 Перезагрузить" DockPanel.Dock="Left" Padding="12,6" Click="ReloadConfig_Click"/>
+                        <Button Style="{StaticResource CyberToolButton}" Content="↺ Сбросить настройки" DockPanel.Dock="Left" Margin="8,0,0,0" Padding="12,6" Click="ResetConfig_Click"/>
+                        <Button Style="{StaticResource CyberButton}" Content="💾 Сохранить изменения" HorizontalAlignment="Right" Padding="16,6" Click="SaveConfig_Click"/>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- Лицензия и Поддержка -->
+            <TabItem Header="⭐ Лицензия и Донат" FontSize="12" Padding="14,8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Лицензия продукта" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,4"/>
+                                <TextBlock Text="Motion Commander Pro v3.0.0 — Зарегистрировано на:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                <TextBlock Text="BlackTecCom - Jaborov Daler (Full Commercial Lifetime)" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,10"/>
+                                <TextBlock Text="Продукт имеет неограниченный доступ ко всем передовым модулям I/O передачи данных, диагностике оборудования и анализу файловой системы." FontSize="11" Style="{StaticResource MutedText}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="💳 Поддержать разработчика (Прямой донат Visa)" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,6"/>
+                                <TextBlock Text="Прямой перевод на банковскую карту фрилансера без посредников:" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                    <DockPanel>
+                                        <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" DockPanel.Dock="Right" Padding="10,4" Click="CopyAlif_Click"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="🇹🇯 Alif Bank VISA (Валютная карта):" FontSize="11" Style="{StaticResource MutedText}"/>
+                                            <TextBlock Text="4444 8888 1022 6013" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="12">
+                                    <DockPanel>
+                                        <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" DockPanel.Dock="Right" Padding="10,4" Click="CopyDc_Click"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="🇹🇯 DC Bank VISA (Международные переводы):" FontSize="11" Style="{StaticResource MutedText}"/>
+                                            <TextBlock Text="4713 3800 2165 1431" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Нижняя панель действий -->
+        <Border Grid.Row="2" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,12,0,0">
+            <DockPanel>
+                <Button Style="{StaticResource CyberButton}" Content="Закрыть" DockPanel.Dock="Right" Padding="20,6" Click="Close_Click"/>
+                <TextBlock x:Name="StatusMessage" Text="Параметры применяются автоматически в реальном времени." VerticalAlignment="Center" FontSize="11" Style="{StaticResource MutedText}"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

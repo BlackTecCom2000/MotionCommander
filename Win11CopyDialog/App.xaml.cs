@@ -125,45 +125,55 @@ public partial class App : Application
         {
             new Views.Dialogs.ExtractArchiveWindow(@"C:\Windows\explorer.exe").Show();
         }
+        else if (e.Args.Contains("--wiztree"))
+        {
+            new Views.Dialogs.WizTreeAnalyzerWindow().Show();
+        }
+        else if (e.Args.Contains("--duplicates"))
+        {
+            new Views.Dialogs.DuplicateFinderWindow().Show();
+        }
+        else if (e.Args.Contains("--drivers"))
+        {
+            new Views.Dialogs.DriverInspectorWindow().Show();
+        }
+        else if (e.Args.Contains("--settings-window"))
+        {
+            new Views.Dialogs.SettingsWindow().Show();
+        }
         else if (e.Args.Contains("--advanced-tools-demo"))
         {
             new Views.Dialogs.AdvancedToolsWindow(@"C:\Windows\System32\notepad.exe").Show();
         }
         else if (e.Args.Contains("--tab-transfer"))
         {
-            var main = new MainWindow();
-            main.SelectTab(1);
+            var main = new MainWindow(null, 1);
             main.Show();
         }
         else if (e.Args.Contains("--tab-storage"))
         {
-            var main = new MainWindow();
-            main.SelectTab(2);
+            var main = new MainWindow(null, 2);
             main.Show();
         }
         else if (e.Args.Contains("--tab-diagnostics"))
         {
-            var main = new MainWindow();
-            main.SelectTab(3);
+            var main = new MainWindow(null, 3);
             main.Show();
         }
         else if (e.Args.Contains("--tab-tools"))
         {
-            var main = new MainWindow();
-            main.SelectTab(4);
+            var main = new MainWindow(null, 4);
             main.Show();
         }
         else if (e.Args.Contains("--tab-settings-bottom"))
         {
-            var main = new MainWindow();
-            main.SelectTab(5);
+            var main = new MainWindow(null, 5);
             main.Loaded += (_, _) => main.ScrollSettingsToBottom();
             main.Show();
         }
         else if (e.Args.Contains("--tab-settings"))
         {
-            var main = new MainWindow();
-            main.SelectTab(5);
+            var main = new MainWindow(null, 5);
             main.Show();
         }
         else if (e.Args.Contains("--motion-demo"))

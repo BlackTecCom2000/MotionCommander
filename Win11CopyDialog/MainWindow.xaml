@@ -64,11 +64,17 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Быстрый переключатель темы (Sun/Moon) -->
-                <Button x:Name="QuickThemeBtn" Grid.Column="2" Style="{StaticResource CaptionButton}"
-                        ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0">
-                    <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13"/>
-                </Button>
+                <!-- Быстрые переключатели: Окно настроек и тема -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="OpenSettingsWindowBtn" Style="{StaticResource CaptionButton}"
+                            ToolTip="Параметры и темы оформления" Click="OpenSettingsWindow_Click" Margin="0,0,4,0">
+                        <TextBlock Text="⚙" FontSize="13"/>
+                    </Button>
+                    <Button x:Name="QuickThemeBtn" Style="{StaticResource CaptionButton}"
+                            ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0">
+                        <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13"/>
+                    </Button>
+                </StackPanel>
 
                 <!-- Кнопки управления окном -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal">
@@ -260,40 +266,183 @@
                 <!-- ================= 2. ДВИЖОК ПЕРЕДАЧ (MOTION TRANSFER ENGINE) ================= -->
                 <Grid x:Name="TransferView" Visibility="Collapsed" Margin="18">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel MaxWidth="800" HorizontalAlignment="Center">
-                            <!-- Hero-превью -->
-                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,16">
+                        <StackPanel MaxWidth="880" HorizontalAlignment="Center">
+                            <!-- Селектор источника и назначения передачи данных -->
+                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
                                 <StackPanel>
-                                    <ctrl:TransferVisualizer x:Name="TransferHero" Height="220"/>
-                                    <Grid Margin="0,12,0,0">
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center">
+                                            <TextBlock Text="⚡" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Аппаратный движок прямой передачи данных (Direct I/O Streamer)" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Прямой конвейер потокового ввода-вывода с нулевым оверхедом и аппаратным насыщением шины" FontSize="11" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <!-- Пути источник / назначение -->
+                                    <Grid Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Источник:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                                        <TextBox x:Name="TransferSourceBox" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Padding="8,6" VerticalAlignment="Center"
+                                                 AllowDrop="True" PreviewDragOver="TransferPath_DragOver" Drop="TransferSource_Drop"/>
+                                        <Button Grid.Column="2" Style="{StaticResource CyberToolButton}" Content="📄 Файл..." Margin="8,0,0,0" Padding="10,6" Click="BrowseSourceFile_Click"/>
+                                        <Button Grid.Column="3" Style="{StaticResource CyberToolButton}" Content="📁 Папка..." Margin="6,0,0,0" Padding="10,6" Click="BrowseSourceFolder_Click"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="Живой космический телеметрический движок передачи" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                            <TextBlock Text="Аппаратный рендеринг через Direct3D, 3D звёздное поле с параллаксом от мыши, квантовый волновой тоннель" FontSize="11" Style="{StaticResource MutedText}"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1" Style="{StaticResource CyberButton}" Content="⚡ Запустить отдельное окно передачи" Height="36" Padding="14,0" Click="OpenMotionWindow_Click"/>
+                                        <TextBlock Text="Приёмник:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                                        <TextBox x:Name="TransferDestBox" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Padding="8,6" VerticalAlignment="Center"
+                                                 AllowDrop="True" PreviewDragOver="TransferPath_DragOver" Drop="TransferDest_Drop"/>
+                                        <Button Grid.Column="2" Style="{StaticResource CyberToolButton}" Content="📁 Папка..." Margin="8,0,0,0" Padding="12,6" Click="BrowseDestFolder_Click"/>
                                     </Grid>
+
+                                    <!-- Панель запуска -->
+                                    <DockPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button x:Name="StartTransferBtn" Style="{StaticResource CyberButton}" Content="⚡ Старт передачи" Padding="18,8" Click="StartLiveTransfer_Click"/>
+                                            <Button x:Name="PauseTransferBtn" Style="{StaticResource CyberToolButton}" Content="⏸ Пауза" Margin="8,0,0,0" Padding="14,8" IsEnabled="False" Click="PauseLiveTransfer_Click"/>
+                                            <Button x:Name="CancelTransferBtn" Style="{StaticResource CyberToolButton}" Content="⏹ Стоп" Margin="8,0,0,0" Padding="14,8" IsEnabled="False" Click="CancelLiveTransfer_Click"/>
+                                        </StackPanel>
+                                        <Button Style="{StaticResource CyberToolButton}" Content="🚀 3D Окно Motion Copy" HorizontalAlignment="Right" Padding="14,8" Click="OpenMotionWindow_Click"/>
+                                    </DockPanel>
                                 </StackPanel>
                             </Border>
 
-                            <!-- Сценарии и настройки копирования -->
+                            <!-- Неоновый телеметрический HUD (4 плашки) -->
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Скорость сейчас -->
+                                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12" Margin="0,0,6,0">
+                                    <StackPanel>
+                                        <TextBlock Text="ТЕКУЩАЯ СКОРОСТЬ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HudCurrentSpeedText" Text="0.0 МБ/с" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"/>
+                                        <TextBlock x:Name="HudBusType" Text="I/O Stream Ready" FontSize="10" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Пиковая скорость -->
+                                <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12" Margin="3,0,3,0">
+                                    <StackPanel>
+                                        <TextBlock Text="ПИКОВАЯ СКОРОСТЬ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HudPeakSpeedText" Text="0.0 МБ/с" FontSize="18" FontWeight="Bold" Foreground="#00FF66" Margin="0,4,0,0"/>
+                                        <TextBlock Text="Hardware Max Bus" FontSize="10" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- ETA -->
+                                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="12" Margin="3,0,3,0">
+                                    <StackPanel>
+                                        <TextBlock Text="ОСТАВШЕЕСЯ ВРЕМЯ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HudEtaText" Text="--:--:--" FontSize="18" FontWeight="Bold" Foreground="#FFD600" Margin="0,4,0,0"/>
+                                        <TextBlock x:Name="HudAvgSpeedText" Text="Средняя: 0 МБ/с" FontSize="10" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Прогресс и объем -->
+                                <Border Grid.Column="3" Style="{StaticResource Card}" Padding="12" Margin="6,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="ПЕРЕДАНО ДАННЫХ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HudProgressText" Text="0% (0 / 0)" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,4,0,0"/>
+                                        <TextBlock x:Name="HudBytesText" Text="0 МБ из 0 МБ" FontSize="10" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Индикатор узких мест (Bottleneck Detector) -->
+                            <Border x:Name="BottleneckBorder" Style="{StaticResource Card}" Background="{DynamicResource ChipBackgroundBrush}" Padding="12,8" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <TextBlock Text="ДЕТЕКТОР ШИНЫ:" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBlock x:Name="BottleneckStatusText" Text="🚀 Прямой доступ к накопителям. Конвейер оптимизирован для максимальной пропускной способности шины PCIe/SATA."
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Прогресс-бар передачи -->
+                            <ProgressBar x:Name="LiveTransferProgressBar" Height="8" Minimum="0" Maximum="100" Value="0"
+                                         Margin="0,0,0,14" BorderThickness="0" Background="{DynamicResource ProgressTrackBrush}" Foreground="{DynamicResource AccentBrush}"/>
+
+                            <!-- Аппаратный график скорости в реальном времени (Canvas) -->
+                            <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,8">
+                                        <TextBlock Text="График скорости в реальном времени (30 FPS)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock x:Name="GraphMaxScaleText" Text="Шкала: 1000 МБ/с" FontSize="11" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                    <Border Background="#0D111A" CornerRadius="6" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" ClipToBounds="True">
+                                        <Canvas x:Name="LiveSpeedCanvas" Height="140" SizeChanged="LiveSpeedCanvas_SizeChanged"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Расширенные опции передачи (I/O Tuning Grid) -->
                             <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,16">
                                 <StackPanel>
-                                    <TextBlock Text="Пресеты скорости и сценарии передачи" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
-                                    <WrapPanel Margin="0,0,0,12">
+                                    <TextBlock Text="Расширенные опции конвейера ввода-вывода (I/O Pipeline Engine)" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+                                    
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                            <TextBlock Text="Размер циклического буфера:" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="TransferBufferCombo" SelectedIndex="2">
+                                                <ComboBoxItem Content="256 КБ (USB 2.0 / HDD)"/>
+                                                <ComboBoxItem Content="512 КБ (Стандартный SSD)"/>
+                                                <ComboBoxItem Content="1 МБ (Оптимально для NVMe)"/>
+                                                <ComboBoxItem Content="2 МБ (Высокая скорость)"/>
+                                                <ComboBoxItem Content="4 МБ (Экстремальный I/O)"/>
+                                                <ComboBoxItem Content="8 МБ (RAM Burst)"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                            <TextBlock Text="Количество параллельных потоков:" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                            <ComboBox x:Name="TransferThreadsCombo" SelectedIndex="2">
+                                                <ComboBoxItem Content="1 поток (Один файл строго по очереди)"/>
+                                                <ComboBoxItem Content="2 параллельных потока"/>
+                                                <ComboBoxItem Content="4 параллельных потока (Рекомендовано)"/>
+                                                <ComboBoxItem Content="8 параллельных потоков"/>
+                                                <ComboBoxItem Content="16 параллельных потоков (PCIe Gen4/5)"/>
+                                            </ComboBox>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <WrapPanel Margin="0,0,0,10">
+                                        <CheckBox x:Name="TransferDirectIoCheck" Content="Direct I/O (Обход кэша Windows / FILE_FLAG_NO_BUFFERING)" Margin="0,0,16,6" IsChecked="False"/>
+                                        <CheckBox x:Name="TransferSequentialCheck" Content="Оптимизация чтения ядра (FILE_FLAG_SEQUENTIAL_SCAN)" Margin="0,0,16,6" IsChecked="True"/>
+                                        <CheckBox x:Name="TransferCrcCheck" Content="Расчёт CRC-32 на лету" Margin="0,0,16,6" IsChecked="True"/>
+                                    </WrapPanel>
+
+                                    <!-- Быстрые сценарии симуляции -->
+                                    <TextBlock Text="Готовые сценарии симуляции и стресс-теста:" FontSize="11" Style="{StaticResource MutedText}" Margin="0,6,0,6"/>
+                                    <WrapPanel>
                                         <Button Style="{StaticResource SpeedChip}" Content="🐢 50 МБ/с (HDD)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="50"/>
                                         <Button Style="{StaticResource SpeedChip}" Content="⚡ 150 МБ/с (SATA SSD)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="150"/>
                                         <Button Style="{StaticResource SpeedChip}" Content="🚀 500 МБ/с (NVMe Gen3)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="500"/>
-                                        <Button Style="{StaticResource SpeedChip}" Content="✨ 1.2 ГБ/с (PCIe 4.0)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="1200"/>
+                                        <Button Style="{StaticResource SpeedChip}" Content="✨ 1.5 ГБ/с (PCIe 4.0)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="1500"/>
+                                        <Button Style="{StaticResource SpeedChip}" Content="🔥 3.5 ГБ/с (NVMe Gen5 Turbo)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="3500"/>
                                     </WrapPanel>
-                                    <DockPanel Margin="0,0,0,4">
-                                        <TextBlock Text="Скорость передачи" FontSize="12" Style="{StaticResource MutedText}"/>
-                                        <TextBlock x:Name="SpeedLabel" Text="150 МБ/с" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
-                                    </DockPanel>
-                                    <Slider x:Name="SpeedSlider" Style="{StaticResource NeonSlider}" Minimum="1" Maximum="2000" Value="150" ValueChanged="SpeedSlider_ValueChanged"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -307,46 +456,79 @@
 
                 <!-- ================= 3. ИНСТРУМЕНТЫ ================= -->
                 <Grid x:Name="ToolsView" Visibility="Collapsed" Margin="18">
-                    <StackPanel MaxWidth="760" HorizontalAlignment="Center">
-                        <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
-                            <DockPanel>
-                                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
-                                    <TextBlock Text="#" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Открыть калькулятор" Padding="14,6" Click="OpenChecksumTool_Click"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Калькулятор контрольных сумм и проверка хэшей" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                    <TextBlock Text="Мгновенный расчёт CRC32, MD5, SHA-1, SHA-256, SHA-512 в один потоковый проход и проверка совпадения" FontSize="11" Style="{StaticResource MutedText}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="800" HorizontalAlignment="Center">
+                            <!-- WizTree Disk Analyzer -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="🌳" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="⚡ Запустить WizTree" Padding="14,6" Click="OpenWizTree_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Анализатор дискового пространства WizTree" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Визуальная карта весов директорий, топ-100 тяжелых файлов, диаграмма расширений и быстрые действия очистки" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
 
-                        <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
-                            <DockPanel>
-                                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
-                                    <TextBlock Text="⇄" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Сравнить файлы" Padding="14,6" Click="OpenFileCompare_Click"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Побайтовое бинарное сравнение файлов" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                    <TextBlock Text="Выявление различий между файлами любого размера с фиксацией смещения первого несовпадения" FontSize="11" Style="{StaticResource MutedText}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
+                            <!-- Duplicate File Finder -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="🔍" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Найти дубликаты" Padding="14,6" Click="OpenDuplicateFinder_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Поиск и безопасная очистка дубликатов файлов" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="3-этапное сканирование (Размер → Пре-хэш 4 КБ → Полный SHA-256), авто-выделение копий и безопасное удаление" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
 
-                        <Border Style="{StaticResource Card}" Padding="18">
-                            <DockPanel>
-                                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
-                                    <TextBlock Text="📊" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Анализ диска" Padding="14,6" Click="OpenDiskAnalyze_Click"/>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Анализатор размера папок и дискового пространства" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                    <TextBlock Text="Быстрое рекурсивное сканирование тяжелых директорий без блокировки интерфейса" FontSize="11" Style="{StaticResource MutedText}"/>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
-                    </StackPanel>
+                            <!-- Driver Inspector -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="🧩" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Проверить драйверы" Padding="14,6" Click="OpenDriverInspector_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Инспектор системных драйверов и оборудования" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Диагностика накопителей NVMe/SATA, видеокарт, сетевых карт, выявление кодов ошибок и экспорт отчетов" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Хэши и контрольные суммы -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="#" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Открыть калькулятор" Padding="14,6" Click="OpenChecksumTool_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Калькулятор контрольных сумм и проверка хэшей" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Мгновенный расчёт CRC32, MD5, SHA-1, SHA-256, SHA-512 в один потоковый проход и проверка совпадения" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Сравнение файлов -->
+                            <Border Style="{StaticResource Card}" Padding="18">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="⇄" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Сравнить файлы" Padding="14,6" Click="OpenFileCompare_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Побайтовое бинарное сравнение файлов" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Выявление различий между файлами любого размера с фиксацией смещения первого несовпадения" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
 
                 <!-- ================= 4. НАСТРОЙКИ И ТЕМЫ ================= -->
