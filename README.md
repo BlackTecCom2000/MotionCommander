@@ -5,6 +5,7 @@
 [![Framework: .NET 8 WPF](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4.svg?logo=dotnet)]()
 [![Author: BlackTecCom - Jaborov Daler](https://img.shields.io/badge/Author-BlackTecCom%20--%20Jaborov%20Daler-00F0FF.svg)]()
 [![Version: v3.0.0](https://img.shields.io/badge/Version-3.0.0%20Release-10B981.svg)]()
+[![Sponsor: GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa.svg?logo=githubsponsors)](https://github.com/sponsors/BlackTecCom2000)
 
 > **Motion Commander** — это ультра-современный, сверхпроизводительный инструмент нового поколения для Windows 10 и 11, объединяющий в себе высокоскоростной конвейер передачи файлов, виртуальный архиватор, профессиональный центр контроля дисков **Storage Control Center** и низкоуровневый менеджер разделов **Disk Partition Manager**.
 
@@ -76,6 +77,16 @@ dotnet publish Win11CopyDialog/Win11CopyDialog.csproj -c Release -o ./publish
 Продукт распространяется под свободной лицензией [MIT License](LICENSE).
 - Программа бесплатна для скачивания, установки и использования как частными пользователями, так и организациями.
 - Автор и правообладатель (**BlackTecCom - Jaborov Daler**) сохраняет за собой эксклюзивные права на развитие ядра, архитектурные изменения и публикацию официальных обновлений.
+
+---
+
+## 💖 Поддержка проекта (GitHub Sponsors)
+
+Если вам нравится **Motion Commander** и вы хотите поддержать дальнейшую разработку новых функций, алгоритмических оптимизаций и аппаратных модулей:
+
+[![Sponsor Motion Commander](https://img.shields.io/badge/💖_Спонсировать_проект-GitHub_Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors)](https://github.com/sponsors/BlackTecCom2000)
+
+Ваша поддержка помогает проекту оставаться полностью бесплатным, развиваться и получать регулярные обновления!
 
 ---
 

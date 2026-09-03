@@ -1119,6 +1119,20 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    private void OpenSponsors_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/sponsors/BlackTecCom2000",
+                UseShellExecute = true
+            });
+        }
+        catch { }
+    }
+
     // ---------- ОКНО (CAPTION) ----------
 
     private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)

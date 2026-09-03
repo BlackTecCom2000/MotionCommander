@@ -621,6 +621,7 @@
                                     </Border>
 
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Style="{StaticResource CyberToolButton}" Content="💖 Поддержать автора (Sponsor)" Padding="12,5" Margin="0,0,8,0" Click="OpenSponsors_Click"/>
                                         <Button Style="{StaticResource CyberToolButton}" Content="🌐 Открыть GitHub: BlackTecCom2000" Padding="12,5" Click="OpenGitHub_Click"/>
                                     </StackPanel>
                                 </StackPanel>
