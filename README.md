@@ -1,11 +1,22 @@
-# Motion Commander — Все-в-одном Файловый Менеджер, Архиватор и Storage Control Center
+## 💙 Support Motion Commander
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform: Windows 10/11](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20x64-0078D4.svg?logo=windows)]()
-[![Framework: .NET 8 WPF](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4.svg?logo=dotnet)]()
-[![Author: BlackTecCom - Jaborov Daler](https://img.shields.io/badge/Author-BlackTecCom%20--%20Jaborov%20Daler-00F0FF.svg)]()
-[![Version: v3.0.0](https://img.shields.io/badge/Version-3.0.0%20Release-10B981.svg)]()
-[![Sponsor: GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa.svg?logo=githubsponsors)](https://github.com/sponsors/BlackTecCom2000)
+If you find Motion Commander useful, you can support the project.
+
+### GitHub Sponsors
+
+[![Sponsor: GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-DB61A2?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/BlackTecCom)
+
+### Other ways to support
+
+You can also support the project through local payment methods:
+
+- 🇹🇯 Alif Bank VISA
+- 🇹🇯 DC Bank VISA
+
+> For security reasons, full bank card numbers are not published in this repository.
+> Please contact the author for the appropriate payment method.
+
+**Author:** BlackTecCom — Jaborov Daler
 
 > **Motion Commander** — это ультра-современный, сверхпроизводительный инструмент нового поколения для Windows 10 и 11, объединяющий в себе высокоскоростной конвейер передачи файлов, виртуальный архиватор, профессиональный центр контроля дисков **Storage Control Center** и низкоуровневый менеджер разделов **Disk Partition Manager**.
 
