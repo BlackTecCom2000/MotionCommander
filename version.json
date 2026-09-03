@@ -1,18 +1,18 @@
-{
-  "version": "3.1.0",
-  "releaseDate": "2026-09-04",
-  "productName": "Motion Commander",
-  "author": "BlackTecCom - Jaborov Daler",
-  "license": "MIT",
-  "minWindowsVersion": "10.0.19041",
-  "changelog": [
-    "🚀 Мастер-уровень скорости: Прямой конвейер Direct I/O Streamer с аппаратным насыщением шины PCIe/SATA",
-    "📊 Аппаратно-ускоренный график скорости (30 FPS) и 4-компонентный неоновый телеметрический HUD",
-    "🌳 WizTree Дисковый анализатор: Интерактивная карта веса папок, топ-100 тяжёлых файлов и расширения",
-    "🔍 Поиск и очистка дубликатов: 3-этапный ультрабыстрый алгоритм (Размер -> 4KB Pre-Hash -> SHA-256)",
-    "🧩 Инспектор оборудования и драйверов: Аудит WMI, PnP-диагностика, экспорт в TXT/CSV и вызов devmgmt.msc",
-    "⚙ Окно настроек и персонализации: 10 дизайнерских тем (Cyberpunk, OLED Midnight, Matrix, Sunset) и редактор JSON"
-  ],
-  "downloadUrl": "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.1.0-Portable.zip",
-  "installerUrl": "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.1.0-Portable.zip"
+﻿{
+    "version":  "3.1.0",
+    "releaseDate":  "2026-09-04",
+    "productName":  "Motion Commander",
+    "author":  "BlackTecCom - Jaborov Daler",
+    "license":  "MIT",
+    "minWindowsVersion":  "10.0.19041",
+    "changelog":  [
+                      "Direct I/O Streamer: Hardware saturation PCIe/SATA pipeline with null-allocation pool",
+                      "Speed Telemetry HUD: 30 FPS Canvas speed graph, 4-tile neon indicators and bottleneck detector",
+                      "WizTree Disk Space Analyzer: Folder weights treemap, Top-100 heavy files and extensions statistics",
+                      "Duplicate File Cleaner: 3-stage high-speed scan (Size -\u003e 4KB Pre-Hash -\u003e Full SHA-256)",
+                      "System Driver Inspector: WMI PnP device audit, state indicators, devmgmt.msc and report export",
+                      "Settings Window: 10 designer themes (Cyberpunk, OLED Midnight, Matrix, Sunset), backdrops, haptics and JSON editor"
+                  ],
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.1.0-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.1.0-Portable.zip"
 }
