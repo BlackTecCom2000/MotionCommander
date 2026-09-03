@@ -1,0 +1,98 @@
+name: Multi-Platform Build & Release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-core:
+    name: Build & Test Cross-Platform Core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build Core & CLI
+        run: |
+          dotnet build src/MotionCommander.Core/MotionCommander.Core.csproj -c Release
+          dotnet build src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release
+
+  publish-linux:
+    name: Publish Linux Binaries (x64 / ARM64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish Linux x64
+        run: |
+          dotnet publish src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o publish/linux-x64
+          tar -czf motion-linux-x64.tar.gz -C publish/linux-x64 .
+      - name: Publish Linux arm64
+        run: |
+          dotnet publish src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true -o publish/linux-arm64
+          tar -czf motion-linux-arm64.tar.gz -C publish/linux-arm64 .
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-linux-packages
+          path: |
+            motion-linux-x64.tar.gz
+            motion-linux-arm64.tar.gz
+
+  publish-macos:
+    name: Publish macOS Binaries (Apple Silicon & Intel)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish macOS ARM64 (Apple Silicon)
+        run: |
+          dotnet publish src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -o publish/osx-arm64
+          tar -czf motion-macos-arm64.tar.gz -C publish/osx-arm64 .
+      - name: Publish macOS x64 (Intel)
+        run: |
+          dotnet publish src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -o publish/osx-x64
+          tar -czf motion-macos-x64.tar.gz -C publish/osx-x64 .
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-macos-packages
+          path: |
+            motion-macos-arm64.tar.gz
+            motion-macos-x64.tar.gz
+
+  publish-windows:
+    name: Publish Windows GUI & CLI
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish Windows GUI
+        run: |
+          dotnet publish Win11CopyDialog/Win11CopyDialog.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-gui
+          Compress-Archive -Path publish/win-gui/* -DestinationPath MotionCommander-Windows-x64.zip
+      - name: Publish Windows CLI
+        run: |
+          dotnet publish src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-cli
+          Compress-Archive -Path publish/win-cli/* -DestinationPath motion-cli-Windows-x64.zip
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-windows-packages
+          path: |
+            MotionCommander-Windows-x64.zip
+            motion-cli-Windows-x64.zip

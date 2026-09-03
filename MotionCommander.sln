@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{BEF0E55D-5942-4033-BB00-EDFB2F629D41}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MotionCommander.Core", "src\MotionCommander.Core\MotionCommander.Core.csproj", "{64257ADA-50F6-413B-BD95-BB90B1360888}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MotionCommander.Cli", "src\MotionCommander.Cli\MotionCommander.Cli.csproj", "{9997F70B-F112-4954-A7CB-1D6637122AA4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Win11CopyDialog", "Win11CopyDialog\Win11CopyDialog.csproj", "{B4A82FBC-28B6-4C20-92B8-EF5FD06667A6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{64257ADA-50F6-413B-BD95-BB90B1360888}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{64257ADA-50F6-413B-BD95-BB90B1360888}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{64257ADA-50F6-413B-BD95-BB90B1360888}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{64257ADA-50F6-413B-BD95-BB90B1360888}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9997F70B-F112-4954-A7CB-1D6637122AA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9997F70B-F112-4954-A7CB-1D6637122AA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9997F70B-F112-4954-A7CB-1D6637122AA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9997F70B-F112-4954-A7CB-1D6637122AA4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4A82FBC-28B6-4C20-92B8-EF5FD06667A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4A82FBC-28B6-4C20-92B8-EF5FD06667A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4A82FBC-28B6-4C20-92B8-EF5FD06667A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4A82FBC-28B6-4C20-92B8-EF5FD06667A6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{64257ADA-50F6-413B-BD95-BB90B1360888} = {BEF0E55D-5942-4033-BB00-EDFB2F629D41}
+		{9997F70B-F112-4954-A7CB-1D6637122AA4} = {BEF0E55D-5942-4033-BB00-EDFB2F629D41}
+	EndGlobalSection
+EndGlobal
