@@ -1,0 +1,101 @@
+<Window x:Class="Win11CopyDialog.Views.Dialogs.ExtractArchiveWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
+        Title="Распаковка архива — Motion Commander"
+        Width="580" Height="560"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Border x:Name="RootBorder" Background="{DynamicResource WindowBackgroundBrush}"
+            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+            CornerRadius="14">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="6" Direction="270"
+                              Color="{DynamicResource GlowAccentColor}" Opacity="0.35"/>
+        </Border.Effect>
+
+        <DockPanel Margin="18">
+            <!-- ШАПКА -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="{DynamicResource AccentBrush}" Margin="0,0,8,0">
+                        <TextBlock Text="📦" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Распаковка архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+            </Grid>
+
+            <!-- КНОПКИ ВНИЗУ -->
+            <Border DockPanel.Dock="Bottom" Margin="0,14,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Style="{StaticResource MutedText}"/>
+                    <Button x:Name="TestBtn" Grid.Column="1" Style="{StaticResource Win11Button}" Content="🛡 Тест архива" MinWidth="110" Height="34" Margin="0,0,8,0" Click="TestArchive_Click"/>
+                    <Button x:Name="CancelBtn" Grid.Column="2" Style="{StaticResource Win11Button}" Content="Отмена" MinWidth="80" Height="34" Margin="0,0,8,0" Click="Close_Click"/>
+                    <Button x:Name="ExtractBtn" Grid.Column="3" Style="{StaticResource CyberButton}" Content="⚡ Извлечь файлы" MinWidth="140" Height="34" Click="StartExtract_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- ОСНОВНОЕ ТЕЛО -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Исходный архив -->
+                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Архив" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="ArchiveNameText" Text="archive.zip" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Папка назначения -->
+                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Папка назначения для распаковки" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Обзор…" Margin="6,0,0,0" Padding="12,4" Click="Browse_Click"/>
+                                <TextBox x:Name="DestFolderBox" Height="32" VerticalContentAlignment="Center" Padding="8,0"
+                                         Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}"
+                                         BorderBrush="{DynamicResource SubtleBorderBrush}"/>
+                            </DockPanel>
+                            <CheckBox x:Name="CreateSubfolderCheck" Content="Распаковать в отдельную подпапку" Margin="0,8,0,0" IsChecked="True"/>
+                            <CheckBox x:Name="OverwriteCheck" Content="Перезаписывать существующие файлы" Margin="0,6,0,0" IsChecked="True"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Пароль -->
+                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Пароль (если архив зашифрован)" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                            <PasswordBox x:Name="PasswordInput" Height="32" VerticalContentAlignment="Center" Padding="8,0"
+                                         Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}"
+                                         BorderBrush="{DynamicResource SubtleBorderBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ВИЗУАЛИЗАТОР ИЗВЛЕЧЕНИЯ (Появляется при процессе) -->
+                    <Border x:Name="VisualCard" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,6" Visibility="Collapsed">
+                        <StackPanel>
+                            <ctrl:ExtractionVisualizer x:Name="ExtractVis" Height="130"/>
+                            <TextBlock x:Name="ExtractFileText" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,8,0,0"/>
+                            <ProgressBar x:Name="ExtractProgress" Height="6" Margin="0,6,0,0" Minimum="0" Maximum="100"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</Window>

@@ -1,0 +1,26 @@
+## Build and binary outputs
+**/bin/
+**/obj/
+**/publish/
+dist/
+**/.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## OS generated files
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+
+## IDE & Workspace files
+.idea/
+.vscode/
+
+## Crash and diagnostic logs
+**/scratch/
+**/crash.txt

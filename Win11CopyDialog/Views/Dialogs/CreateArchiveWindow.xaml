@@ -1,0 +1,141 @@
+<Window x:Class="Win11CopyDialog.Views.Dialogs.CreateArchiveWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
+        Title="Создание архива — Motion Commander"
+        Width="580" Height="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Border x:Name="RootBorder" Background="{DynamicResource WindowBackgroundBrush}"
+            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+            CornerRadius="14">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="6" Direction="270"
+                              Color="{DynamicResource GlowAccentColor}" Opacity="0.35"/>
+        </Border.Effect>
+
+        <DockPanel Margin="18">
+            <!-- ШАПКА -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="{DynamicResource AccentBrush}" Margin="0,0,8,0">
+                        <TextBlock Text="🗜" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Создание архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+            </Grid>
+
+            <!-- КНОПКИ ВНИЗУ -->
+            <Border DockPanel.Dock="Bottom" Margin="0,14,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Style="{StaticResource MutedText}"/>
+                    <Button x:Name="CancelBtn" Grid.Column="1" Style="{StaticResource Win11Button}" Content="Отмена" MinWidth="90" Height="34" Margin="0,0,8,0" Click="Close_Click"/>
+                    <Button x:Name="StartBtn" Grid.Column="2" Style="{StaticResource CyberButton}" Content="⚡ Сжать архив" MinWidth="130" Height="34" Click="StartCompress_Click"/>
+                </Grid>
+            </Border>
+
+            <!-- ОСНОВНОЕ ТЕЛО -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Имя и путь архива -->
+                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Имя и путь к архиву" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Обзор…" Margin="6,0,0,0" Padding="12,4" Click="Browse_Click"/>
+                                <TextBox x:Name="ArchivePathBox" Height="32" VerticalContentAlignment="Center" Padding="8,0"
+                                         Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}"
+                                         BorderBrush="{DynamicResource SubtleBorderBrush}"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Формат и Сжатие -->
+                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,6,0">
+                                    <TextBlock Text="Формат архива" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="FormatCombo" Height="32" SelectedIndex="0">
+                                        <ComboBoxItem Content=".ZIP (Универсальный)"/>
+                                        <ComboBoxItem Content=".7Z (Максимальное сжатие)"/>
+                                        <ComboBoxItem Content=".TAR (Без сжатия)"/>
+                                        <ComboBoxItem Content=".TAR.GZ (Linux стандарт)"/>
+                                        <ComboBoxItem Content=".TAR.BZ2 (Высокое сжатие)"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                    <TextBlock Text="Метод компрессии" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="LevelCombo" Height="32" SelectedIndex="2">
+                                        <ComboBoxItem Content="Без сжатия (Store)"/>
+                                        <ComboBoxItem Content="Быстрое (Fast)"/>
+                                        <ComboBoxItem Content="Оптимальное (Balanced)"/>
+                                        <ComboBoxItem Content="Максимальное (Maximum)"/>
+                                        <ComboBoxItem Content="Ультра (Ultra)"/>
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Слайдер уровня сжатия -->
+                            <TextBlock Text="Уровень сжатия (Скорость ↔ Плотность)" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                            <Slider x:Name="LevelSlider" Minimum="0" Maximum="4" Value="2" TickFrequency="1" IsSnapToTickEnabled="True"
+                                    ValueChanged="LevelSlider_ValueChanged"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Безопасность / Пароль -->
+                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Шифрование и Защита паролем" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <PasswordBox x:Name="PasswordInput" Height="32" VerticalContentAlignment="Center" Padding="8,0"
+                                             Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}"
+                                             BorderBrush="{DynamicResource SubtleBorderBrush}"/>
+                                <CheckBox x:Name="EncryptHeadersCheck" Grid.Column="1" Content="Шифровать имена файлов (7Z)"
+                                          VerticalAlignment="Center" Margin="12,0,0,0" IsChecked="True"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ВИЗУАЛИЗАТОР СЖАТИЯ (Появляется при процессе) -->
+                    <Border x:Name="VisualCard" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,6" Visibility="Collapsed">
+                        <StackPanel>
+                            <ctrl:CompressionVisualizer x:Name="CompVis" Height="140"/>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="CompFileText" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="CompRatioText" Grid.Column="1" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                            </Grid>
+                            <ProgressBar x:Name="CompProgress" Height="6" Margin="0,6,0,0" Minimum="0" Maximum="100"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</Window>

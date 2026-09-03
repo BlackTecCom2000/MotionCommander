@@ -1,0 +1,608 @@
+<UserControl x:Class="Win11CopyDialog.Modules.StorageControlCenter.Views.StorageControlCenterView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="750" d:DesignWidth="1100">
+    <UserControl.Resources>
+        <Style x:Key="StorageSubTab" TargetType="RadioButton">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="TabBorder" Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderThickness="1" BorderBrush="Transparent" Padding="{TemplateBinding Padding}" Margin="2,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="12,6,12,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Верхняя панель и выбор накопителя -->
+            <RowDefinition Height="Auto"/> <!-- Подвкладки управления -->
+            <RowDefinition Height="*"/>    <!-- Рабочая область выбранного подраздела -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. ВЕРХНИЙ БЛОК: СЕЛЕКТОР НАКОПИТЕЛЕЙ И БЫСТРЫЕ ДЕЙСТВИЯ (БЕСКОНФЛИКТНАЯ СЕТКА) -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Левый блок: заголовок и горизонтальный список дисков -->
+                <StackPanel Grid.Column="0">
+                    <DockPanel Margin="0,0,0,8">
+                        <TextBlock Text="🖴 Storage Control Center" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                        <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="v2.0 NVMe/SSD/HDD Master Engine" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                    </DockPanel>
+
+                    <!-- Горизонтальная карусель карточек накопителей -->
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,2" Margin="0,0,6,0">
+                        <StackPanel x:Name="DrivesStripPanel" Orientation="Horizontal"/>
+                    </ScrollViewer>
+                </StackPanel>
+
+                <!-- Правый блок: глобальные кнопки в изолированной колонке (Zero-Conflict) -->
+                <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <Button x:Name="RefreshDrivesBtn" Style="{StaticResource CyberButton}" Content="🔄 Обновить диски" Padding="12,7" Margin="0,0,0,8" Click="RefreshDrives_Click"/>
+                    <Button x:Name="ExportReportBtn" Style="{StaticResource CyberToolButton}" Content="📊 Отчет S.M.A.R.T." Padding="10,6" Click="ExportReport_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. ПОДВКЛАДКИ УПРАВЛЕНИЯ -->
+        <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,10">
+            <UniformGrid Columns="6">
+                <RadioButton x:Name="SubTabHealthRadio" GroupName="StorageSubGroup" Content="🩺 Обзор и Health" Style="{StaticResource StorageSubTab}" IsChecked="True" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                <RadioButton x:Name="SubTabPartitionsRadio" GroupName="StorageSubGroup" Content="🗂 Partition Manager" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                <RadioButton x:Name="SubTabBenchmarkRadio" GroupName="StorageSubGroup" Content="🏎 Бенчмарк скорости" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                <RadioButton x:Name="SubTabOptimizerRadio" GroupName="StorageSubGroup" Content="⚡ Оптимизация и TRIM" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                <RadioButton x:Name="SubTabCleanupRadio" GroupName="StorageSubGroup" Content="🧹 Анализ пространства" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                <RadioButton x:Name="SubTabSafetyRadio" GroupName="StorageSubGroup" Content="🛡 Безопасность и Wipe" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+            </UniformGrid>
+        </Border>
+
+        <!-- 3. РАБОЧАЯ ОБЛАСТЬ -->
+        <Grid Grid.Row="2">
+
+            <!-- ================= A. ОБЗОР И ЗДОРОВЬЕ (HEALTH & SMART) ================= -->
+            <ScrollViewer x:Name="ViewHealth" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,4,0">
+                    <!-- Сводные метрики здоровья выбранного накопителя -->
+                    <UniformGrid Columns="4" Margin="0,0,0,10">
+                        <!-- Карточка 1: Оценка Storage Score -->
+                        <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,6,0">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Right" Width="48" Height="48" CornerRadius="24" Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="HealthScoreGradeText" Text="A+" FontSize="18" FontWeight="Black" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Storage Score" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    <TextBlock x:Name="HealthScoreValueText" Text="98 / 100" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                    <TextBlock x:Name="HealthScoreStatusText" Text="Отличное состояние" FontSize="10" Foreground="#10B981"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Карточка 2: Температура -->
+                        <Border Style="{StaticResource Card}" Padding="14" Margin="3,0,3,0">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Температура ядра" FontSize="11" Style="{StaticResource MutedText}"/>
+                                <DockPanel Margin="0,2,0,0">
+                                    <Border x:Name="TempBadgeBorder" Background="#10B981" CornerRadius="4" Padding="6,1" VerticalAlignment="Center" DockPanel.Dock="Right">
+                                        <TextBlock x:Name="TempStatusBadgeText" Text="Норма" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                    </Border>
+                                    <TextBlock x:Name="DiskTempValueText" Text="38 °C" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                </DockPanel>
+                                <TextBlock x:Name="TempDescText" Text="Троттлинг не обнаружен" FontSize="10" Style="{StaticResource MutedText}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Карточка 3: Ресурс и износ (Wear) -->
+                        <Border Style="{StaticResource Card}" Padding="14" Margin="3,0,3,0">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Остаточный ресурс (Life Left)" FontSize="11" Style="{StaticResource MutedText}"/>
+                                <TextBlock x:Name="DiskWearValueText" Text="98% (Износ 2%)" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                <TextBlock x:Name="DiskLifeDescText" Text="TBW: 12 ТБ записано" FontSize="10" Style="{StaticResource MutedText}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Карточка 4: Время работы -->
+                        <Border Style="{StaticResource Card}" Padding="14" Margin="6,0,0,0">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Время наработки / Пуски" FontSize="11" Style="{StaticResource MutedText}"/>
+                                <TextBlock x:Name="DiskPowerHoursText" Text="1 840 часов" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                <TextBlock x:Name="DiskPowerCyclesText" Text="340 включений" FontSize="10" Style="{StaticResource MutedText}"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Шкала заполнения выбранного диска -->
+                    <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock x:Name="DiskCapacitySummaryText" Text="Использование емкости: 520 ГБ занято из 1 024 ГБ (50.8% свободно)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                <TextBlock x:Name="DiskFreeSpaceBadgeText" Text="Свободно: 504 ГБ" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <ProgressBar x:Name="DiskSpaceProgressBar" Height="8" Minimum="0" Maximum="100" Value="49.2" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource WindowBackgroundBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Рекомендации Storage AI Advisor -->
+                    <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <TextBlock Text="💡 Рекомендации Storage AI Advisor" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                <TextBlock Text="Автоматический анализ узких мест" FontSize="10" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <StackPanel x:Name="AdvisorRecommendationsStack"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Таблица S.M.A.R.T. атрибутов -->
+                    <Border Style="{StaticResource Card}" Padding="14">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <TextBlock Text="📊 Таблица атрибутов S.M.A.R.T." FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                <TextBlock Text="Диагностика самотестирования контроллера" FontSize="10" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <ListView x:Name="SmartAttributesList" BorderThickness="0" Background="Transparent" MaxHeight="280">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="ID" Width="50" DisplayMemberBinding="{Binding Id, StringFormat='0x{0:X2}'}"/>
+                                        <GridViewColumn Header="Имя атрибута" Width="280" DisplayMemberBinding="{Binding Name}"/>
+                                        <GridViewColumn Header="Текущее" Width="70" DisplayMemberBinding="{Binding Current}"/>
+                                        <GridViewColumn Header="Худшее" Width="70" DisplayMemberBinding="{Binding Worst}"/>
+                                        <GridViewColumn Header="Порог" Width="70" DisplayMemberBinding="{Binding Threshold}"/>
+                                        <GridViewColumn Header="Raw значение" Width="120" DisplayMemberBinding="{Binding RawValueFormatted}"/>
+                                        <GridViewColumn Header="Статус" Width="80" DisplayMemberBinding="{Binding Status}"/>
+                                        <GridViewColumn Header="Описание" Width="280" DisplayMemberBinding="{Binding Description}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ================= B. DISK PARTITION MANAGER ================= -->
+            <ScrollViewer x:Name="ViewPartitions" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,4,0">
+                    <!-- 1. ПАНЕЛЬ ИНСТРУМЕНТОВ PARTITION MANAGER -->
+                    <Border Style="{StaticResource Card}" Padding="10" Margin="0,0,0,10">
+                        <WrapPanel Orientation="Horizontal">
+                            <Button x:Name="PartCreateBtn" Style="{StaticResource CyberToolButton}" Content="➕ Создать раздел" Padding="10,5" Margin="0,0,5,5" Click="PartCreate_Click"/>
+                            <Button x:Name="PartDeleteBtn" Style="{StaticResource CyberDangerButton}" Content="❌ Удалить том (Override)" Padding="12,5" Margin="0,0,5,5" Click="PartDelete_Click"/>
+                            <Button x:Name="PartShrinkBtn" Style="{StaticResource CyberToolButton}" Content="↔ Сжать том" Padding="10,5" Margin="0,0,5,5" Click="PartShrink_Click"/>
+                            <Button x:Name="PartExtendBtn" Style="{StaticResource CyberToolButton}" Content="➡ Расширить том" Padding="10,5" Margin="0,0,5,5" Click="PartExtend_Click"/>
+                            <Button x:Name="PartFormatBtn" Style="{StaticResource CyberToolButton}" Content="💾 Форматировать" Padding="10,5" Margin="0,0,5,5" Click="PartFormat_Click"/>
+                            <Button x:Name="PartChangeLetterBtn" Style="{StaticResource CyberToolButton}" Content="🔤 Буква диска" Padding="10,5" Margin="0,0,5,5" Click="PartChangeLetter_Click"/>
+                            <Button x:Name="PartChangeLabelBtn" Style="{StaticResource CyberToolButton}" Content="🏷 Метка тома" Padding="10,5" Margin="0,0,5,5" Click="PartChangeLabel_Click"/>
+                            <Button x:Name="DiskCleanBtn" Style="{StaticResource CyberToolButton}" Content="🧹 Очистить диск (Clean)" Padding="10,5" Margin="0,0,5,5" Click="DiskClean_Click"/>
+                            <Button x:Name="DiskClearReadOnlyBtn" Style="{StaticResource CyberToolButton}" Content="🔓 Снять Read-Only" Padding="10,5" Margin="0,0,5,5" Click="DiskClearReadOnly_Click"/>
+                            <Button x:Name="PartChkdskBtn" Style="{StaticResource CyberToolButton}" Content="🩺 Проверка Chkdsk" Padding="10,5" Margin="0,0,5,5" Click="PartChkdsk_Click"/>
+                        </WrapPanel>
+                    </Border>
+
+                    <!-- 2. ИНТЕРАКТИВНАЯ КАРТА РАЗДЕЛОВ ДИСКА -->
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🗺 Интерактивная карта разметки диска" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <Border Background="#10B981" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="SuperAdmin Engine" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock x:Name="PartitionMapStyleText" Text="Стиль: GPT (GUID Partition Table)" FontSize="10" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+
+                            <!-- Контейнер визуальной полосы разделов -->
+                            <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,8">
+                                <Grid x:Name="PartitionMapGrid" Height="56"/>
+                            </Border>
+
+                            <!-- Легенда типов разделов -->
+                            <WrapPanel Margin="0,0,0,2">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,4">
+                                    <Border Width="12" Height="12" Background="{StaticResource PartitionBasicDataGradient}" CornerRadius="2" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Основной раздел данных" FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,4">
+                                    <Border Width="12" Height="12" Background="{StaticResource PartitionSystemEfiGradient}" CornerRadius="2" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Системный EFI" FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,4">
+                                    <Border Width="12" Height="12" Background="{StaticResource PartitionMsrGradient}" CornerRadius="2" Margin="0,0,6,0"/>
+                                    <TextBlock Text="MSR / Зарезервировано" FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,4">
+                                    <Border Width="12" Height="12" Background="{StaticResource PartitionRecoveryGradient}" CornerRadius="2" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Раздел восстановления" FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,4">
+                                    <Border Width="12" Height="12" Background="{StaticResource PartitionUnallocatedGradient}" CornerRadius="2" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Нераспределенное пространство" FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 3. ИНТЕРАКТИВНАЯ ФОРМА ОПЕРАЦИИ (FLYOUT FORM) -->
+                    <Border x:Name="PartitionActionBox" Visibility="Collapsed" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,10" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,12">
+                                <TextBlock x:Name="ActionBoxTitleText" Text="Параметры операции" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                <Button x:Name="ActionBoxCancelTopBtn" Content="✕ Закрыть" Style="{StaticResource CyberToolButton}" Padding="8,2" HorizontalAlignment="Right" Click="ActionBoxCancel_Click"/>
+                            </DockPanel>
+
+                            <!-- Контейнер динамических элементов формы -->
+                            <StackPanel x:Name="ActionFormContainer"/>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                                <Button x:Name="ActionBoxCancelBottomBtn" Content="Отмена" Style="{StaticResource CyberToolButton}" Padding="12,5" Margin="0,0,8,0" Click="ActionBoxCancel_Click"/>
+                                <Button x:Name="ActionBoxExecuteBtn" Content="✔ ВЫПОЛНИТЬ ОПЕРАЦИЮ" Style="{StaticResource CyberButton}" Padding="16,5" Click="ActionBoxExecute_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 4. ДЕТАЛЬНАЯ ТАБЛИЦА ВСЕХ РАЗДЕЛОВ ДИСКА -->
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock x:Name="SelectedPartitionTitleText" Text="Выберите раздел на карте выше" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock x:Name="SelectedPartitionDetailsText" Text="Нажмите на любой сегмент диска для выполнения операций" FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                                <Border x:Name="ProtectedBadgeBorder" Visibility="Collapsed" Background="#EF4444" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                    <TextBlock Text="🛡 ЗАЩИЩЕННЫЙ СИСТЕМНЫЙ ТОМ" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                            </DockPanel>
+
+                            <!-- Hero Card выбранного раздела (4 метрических блока - Zero-Conflict Layout) -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Плитка 1: Буква и том -->
+                                <Border Grid.Column="0" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,6,0" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="ТОМ И МЕТКА" FontSize="8.5" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HeroVolumeText" Text="—" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Плитка 2: Файловая система -->
+                                <Border Grid.Column="1" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,6,0" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="ФАЙЛОВАЯ СИСТЕМА" FontSize="8.5" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HeroFsText" Text="—" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Плитка 3: Емкость и свободное место -->
+                                <Border Grid.Column="2" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="10,6" Margin="0,0,6,0" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="ЕМКОСТЬ / СВОБОДНО" FontSize="8.5" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HeroCapacityText" Text="—" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Плитка 4: Статус безопасности -->
+                                <Border Grid.Column="3" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="10,6" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="БЕЗОПАСНОСТЬ" FontSize="8.5" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HeroSecurityText" Text="🟢 Доступен" FontSize="11.5" FontWeight="SemiBold" Foreground="#10B981" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <ListView x:Name="PartitionsListView" BorderThickness="0" Background="Transparent" SelectionChanged="PartitionsListView_SelectionChanged" MinHeight="130">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="#" Width="40" DisplayMemberBinding="{Binding PartitionNumber}"/>
+                                        <GridViewColumn Header="Буква" Width="60" DisplayMemberBinding="{Binding DriveLetter}"/>
+                                        <GridViewColumn Header="Метка тома" Width="140" DisplayMemberBinding="{Binding VolumeLabel}"/>
+                                        <GridViewColumn Header="Файловая система" Width="120" DisplayMemberBinding="{Binding FileSystem}"/>
+                                        <GridViewColumn Header="Общий объем" Width="110" DisplayMemberBinding="{Binding SizeFormatted}"/>
+                                        <GridViewColumn Header="Свободно" Width="110" DisplayMemberBinding="{Binding FreeSpaceFormatted}"/>
+                                        <GridViewColumn Header="Занято (%)" Width="90" DisplayMemberBinding="{Binding UsedPercent, StringFormat='{}{0}%'}"/>
+                                        <GridViewColumn Header="Тип / Категория" Width="170" DisplayMemberBinding="{Binding DisplayName}"/>
+                                        <GridViewColumn Header="Системный" Width="80" DisplayMemberBinding="{Binding IsSystem}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 5. ЖУРНАЛ БЕЗОПАСНОСТИ И ВЫВОДА ОПЕРАЦИЙ -->
+                    <Border Style="{StaticResource Card}" Padding="14">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock Text="📜 Журнал операций и аудит DiskPart SuperAdmin" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                <TextBlock Text="Защита данных и трансляция статусов" FontSize="10" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <ListView x:Name="PartitionLogsList" BorderThickness="0" Background="Transparent" MaxHeight="140">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Время" Width="75" DisplayMemberBinding="{Binding TimeFormatted}"/>
+                                        <GridViewColumn Header="Операция" Width="170" DisplayMemberBinding="{Binding OperationName}"/>
+                                        <GridViewColumn Header="Объект" Width="180" DisplayMemberBinding="{Binding TargetDescription}"/>
+                                        <GridViewColumn Header="Уровень риска" Width="110" DisplayMemberBinding="{Binding RiskLevel}"/>
+                                        <GridViewColumn Header="Статус" Width="100" DisplayMemberBinding="{Binding Status}"/>
+                                        <GridViewColumn Header="Детали" Width="360" DisplayMemberBinding="{Binding Details}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ================= C. БЕНЧМАРК СКОРОСТИ (BENCHMARK) ================= -->
+            <ScrollViewer x:Name="ViewBenchmark" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,4,0">
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                        <DockPanel>
+                            <!-- Кнопка запуска -->
+                            <Button x:Name="StartBenchBtn" DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="⚡ ЗАПУСТИТЬ ТЕСТ СКОРОСТИ"
+                                    Padding="18,10" FontWeight="Bold" FontSize="12" Click="StartBenchmark_Click"/>
+                            
+                            <!-- Настройки теста -->
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="🏎 Комплексный неразрушающий бенчмарк накопителя" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                <TextBlock Text="Измерение линейной скорости (Seq 1M), случайного доступа 4K (IOPS) и латентности без перезаписи пользовательских данных" FontSize="10" Style="{StaticResource MutedText}"/>
+                                
+                                <WrapPanel Margin="0,8,0,0">
+                                    <TextBlock Text="Объем теста:" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="BenchSizeCombo" Width="110" Margin="0,0,16,0" SelectedIndex="1">
+                                        <ComboBoxItem Content="64 МБ (Быстрый)"/>
+                                        <ComboBoxItem Content="256 МБ (Стандарт)"/>
+                                        <ComboBoxItem Content="512 МБ (Точный)"/>
+                                        <ComboBoxItem Content="1 ГБ (Экстрим)"/>
+                                    </ComboBox>
+
+                                    <TextBlock Text="Целевой том:" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="BenchTargetDriveCombo" Width="90" Margin="0,0,16,0"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Прогресс текущего теста -->
+                    <Border x:Name="BenchProgressCard" Style="{StaticResource Card}" Padding="14" Margin="0,0,0,12" Visibility="Collapsed">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock x:Name="BenchProgressStatusText" Text="Подготовка к тестированию..." FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                <TextBlock x:Name="BenchLiveSpeedText" Text="0.0 МБ/с" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <ProgressBar x:Name="BenchProgressBar" Height="8" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Таблица результатов в стиле CrystalDiskMark -->
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <TextBlock Text="📊 Результаты измерений производительности" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                <TextBlock x:Name="BenchScoreSummaryText" Text="Общий рейтинг: Ожидание теста" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+
+                            <ListView x:Name="BenchmarkResultsList" BorderThickness="0" Background="Transparent">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Тип теста" Width="240" DisplayMemberBinding="{Binding TestType}"/>
+                                        <GridViewColumn Header="Блок" Width="80" DisplayMemberBinding="{Binding BlockSize}"/>
+                                        <GridViewColumn Header="Очередь" Width="80" DisplayMemberBinding="{Binding QueueThreads}"/>
+                                        <GridViewColumn Header="Чтение (Read)" Width="140" DisplayMemberBinding="{Binding ReadSpeedFormatted}"/>
+                                        <GridViewColumn Header="Запись (Write)" Width="140" DisplayMemberBinding="{Binding WriteSpeedFormatted}"/>
+                                        <GridViewColumn Header="Read IOPS" Width="110" DisplayMemberBinding="{Binding ReadIopsFormatted}"/>
+                                        <GridViewColumn Header="Write IOPS" Width="110" DisplayMemberBinding="{Binding WriteIopsFormatted}"/>
+                                        <GridViewColumn Header="Латентность" Width="100" DisplayMemberBinding="{Binding ReadLatencyUs, StringFormat='{}{0:F1} мкс'}"/>
+                                        <GridViewColumn Header="Статус" Width="100" DisplayMemberBinding="{Binding Status}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ================= D. ОПТИМИЗАЦИЯ И TRIM (OPTIMIZER) ================= -->
+            <ScrollViewer x:Name="ViewOptimizer" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,4,0">
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                        <DockPanel>
+                            <Button x:Name="RunOptimizeBtn" DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="⚡ ВЫПОЛНИТЬ ОПТИМИЗАЦИЮ"
+                                    Padding="18,10" FontWeight="Bold" FontSize="12" Click="RunOptimize_Click"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Интеллектуальная оптимизация накопителя" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                <TextBlock x:Name="OptimizerDriveTypeText" Text="Определение типа накопителя и выбор оптимальной стратегии..." FontSize="10" Style="{StaticResource MutedText}"/>
+
+                                <WrapPanel Margin="0,8,0,0">
+                                    <TextBlock Text="Режим работы:" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <ComboBox x:Name="OptimizerModeCombo" Width="140" SelectedIndex="0">
+                                        <ComboBoxItem Content="⚡ Smart (Умный)"/>
+                                        <ComboBoxItem Content="🏎 Quick (Быстрый)"/>
+                                        <ComboBoxItem Content="🔬 Deep (Глубокий)"/>
+                                    </ComboBox>
+                                </WrapPanel>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Информационные карточки стратегий -->
+                    <UniformGrid Columns="2" Margin="0,0,0,12">
+                        <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,6,0">
+                            <StackPanel>
+                                <TextBlock Text="🚀 Стратегия для NVMe &amp; SATA SSD" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                <TextBlock Text="• Вызов нативного ReTrim через контроллер Windows Storage.&#x0a;• Очистка освобожденных блоков LBA для мгновенной готовности к записи.&#x0a;• Защита от традиционной дефрагментации: предотвращение преждевременного износа флеш-памяти NAND.&#x0a;• Проверка выравнивания секторов 4K Alignment."
+                                           FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Padding="14" Margin="6,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="🖴 Стратегия для магнитных HDD" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                <TextBlock Text="• Анализ фрагментированности файлов и секторов на пластинах.&#x0a;• Объединение непрерывных цепочек данных для сокращения движений магнитных головок.&#x0a;• Консолидация свободного пространства для ускорения линейной записи.&#x0a;• Безопасная пауза и возобновление в любой момент."
+                                           FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Консоль лога оптимизации -->
+                    <Border Style="{StaticResource Card}" Padding="14">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock Text="📟 Консоль выполнения оптимизации" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                <TextBlock x:Name="OptimizerStatusText" Text="Готов к работе" FontSize="10" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <TextBox x:Name="OptimizerLogText" Height="180" Background="{DynamicResource WindowBackgroundBrush}"
+                                     Foreground="{DynamicResource PrimaryTextBrush}" BorderThickness="1" BorderBrush="{DynamicResource GlassBorderBrush}"
+                                     FontFamily="Consolas" FontSize="11" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Padding="8"
+                                     Text="Ожидание команды запуска оптимизации..."/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ================= E. АНАЛИЗ ПРОСТРАНСТВА И ОЧИСТКА (CLEANUP) ================= -->
+            <ScrollViewer x:Name="ViewCleanup" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <Grid Margin="0,0,4,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Левая колонка: Категории очистки временных файлов -->
+                    <Border Grid.Column="0" Style="{StaticResource Card}" Padding="16" Margin="0,0,6,0">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button x:Name="CleanNowBtn" DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="🧹 ОЧИСТИТЬ КЭШ" Padding="12,6" Click="CleanNow_Click"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Безопасная очистка системного кэша" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock x:Name="CleanupTotalReclaimableText" Text="Найдено для очистки: расчет..." FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <ItemsControl x:Name="CleanupCategoriesList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource Card}" Padding="10" Margin="0,0,0,6">
+                                            <DockPanel>
+                                                <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock Text="{Binding SizeFormatted}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" DockPanel.Dock="Right" VerticalAlignment="Center"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="{Binding Description}" FontSize="9" Style="{StaticResource MutedText}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Правая колонка: Самые большие файлы на накопителе -->
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Padding="16" Margin="6,0,0,0">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button x:Name="ScanLargeFilesBtn" DockPanel.Dock="Right" Style="{StaticResource CyberToolButton}" Content="🔍 Сканировать файлы" Padding="10,5" Click="ScanLargeFiles_Click"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Крупнейшие файлы на накопителе (> 250 МБ)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock Text="Быстрый поиск тяжелых медиа, архивов и образов" FontSize="10" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <ListView x:Name="LargeFilesListView" BorderThickness="0" Background="Transparent" MaxHeight="450">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Имя файла" Width="200" DisplayMemberBinding="{Binding FileName}"/>
+                                        <GridViewColumn Header="Размер" Width="90" DisplayMemberBinding="{Binding SizeFormatted}"/>
+                                        <GridViewColumn Header="Тип" Width="50" DisplayMemberBinding="{Binding Extension}"/>
+                                        <GridViewColumn Header="Путь к файлу" Width="240" DisplayMemberBinding="{Binding FilePath}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+
+            <!-- ================= F. БЕЗОПАСНОСТЬ И WIPE (SAFETY & WIPE) ================= -->
+            <ScrollViewer x:Name="ViewSafety" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,4,0">
+                    <!-- Карточка Free Space Wipe -->
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button x:Name="StartWipeBtn" DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="🛡 ЗАПУСТИТЬ ОЧИСТКУ СВОБОДНОГО МЕСТА" Padding="14,8" Click="StartWipe_Click"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Затирание удаленных данных (Free-Space Zero-Fill Wipe)" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock Text="Безопасная перезапись нераспределенного пространства нулями для предотвращения восстановления конфиденциальных данных. Существующие файлы НЕ затрагиваются." FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <!-- Прогресс Wipe -->
+                            <Border x:Name="WipeProgressBorder" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="12" Visibility="Collapsed">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,6">
+                                        <TextBlock x:Name="WipeStatusText" Text="Затирание свободного места..." FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                        <TextBlock x:Name="WipeSpeedText" Text="0 МБ/с" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                    <ProgressBar x:Name="WipeProgressBar" Height="8" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentBrush}"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Классификация рисков и политика безопасности -->
+                    <Border Style="{StaticResource Card}" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Политика безопасности и правила защиты накопителей Motion Commander" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8"/>
+                            <TextBlock Text="1. Системный загрузочный раздел (C:) аппаратно и программно заблокирован от удаления, сжатия ниже порога безопасности ОС и форматирования.&#x0a;2. Деструктивные операции (удаление разделов, форматирование) требуют двухэтапного подтверждения с указанием точной модели накопителя.&#x0a;3. Традиционная дефрагментация SSD категорически исключена: поддерживаются только официальные команды TRIM (ReTrim).&#x0a;4. Каждая выполненная операция регистрируется в энергонезависимом журнале аудита."
+                                       FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap" LineHeight="18"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

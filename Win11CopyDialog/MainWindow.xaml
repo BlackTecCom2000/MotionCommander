@@ -1,0 +1,753 @@
+<Window x:Class="Win11CopyDialog.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
+        xmlns:storage="clr-namespace:Win11CopyDialog.Modules.StorageControlCenter.Views"
+        Title="Motion Commander — Все-в-одном Файловый Менеджер и Архиватор"
+        Height="780" Width="1160"
+        MinWidth="920" MinHeight="620"
+        Background="Transparent"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen"
+        TextOptions.TextFormattingMode="Display">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="12,12,12,12"
+                      GlassFrameThickness="-1" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Border Background="{DynamicResource WindowBackgroundBrush}"
+            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="12">
+        <DockPanel>
+            <!-- ШАПКА ОКНА (Header with Navigation Tabs) -->
+            <Grid DockPanel.Dock="Top" Height="46" Background="Transparent" MouseDown="TitleBar_MouseDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Брендовый заголовок -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,16,0">
+                    <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentBrush}" Margin="0,0,10,0">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="1" Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
+                        </Border.Effect>
+                        <TextBlock Text="✦" FontSize="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
+                    <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="9" Padding="7,2" Margin="8,0,0,0">
+                        <TextBlock Text="v3.0 All-in-One" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- Вкладки верхнего уровня (Футуристический док) -->
+                <Border Grid.Column="1" Background="{DynamicResource NavDockBackgroundBrush}" CornerRadius="16"
+                        Padding="3" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                    <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}" Content="📁 Файлы"
+                                     GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}" Content="⚡ Скорость"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}" Content="🖴 Накопители"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}" Content="📊 Диагностика"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}" Content="🛠 Утилиты"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabSettingsRadio" Style="{StaticResource FuturisticNavTab}" Content="⚙ Опции"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Быстрый переключатель темы (Sun/Moon) -->
+                <Button x:Name="QuickThemeBtn" Grid.Column="2" Style="{StaticResource CaptionButton}"
+                        ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0">
+                    <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13"/>
+                </Button>
+
+                <!-- Кнопки управления окном -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                    <Button Style="{StaticResource CaptionButton}" Content="─" Click="Min_Click"/>
+                    <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" Content="□" Click="Max_Click"/>
+                    <Button Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ОСНОВНОЙ КОНТЕНТ (5 ВКЛАДОК) -->
+            <Grid>
+                <!-- ================= 1. ФАЙЛЫ И АРХИВЫ ================= -->
+                <Grid x:Name="FilesView" Visibility="Visible">
+                    <DockPanel>
+                        <!-- Панель команд (Floating Glass Ribbon Dock) -->
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource RibbonBackgroundBrush}"
+                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,1" Padding="12,7">
+                            <DockPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="CreateArchiveBtn" Style="{StaticResource CyberButton}" Content="🗜 Создать архив"
+                                            Height="32" Padding="12,0" Margin="0,0,8,0" Click="CreateArchive_Click"/>
+                                    <Button x:Name="ExtractArchiveBtn" Style="{StaticResource CyberToolButton}" Content="📦 Распаковать"
+                                            Click="ExtractArchive_Click"/>
+                                    <Button x:Name="TestArchiveBtn" Style="{StaticResource CyberToolButton}" Content="🛡 Проверить"
+                                            Click="TestArchive_Click"/>
+
+                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource GlassBorderBrush}" Margin="6,0,8,0"/>
+
+                                    <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" Click="CopyItem_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="✂ Вырезать" Click="CutItem_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="📥 Вставить" Click="PasteItem_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="🗑 Удалить" Click="DeleteItem_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="➕ Папка" Click="NewFolder_Click"/>
+                                    <Button Style="{StaticResource CyberToolButton}" Content="# Хэши" Click="ShowHashes_Click"/>
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <CheckBox x:Name="ShowHiddenCheck" Content="Скрытые файлы" VerticalAlignment="Center" Margin="0,0,12,0" Click="ShowHidden_Click"/>
+                                    <Button Style="{StaticResource CyberNavCircleButton}" Content="⟳" ToolTip="Обновить" Click="Refresh_Click"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Строка пути и Поиск -->
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource WindowBackgroundBrush}" Padding="12,6" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="220"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                                    <Button x:Name="BackBtn" Style="{StaticResource CyberNavCircleButton}" Content="◀" ToolTip="Назад" Click="Back_Click"/>
+                                    <Button x:Name="ForwardBtn" Style="{StaticResource CyberNavCircleButton}" Content="▶" ToolTip="Вперёд" Click="Forward_Click"/>
+                                    <Button x:Name="UpBtn" Style="{StaticResource CyberNavCircleButton}" Content="▲" ToolTip="Вверх" Click="Up_Click"/>
+                                </StackPanel>
+
+                                <Border Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="8,2">
+                                    <TextBox x:Name="PathBox" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center"
+                                             Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" KeyDown="PathBox_KeyDown"/>
+                                </Border>
+
+                                <Border Grid.Column="2" Margin="8,0,0,0" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="8,2">
+                                    <Grid>
+                                        <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center"
+                                                 Padding="20,0,4,0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                                 TextChanged="SearchBox_TextChanged"/>
+                                        <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" Style="{StaticResource MutedText}"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Статус-бар внизу -->
+                        <Border DockPanel.Dock="Bottom" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0" Padding="12,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="StatusFilesText" FontSize="11" Style="{StaticResource MutedText}" Text="0 элементов"/>
+                                <TextBlock x:Name="StatusDiskText" Grid.Column="1" FontSize="11" Style="{StaticResource MutedText}" Text=""/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Основное тело (Splitter: Левая колонка - Диски/Быстрый доступ, Правая колонка - Браузер) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="230" MinWidth="180"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*" MinWidth="350"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Левая панель -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{DynamicResource WindowBackgroundBrush}">
+                                <StackPanel Margin="10,8">
+                                    <TextBlock Text="Быстрый доступ" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="6,0,0,6"/>
+                                    <ItemsControl x:Name="QuickAccessList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource CyberToolButton}" HorizontalContentAlignment="Left" Margin="0,0,0,3" Padding="8,5" Click="QuickAccess_Click">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Icon}" FontSize="12" Margin="0,0,8,0"/>
+                                                        <TextBlock Text="{Binding Name}" FontSize="12"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="Диски и накопители" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="6,12,0,6"/>
+                                    <ItemsControl x:Name="DrivesList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource Card}" Padding="10,8" Margin="0,0,0,6" CornerRadius="10" Cursor="Hand" MouseLeftButtonUp="Drive_Click">
+                                                    <StackPanel>
+                                                        <DockPanel Margin="0,0,0,4">
+                                                            <Border DockPanel.Dock="Right" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="6,1">
+                                                                <TextBlock Text="{Binding FileSystem}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                                            </Border>
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Icon}" FontSize="13" Margin="0,0,6,0"/>
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                        <ProgressBar Height="4" Margin="0,4,0,3" Minimum="0" Maximum="100" Value="{Binding PercentUsed, Mode=OneWay}"
+                                                                     BorderThickness="0" Background="{DynamicResource ProgressTrackBrush}" Foreground="{DynamicResource AccentBrush}"/>
+                                                        <TextBlock Text="{Binding SpaceFormatted}" FontSize="10" Style="{StaticResource MutedText}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <!-- Разделитель колонок -->
+                            <GridSplitter Grid.Column="1" Width="1" HorizontalAlignment="Center" Background="{DynamicResource GlassBorderBrush}"/>
+
+                            <!-- Правая панель: Файловый браузер -->
+                            <ListView x:Name="FileBrowserList" Grid.Column="2" BorderThickness="0" Background="Transparent"
+                                      AllowDrop="True" Drop="FileBrowserList_Drop" MouseDoubleClick="FileBrowserList_DoubleClick"
+                                      SelectionChanged="FileBrowserList_SelectionChanged">
+
+                                <ListView.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Открыть" Click="ContextOpen_Click"/>
+                                        <MenuItem Header="🗜 Сжать в архив…" Click="ContextCompress_Click"/>
+                                        <MenuItem Header="📦 Распаковать…" Click="ContextExtract_Click"/>
+                                        <MenuItem Header="# Хэш-суммы (CRC32, SHA-256)" Click="ContextHashes_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Копировать" Click="CopyItem_Click"/>
+                                        <MenuItem Header="Вырезать" Click="CutItem_Click"/>
+                                        <MenuItem Header="Дублировать" Click="ContextDuplicate_Click"/>
+                                        <MenuItem Header="Переименовать" Click="ContextRename_Click"/>
+                                        <MenuItem Header="Удалить" Click="DeleteItem_Click"/>
+                                        <Separator/>
+                                        <MenuItem Header="Свойства" Click="ContextProperties_Click"/>
+                                    </ContextMenu>
+                                </ListView.ContextMenu>
+
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Имя" Width="300">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding IconGlyph}" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="Размер" Width="95" DisplayMemberBinding="{Binding SizeFormatted}"/>
+                                        <GridViewColumn Header="Сжатый" Width="90" DisplayMemberBinding="{Binding PackedSizeFormatted}"/>
+                                        <GridViewColumn Header="Сжатие" Width="75" DisplayMemberBinding="{Binding CompressionRatioFormatted}"/>
+                                        <GridViewColumn Header="Изменён" Width="135" DisplayMemberBinding="{Binding DateModifiedFormatted}"/>
+                                        <GridViewColumn Header="Атрибуты" Width="80" DisplayMemberBinding="{Binding AttributesFormatted}"/>
+                                        <GridViewColumn Header="CRC32" Width="90" DisplayMemberBinding="{Binding CrcHex}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </Grid>
+                    </DockPanel>
+                </Grid>
+
+                <!-- ================= 2. ДВИЖОК ПЕРЕДАЧ (MOTION TRANSFER ENGINE) ================= -->
+                <Grid x:Name="TransferView" Visibility="Collapsed" Margin="18">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="800" HorizontalAlignment="Center">
+                            <!-- Hero-превью -->
+                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <ctrl:TransferVisualizer x:Name="TransferHero" Height="220"/>
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Живой космический телеметрический движок передачи" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Аппаратный рендеринг через Direct3D, 3D звёздное поле с параллаксом от мыши, квантовый волновой тоннель" FontSize="11" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource CyberButton}" Content="⚡ Запустить отдельное окно передачи" Height="36" Padding="14,0" Click="OpenMotionWindow_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Сценарии и настройки копирования -->
+                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Пресеты скорости и сценарии передачи" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
+                                    <WrapPanel Margin="0,0,0,12">
+                                        <Button Style="{StaticResource SpeedChip}" Content="🐢 50 МБ/с (HDD)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="50"/>
+                                        <Button Style="{StaticResource SpeedChip}" Content="⚡ 150 МБ/с (SATA SSD)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="150"/>
+                                        <Button Style="{StaticResource SpeedChip}" Content="🚀 500 МБ/с (NVMe Gen3)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="500"/>
+                                        <Button Style="{StaticResource SpeedChip}" Content="✨ 1.2 ГБ/с (PCIe 4.0)" Margin="0,0,8,6" Click="SpeedChip_Click" Tag="1200"/>
+                                    </WrapPanel>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <TextBlock Text="Скорость передачи" FontSize="12" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="SpeedLabel" Text="150 МБ/с" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                    <Slider x:Name="SpeedSlider" Style="{StaticResource NeonSlider}" Minimum="1" Maximum="2000" Value="150" ValueChanged="SpeedSlider_ValueChanged"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ================= 2.5 STORAGE CONTROL CENTER ================= -->
+                <Grid x:Name="StorageView" Visibility="Collapsed">
+                    <storage:StorageControlCenterView x:Name="StorageCenterControl"/>
+                </Grid>
+
+                <!-- ================= 3. ИНСТРУМЕНТЫ ================= -->
+                <Grid x:Name="ToolsView" Visibility="Collapsed" Margin="18">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Center">
+                        <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                            <DockPanel>
+                                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                    <TextBlock Text="#" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Открыть калькулятор" Padding="14,6" Click="OpenChecksumTool_Click"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Калькулятор контрольных сумм и проверка хэшей" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock Text="Мгновенный расчёт CRC32, MD5, SHA-1, SHA-256, SHA-512 в один потоковый проход и проверка совпадения" FontSize="11" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                            <DockPanel>
+                                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                    <TextBlock Text="⇄" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Сравнить файлы" Padding="14,6" Click="OpenFileCompare_Click"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Побайтовое бинарное сравнение файлов" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock Text="Выявление различий между файлами любого размера с фиксацией смещения первого несовпадения" FontSize="11" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Padding="18">
+                            <DockPanel>
+                                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                    <TextBlock Text="📊" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Анализ диска" Padding="14,6" Click="OpenDiskAnalyze_Click"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Анализатор размера папок и дискового пространства" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock Text="Быстрое рекурсивное сканирование тяжелых директорий без блокировки интерфейса" FontSize="11" Style="{StaticResource MutedText}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ================= 4. НАСТРОЙКИ И ТЕМЫ ================= -->
+                <Grid x:Name="SettingsView" Visibility="Collapsed" Margin="18">
+                    <ScrollViewer x:Name="SettingsScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="760" HorizontalAlignment="Center">
+                            <!-- Галерея тем -->
+                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Темы оформления (Windows 11 Fluent)" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+                                    <WrapPanel>
+                                        <Border x:Name="TileMicaLight" Style="{StaticResource ThemeTile}" Tag="MicaLight" MouseLeftButtonUp="ThemeTile_Click">
+                                            <StackPanel>
+                                                <Border Width="34" Height="34" CornerRadius="17" Background="#E8ECEF" BorderBrush="#0078D4" BorderThickness="2" Margin="0,0,0,6"/>
+                                                <TextBlock Text="Mica Light" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border x:Name="TileMicaDark" Style="{StaticResource ThemeTile}" Tag="MicaDark" MouseLeftButtonUp="ThemeTile_Click">
+                                            <StackPanel>
+                                                <Border Width="34" Height="34" CornerRadius="17" Background="#202020" BorderBrush="#60CDFF" BorderThickness="2" Margin="0,0,0,6"/>
+                                                <TextBlock Text="Mica Dark" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border x:Name="TileAcrylic" Style="{StaticResource ThemeTile}" Tag="Acrylic" MouseLeftButtonUp="ThemeTile_Click">
+                                            <StackPanel>
+                                                <Border Width="34" Height="34" CornerRadius="17" Background="#2C2C2C" BorderBrush="#9E9E9E" BorderThickness="2" Margin="0,0,0,6"/>
+                                                <TextBlock Text="Acrylic" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border x:Name="TileLight" Style="{StaticResource ThemeTile}" Tag="Light" MouseLeftButtonUp="ThemeTile_Click">
+                                            <StackPanel>
+                                                <Border Width="34" Height="34" CornerRadius="17" Background="#FFFFFF" BorderBrush="#CCCCCC" BorderThickness="1" Margin="0,0,0,6"/>
+                                                <TextBlock Text="Light" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border x:Name="TileDark" Style="{StaticResource ThemeTile}" Tag="Dark" MouseLeftButtonUp="ThemeTile_Click">
+                                            <StackPanel>
+                                                <Border Width="34" Height="34" CornerRadius="17" Background="#181818" BorderBrush="#444444" BorderThickness="1" Margin="0,0,0,6"/>
+                                                <TextBlock Text="Dark" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Интеграция с Проводником Windows -->
+                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Button x:Name="ShellToggleBtn" DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Включить" Padding="14,6" Click="ShellToggle_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Контекстное меню Проводника Windows" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Добавить пункты «Сжать в архив» и «Открыть в Motion Commander» в контекстное меню Windows Explorer" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- ================= ПЛАВНОСТЬ СКРОЛЛИНГА (KINETIC SCROLL ENGINE) ================= -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <CheckBox x:Name="SmoothScrollCheck" DockPanel.Dock="Right" Content="Включено" FontWeight="Bold"
+                                                  Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"
+                                                  Checked="SmoothScrollCheck_Changed" Unchecked="SmoothScrollCheck_Changed"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="⚡ Ультра-плавный скроллинг (Kinetic Scroll Engine)" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Кинетическая интерполяция 120+ FPS, субпиксельная точность и адаптивное ускорение" FontSize="11" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <!-- Пресеты скролла -->
+                                    <TextBlock Text="Готовые профили плавности:" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,4,0,8"/>
+                                    <UniformGrid Columns="3" Margin="0,0,0,14">
+                                        <Button x:Name="PresetSilkBtn" Style="{StaticResource CyberToolButton}" Margin="0,0,6,0" Padding="8,8" Click="PresetSilk_Click">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="🍏 Ultra Silk" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Роскошное затухание (macOS)" FontSize="9" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="PresetBalancedBtn" Style="{StaticResource CyberToolButton}" Margin="3,0,3,0" Padding="8,8" Click="PresetBalanced_Click">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="⚡ Fluent Balance" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Золотой стандарт (Win 11)" FontSize="9" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="PresetSnappyBtn" Style="{StaticResource CyberToolButton}" Margin="6,0,0,0" Padding="8,8" Click="PresetSnappy_Click">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="🏎 Cyber Snappy" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="Быстрый кибер-отклик" FontSize="9" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </UniformGrid>
+
+                                    <!-- Слайдер мягкости затухания -->
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="70"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Коэффициент затухания (Damping):" FontSize="11" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Меньше = длиннее скольжение" FontSize="9" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                        <Slider x:Name="DampingSlider" Grid.Column="1" Minimum="10" Maximum="38" Value="22"
+                                                TickFrequency="1" IsSnapToTickEnabled="False" VerticalAlignment="Center" Margin="10,0"
+                                                ValueChanged="DampingSlider_ValueChanged"/>
+                                        <TextBlock x:Name="DampingValueText" Grid.Column="2" Text="22.0" FontSize="11" FontWeight="Bold"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+                                    </Grid>
+
+                                    <!-- Слайдер шага прокрутки -->
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="70"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Шаг прокрутки колесика (Pixels):" FontSize="11" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Дистанция за один щелчок мыши" FontSize="9" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                        <Slider x:Name="StepSlider" Grid.Column="1" Minimum="50" Maximum="220" Value="110"
+                                                TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="10,0"
+                                                ValueChanged="StepSlider_ValueChanged"/>
+                                        <TextBlock x:Name="StepValueText" Grid.Column="2" Text="110 px" FontSize="11" FontWeight="Bold"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"/>
+                                    </Grid>
+
+                                    <!-- Дополнительные переключатели кинетики -->
+                                    <DockPanel Margin="0,0,0,10">
+                                        <CheckBox x:Name="ScrollInertiaCheck" Content="Адаптивное кинетическое ускорение (пролистывание сотен файлов)"
+                                                  FontSize="11" VerticalAlignment="Center" Checked="Option_Changed" Unchecked="Option_Changed"/>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,14">
+                                        <CheckBox x:Name="ScrollHapticCheck" Content="Тактильный аудио-клик при прокрутке колеса (Haptic Tick)"
+                                                  FontSize="11" VerticalAlignment="Center" Checked="Option_Changed" Unchecked="Option_Changed"/>
+                                    </DockPanel>
+
+                                    <!-- Интерактивная тестовая песочница прямо в окне -->
+                                    <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1" CornerRadius="10" Padding="12">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,8">
+                                                <TextBlock Text="🧪 Тестовая песочница скроллинга (проверьте плавность колесиком здесь):" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="120 FPS Realtime" FontSize="10" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <ScrollViewer x:Name="TestSandboxScrollViewer" Height="140" VerticalScrollBarVisibility="Auto">
+                                                <StackPanel x:Name="TestSandboxStack"/>
+                                            </ScrollViewer>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ================= ВИЗУАЛЬНЫЕ ЭФФЕКТЫ И ЗВУК ================= -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="✨ Визуальные эффекты и звук (Motion &amp; FX)" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                    <DockPanel Margin="0,0,0,10">
+                                        <CheckBox x:Name="TabAnimCheck" DockPanel.Dock="Right"
+                                                  Checked="Option_Changed" Unchecked="Option_Changed"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Плавные кросс-фейд анимации переключения вкладок (CubicEase 280ms)" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Устраняет резкое переключение экранов, создавая ощущение плавного скольжения" FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <DockPanel Margin="0,0,0,10">
+                                        <CheckBox x:Name="NeonGlowCheck" DockPanel.Dock="Right"
+                                                  Checked="Option_Changed" Unchecked="Option_Changed"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Неоновое свечение и футуристические тени (Cyber Glow Effects)" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Световые ореолы на активных вкладках, кнопках и ползунке скроллбара" FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <DockPanel Margin="0,0,0,6">
+                                        <CheckBox x:Name="HapticAudioCheck" DockPanel.Dock="Right"
+                                                  Checked="Option_Changed" Unchecked="Option_Changed"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Процедурный тактильный звук интерфейса (Haptic Audio Feedback)" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="Синтез аудио-импульсов в оперативной памяти при нажатиях, переключениях и успехе" FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Кнопка сброса настроек -->
+                            <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Button Style="{StaticResource CyberButton}" Content="🔄 Сбросить настройки к заводским" Padding="14,6" Click="ResetSettings_Click" DockPanel.Dock="Right"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Сброс конфигурации приложения" FontSize="12" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Восстановить эталонные значения скорости, плавности и графики" FontSize="10" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- ================= 4. ОБНОВЛЕНИЕ СИСТЕМЫ (IN-APP AUTO-UPDATER) ================= -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,10">
+                                        <Border DockPanel.Dock="Right" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                            <TextBlock x:Name="CurrentVersionBadgeText" Text="Версия: v3.0.0" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                        </Border>
+                                        <TextBlock Text="🚀 Проверка и установка обновлений" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                    </DockPanel>
+
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock x:Name="UpdateStatusTitleText" Text="Система обновлений подключена к GitHub" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock x:Name="UpdateStatusDescText" Text="Нажмите «Проверить обновления», чтобы запросить последний релиз с сервера" FontSize="10" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <Button x:Name="CheckUpdateBtn" Grid.Column="1" Style="{StaticResource CyberButton}" Content="🔍 Проверить обновления" Padding="14,6" Click="CheckUpdate_Click"/>
+                                    </Grid>
+
+                                    <!-- Контейнер деталей найденного обновления -->
+                                    <Border x:Name="UpdateAvailableBox" Visibility="Collapsed" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,4,0,0">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock x:Name="NewVersionTitleText" Text="🎉 Доступна новая версия: v3.0.1!" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                <TextBlock x:Name="ReleaseDateText" Text="04.09.2026" FontSize="10" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+
+                                            <TextBlock Text="Список изменений:" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                            <TextBlock x:Name="ChangelogText" Text="• Список изменений..." FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,10"/>
+
+                                            <!-- Прогресс загрузки -->
+                                            <StackPanel x:Name="UpdateProgressPanel" Visibility="Collapsed" Margin="0,0,0,8">
+                                                <ProgressBar x:Name="UpdateProgressBar" Height="6" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentBrush}"/>
+                                                <DockPanel Margin="0,4,0,0">
+                                                    <TextBlock x:Name="UpdateProgressSpeedText" Text="0.0 МБ/с" FontSize="9" Style="{StaticResource MutedText}"/>
+                                                    <TextBlock x:Name="UpdateProgressPercentText" Text="0%" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                                </DockPanel>
+                                            </StackPanel>
+
+                                            <Button x:Name="DownloadUpdateBtn" Style="{StaticResource CyberButton}" Content="⬇ Скачать и установить обновление" Padding="14,6" HorizontalAlignment="Right" Click="DownloadUpdate_Click"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ================= 5. ЛИЦЕНЗИЯ И АВТОРСКИЕ ПРАВА ================= -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,10">
+                                        <Border DockPanel.Dock="Right" Background="#10B981" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                            <TextBlock Text="MIT Open License" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                        </Border>
+                                        <TextBlock Text="📜 Лицензия и авторские права" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                    </DockPanel>
+
+                                    <DockPanel Margin="0,0,0,10">
+                                        <Border Width="40" Height="40" CornerRadius="8" Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" Margin="0,0,12,0">
+                                            <TextBlock Text="✦" FontSize="18" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Motion Commander v3.0 All-in-One Platform" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Разработчик и правообладатель: BlackTecCom - Jaborov Daler" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"/>
+                                            <TextBlock Text="Официальная лицензия MIT: Программа бесплатна для скачивания, установки и использования всеми пользователями." FontSize="10" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                                        <TextBlock Text="Copyright (c) 2026 BlackTecCom - Jaborov Daler. All rights reserved.&#x0a;Исходный код защищен лицензией MIT. Автор сохраняет за собой право редактирования, обновления архитектуры и выпуска новых официальных релизов."
+                                                   FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                                    </Border>
+
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Style="{StaticResource CyberToolButton}" Content="🌐 Открыть GitHub: BlackTecCom2000" Padding="12,5" Click="OpenGitHub_Click"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ================= 5. ДИАГНОСТИКА И БЕНЧМАРК ================= -->
+                <Grid x:Name="DiagnosticsView" Visibility="Collapsed" Margin="18">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="880" HorizontalAlignment="Center">
+                            <!-- 1. Аппаратные ресурсы -->
+                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Аппаратные ресурсы ПК" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,6,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Процессор (CPU)" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagCpuName" Text="Intel Core (16 потоков)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,4"/>
+                                                <ProgressBar x:Name="DiagCpuProgress" Height="4" Maximum="100" Value="15"/>
+                                                <TextBlock x:Name="DiagCpuLoadText" Text="Загрузка CPU: 15%" FontSize="10" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12" Margin="6,0,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Оперативная память (RAM)" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagRamText" Text="32 ГБ RAM" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,4"/>
+                                                <ProgressBar x:Name="DiagRamProgress" Height="4" Maximum="100" Value="55"/>
+                                                <TextBlock x:Name="DiagRamDetailText" Text="Свободно: 14,4 ГБ" FontSize="10" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <TextBlock Text="Обнаруженные физические накопители" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,6,0,6"/>
+                                    <ItemsControl x:Name="DiagDisksList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource Card}" Padding="10,6" Margin="0,0,0,4">
+                                                    <DockPanel>
+                                                        <Border DockPanel.Dock="Right" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding MediaTypeString}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                                        </Border>
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Icon}" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Model}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding SizeFormatted, StringFormat=' ({0})'}" FontSize="11" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 2. Детектор Bottleneck -->
+                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Детектор узких мест (Real-Time Bottleneck Detector)" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
+                                    <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14">
+                                        <DockPanel>
+                                            <Border x:Name="BottleneckBadgeBorder" DockPanel.Dock="Left" Width="44" Height="44" CornerRadius="22" Background="{DynamicResource AccentBrush}" Margin="0,0,12,0">
+                                                <TextBlock x:Name="BottleneckBadgeIcon" Text="⚡" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock x:Name="BottleneckTitle" Text="Максимальный сбалансированный поток" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                <TextBlock x:Name="BottleneckDesc" Text="Шина ввода/вывода и накопители работают синхронно без задержек." FontSize="11" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+                                                <TextBlock x:Name="BottleneckRec" Text="Рекомендация: оптимальная утилизация оборудования." FontSize="10" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 3. Бенчмарк-комплекс -->
+                            <Border Style="{StaticResource Card}" Padding="16">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Аппаратный бенчмарк-комплекс (Benchmark Engine)" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                            <TextBlock Text="5 комплексных тестов: запись, чтение, стриминг, 1 000 мелких файлов (IOPS), сжатие" FontSize="11" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                        <Button x:Name="RunBenchBtn" Grid.Column="1" Style="{StaticResource CyberButton}" Content="🚀 Запустить бенчмарк" Height="34" Padding="14,0" Click="RunBenchmark_Click"/>
+                                    </Grid>
+
+                                    <DockPanel Margin="0,0,0,8">
+                                        <TextBlock Text="Целевой накопитель для тестирования:" FontSize="11" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <ComboBox x:Name="BenchTargetCombo" Height="26" VerticalContentAlignment="Center" Width="180" HorizontalAlignment="Left"/>
+                                    </DockPanel>
+
+                                    <ProgressBar x:Name="BenchProgress" Height="6" Margin="0,6,0,4" Minimum="0" Maximum="100" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="BenchStatusText" Text="" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
+
+                                    <ListView x:Name="BenchResultsList" BorderThickness="0" Background="Transparent" Visibility="Collapsed">
+                                        <ListView.View>
+                                            <GridView>
+                                                <GridViewColumn Header="Тест" Width="260" DisplayMemberBinding="{Binding TestName}"/>
+                                                <GridViewColumn Header="Категория" Width="140" DisplayMemberBinding="{Binding Category}"/>
+                                                <GridViewColumn Header="Скорость" Width="110">
+                                                    <GridViewColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding ThroughputMBps, StringFormat='{}{0:F1} МБ/с'}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                        </DataTemplate>
+                                                    </GridViewColumn.CellTemplate>
+                                                </GridViewColumn>
+                                                <GridViewColumn Header="IOPS" Width="80" DisplayMemberBinding="{Binding Iops}"/>
+                                                <GridViewColumn Header="Задержка" Width="90" DisplayMemberBinding="{Binding AverageLatencyMs, StringFormat='{}{0:F1} мс'}"/>
+                                                <GridViewColumn Header="Результат" Width="180" DisplayMemberBinding="{Binding SummaryText}"/>
+                                            </GridView>
+                                        </ListView.View>
+                                    </ListView>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+        </DockPanel>
+    </Border>
+</Window>
