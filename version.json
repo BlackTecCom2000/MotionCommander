@@ -13,6 +13,6 @@
     "✨ Бесконфликтная архитектура интерфейса (Zero-Conflict Layout) и адаптивный ультра-плавный скроллинг 120 FPS",
     "🔄 Встроенная система автоматического обновления приложений (In-App Auto-Updater)"
   ],
-  "downloadUrl": "https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.0.0/MotionCommander-v3.0.0-Portable.zip",
-  "installerUrl": "https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.0.0/MotionCommander-Setup.exe"
+  "downloadUrl": "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.0.0-Portable.zip",
+  "installerUrl": "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.0.0-Portable.zip"
 }

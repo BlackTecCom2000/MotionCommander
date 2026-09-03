@@ -2,7 +2,8 @@
 **/bin/
 **/obj/
 **/publish/
-dist/
+dist/*
+!dist/MotionCommander-v3.0.0-Portable.zip
 **/.vs/
 *.user
 *.suo

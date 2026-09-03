@@ -76,7 +76,7 @@ motion info
 ## 📥 Установка и запуск
 
 ### Windows (GUI)
-1. Скачайте **[MotionCommander-v3.0.0-Portable.zip](https://github.com/BlackTecCom2000/MotionCommander/releases)**.
+1. Скачайте **[MotionCommander-v3.0.0-Portable.zip (Прямая загрузка)](https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.0.0-Portable.zip)**.
 2. Распакуйте архив и запустите `Win11CopyDialog.exe`.
 
 ### Linux (x64 / ARM64)
