@@ -85,8 +85,8 @@ $versionManifest = [ordered]@{
     license = "MIT"
     minWindowsVersion = "10.0.19041"
     changelog = $Notes
-    downloadUrl = "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v$cleanVer-Portable.zip"
-    installerUrl = "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v$cleanVer-Portable.zip"
+    downloadUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
+    installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
 }
 
 $jsonStr = $versionManifest | ConvertTo-Json -Depth 5
