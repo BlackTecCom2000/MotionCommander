@@ -1,11 +1,11 @@
 # Motion Commander — Мультиплатформенная Экосистема Управления Файлами и Накопителями
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platforms: Windows | Linux | macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4.svg)]()
-[![Framework: .NET 8](https://img.shields.io/badge/.NET-8.0%20Multiplatform-512BD4.svg?logo=dotnet)]()
-[![Author: BlackTecCom - Jaborov Daler](https://img.shields.io/badge/Author-BlackTecCom%20--%20Jaborov%20Daler-00F0FF.svg)]()
-[![Version: v3.0.0](https://img.shields.io/badge/Version-3.0.0%20Release-10B981.svg)]()
-[![Donate: Visa](https://img.shields.io/badge/Donate-VISA%20Direct-1A1F71.svg?logo=visa&logoColor=white)]()
+![Platforms: Windows | Linux | macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4.svg)
+![Framework: .NET 8](https://img.shields.io/badge/.NET-8.0%20Multiplatform-512BD4.svg?logo=dotnet)
+[![Author: BlackTecCom - Jaborov Daler](https://img.shields.io/badge/Author-BlackTecCom%20--%20Jaborov%20Daler-00F0FF.svg)](https://github.com/BlackTecCom2000)
+[![Version: v3.0.0](https://img.shields.io/badge/Version-3.0.0%20Release-10B981.svg)](https://github.com/BlackTecCom2000/MotionCommander/releases)
+[![Donate: Visa Direct](https://img.shields.io/badge/Donate-VISA%20Direct-1A1F71.svg?logo=visa&logoColor=white)](#donate)
 
 > **Motion Commander** — это ультра-современная высокопроизводительная кроссплатформенная экосистема для **Windows 10/11**, **Linux (Ubuntu, Debian, Fedora, Arch)** и **macOS (Apple Silicon M1-M4 & Intel)**. 
 > Проект объединяет в себе двухбуферный конвейер потокового копирования данных со скоростью свыше 2+ ГБ/с, виртуальный многопоточный архиватор, аппаратный диагностический центр накопителей **Storage Control Center** и консольную утилиту **`motion`**.
@@ -123,6 +123,7 @@ dotnet publish src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release -o 
 
 ---
 
+<a id="donate"></a>
 ## 💙 Поддержка проекта (Support Motion Commander)
 
 Если вам нравится **Motion Commander** и вы хотите поддержать независимого разработчика и фрилансера, вы можете совершить добровольный донат напрямую на карты **VISA**:
