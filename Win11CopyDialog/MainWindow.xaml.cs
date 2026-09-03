@@ -1119,16 +1119,24 @@ public partial class MainWindow : Window
         catch { }
     }
 
-    private void OpenSponsors_Click(object sender, RoutedEventArgs e)
+    private void CopyAlifCard_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "https://github.com/sponsors/BlackTecCom2000",
-                UseShellExecute = true
-            });
+            Clipboard.SetText("4444 8888 1022 6013");
+            MessageBox.Show("Номер карты Alif Bank VISA скопирован в буфер обмена:\n\n4444 8888 1022 6013\n\nСпасибо за поддержку автора (BlackTecCom - Jaborov Daler)!", "Motion Commander — Поддержка", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch { }
+    }
+
+    private void CopyDcCard_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        try
+        {
+            Clipboard.SetText("4713 3800 2165 1431");
+            MessageBox.Show("Номер карты DC Bank VISA скопирован в буфер обмена:\n\n4713 3800 2165 1431\n\nСпасибо за поддержку автора (BlackTecCom - Jaborov Daler)!", "Motion Commander — Поддержка", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch { }
     }

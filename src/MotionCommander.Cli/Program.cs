@@ -324,6 +324,12 @@ public static class Program
         Console.WriteLine($"  Ядер CPU:      {PlatformDetector.LogicalCoreCount}");
         Console.WriteLine($"  .NET Среда:    {Environment.Version}");
         Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Поддержка автора (Донат фрилансеру / VISA):");
+        Console.WriteLine("  • 🇹🇯 Alif Bank VISA: 4444 8888 1022 6013");
+        Console.WriteLine("  • 🇹🇯 DC Bank VISA:   4713 3800 2165 1431");
+        Console.ResetColor();
+        Console.WriteLine();
         return 0;
     }
 

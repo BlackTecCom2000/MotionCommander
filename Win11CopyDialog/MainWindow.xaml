@@ -620,8 +620,49 @@
                                                    FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"/>
                                     </Border>
 
+                                    <!-- Блок добровольной поддержки автора (Freelancer Donation) -->
+                                    <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="💳 Поддержка независимого разработчика (Донат фрилансеру)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                <Border Background="#2010B981" BorderBrush="#10B981" BorderThickness="1" CornerRadius="4" Padding="6,2" HorizontalAlignment="Right">
+                                                    <TextBlock Text="VISA DIRECT" FontSize="9" FontWeight="Bold" Foreground="#10B981"/>
+                                                </Border>
+                                            </DockPanel>
+                                            <TextBlock Text="Если программа оказалась полезной для вас, вы можете поддержать автора прямым переводом на карту Visa:" FontSize="9.5" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
+
+                                            <Grid Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- 1. Alif Bank VISA -->
+                                                <Border Grid.Column="0" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,4,0">
+                                                    <StackPanel>
+                                                        <DockPanel Margin="0,0,0,3">
+                                                            <TextBlock Text="🇹🇯 Alif Bank VISA" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                            <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" FontSize="8.5" Padding="5,1" HorizontalAlignment="Right" Click="CopyAlifCard_Click"/>
+                                                        </DockPanel>
+                                                        <TextBlock Text="4444 8888 1022 6013" FontFamily="Consolas, monospace" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- 2. DC Bank VISA -->
+                                                <Border Grid.Column="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="4,0,0,0">
+                                                    <StackPanel>
+                                                        <DockPanel Margin="0,0,0,3">
+                                                            <TextBlock Text="🇹🇯 DC Bank VISA" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                            <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" FontSize="8.5" Padding="5,1" HorizontalAlignment="Right" Click="CopyDcCard_Click"/>
+                                                        </DockPanel>
+                                                        <TextBlock Text="4713 3800 2165 1431" FontFamily="Consolas, monospace" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Style="{StaticResource CyberToolButton}" Content="💖 Поддержать автора (Sponsor)" Padding="12,5" Margin="0,0,8,0" Click="OpenSponsors_Click"/>
                                         <Button Style="{StaticResource CyberToolButton}" Content="🌐 Открыть GitHub: BlackTecCom2000" Padding="12,5" Click="OpenGitHub_Click"/>
                                     </StackPanel>
                                 </StackPanel>
