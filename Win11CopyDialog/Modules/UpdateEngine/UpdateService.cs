@@ -48,8 +48,9 @@ public static class UpdateService
 
         try
         {
-            // 1. Попытка чтения Manifest URL (быстро, без rate-limit GitHub API)
-            string json = await _httpClient.GetStringAsync(ManifestUrl, ct);
+            // 1. Попытка чтения Manifest URL (быстро, с cache_bypass для мгновенной отдачи после push в репозиторий)
+            string urlWithBypass = $"{ManifestUrl}?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            string json = await _httpClient.GetStringAsync(urlWithBypass, ct);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -90,7 +91,57 @@ public static class UpdateService
         }
         catch (Exception ex)
         {
-            // Fallback: если репозиторий только создан или оффлайн
+            // 2. Fallback: Запрос к официальному GitHub Releases API
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, GitHubReleasesUrl);
+                using var resp = await _httpClient.SendAsync(request, ct);
+                if (resp.IsSuccessStatusCode)
+                {
+                    string releaseJson = await resp.Content.ReadAsStringAsync(ct);
+                    using var relDoc = JsonDocument.Parse(releaseJson);
+                    var relRoot = relDoc.RootElement;
+                    if (relRoot.TryGetProperty("tag_name", out var tagProp))
+                    {
+                        string tag = tagProp.GetString() ?? "";
+                        string ver = tag.TrimStart('v', 'V');
+                        info.LatestVersion = ver;
+                        info.IsUpdateAvailable = IsNewerVersion(currentVerStr, ver);
+                        if (relRoot.TryGetProperty("published_at", out var pubProp))
+                        {
+                            info.ReleaseDate = pubProp.GetString() ?? "";
+                        }
+                        if (relRoot.TryGetProperty("body", out var bodyProp))
+                        {
+                            string body = bodyProp.GetString() ?? "";
+                            info.Changelog = body.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                        }
+                        if (relRoot.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var a in assets.EnumerateArray())
+                            {
+                                if (a.TryGetProperty("browser_download_url", out var dlUrl))
+                                {
+                                    string dl = dlUrl.GetString() ?? "";
+                                    if (dl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        info.DownloadUrl = dl;
+                                        info.InstallerUrl = dl;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (string.IsNullOrEmpty(info.DownloadUrl))
+                        {
+                            info.DownloadUrl = $"{GitHubRepoUrl}/releases/download/{tag}/MotionCommander-Windows-x64.zip";
+                        }
+                        return info;
+                    }
+                }
+            }
+            catch { }
+
             info.ErrorMessage = ex.Message;
             return info;
         }
@@ -155,16 +206,18 @@ public static class UpdateService
         string tempDir = Path.GetDirectoryName(updatePackagePath) ?? Path.GetTempPath();
         string scriptPath = Path.Combine(tempDir, "apply_update.cmd");
 
-        // Автономный командный скрипт для подмены файлов после выхода процесса
+        // Автономный командный скрипт для надёжной подмены файлов после выхода процесса
         int currentPid = Process.GetCurrentProcess().Id;
         string scriptContent = $@"@echo off
-timeout /t 2 /nobreak > nul
+timeout /t 1 /nobreak > nul
 :wait_process
 tasklist /fi ""PID eq {currentPid}"" | find ""{currentPid}"" > nul
 if %ERRORLEVEL% equ 0 (
     timeout /t 1 /nobreak > nul
     goto wait_process
 )
+taskkill /F /IM Win11CopyDialog.exe >nul 2>nul
+timeout /t 1 /nobreak > nul
 
 echo Обновление Motion Commander...
 if ""{Path.GetExtension(updatePackagePath).ToLowerInvariant()}""==""exe"" (
@@ -172,7 +225,8 @@ if ""{Path.GetExtension(updatePackagePath).ToLowerInvariant()}""==""exe"" (
     exit /b 0
 )
 
-powershell -Command ""Expand-Archive -Path '{updatePackagePath}' -DestinationPath '{currentDir}' -Force""
+powershell -NoProfile -ExecutionPolicy Bypass -Command ""$ErrorActionPreference='SilentlyContinue'; Expand-Archive -Path '{updatePackagePath}' -DestinationPath '{currentDir}' -Force""
+timeout /t 1 /nobreak > nul
 start """" ""{currentExe}""
 del ""%~f0""
 exit /b 0

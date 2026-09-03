@@ -1,18 +1,18 @@
-{
-  "version": "3.0.0",
-  "releaseDate": "2026-09-04",
-  "productName": "Motion Commander",
-  "author": "BlackTecCom - Jaborov Daler",
-  "license": "MIT",
-  "minWindowsVersion": "10.0.19041",
-  "changelog": [
-    "🚀 Полный релиз Motion Commander v3.0 All-in-One",
-    "🖴 Storage Control Center: Профессиональный мониторинг NVMe, SSD, HDD, USB с термопрофилями и S.M.A.R.T. Health A+",
-    "🗂 Disk Partition Manager с SuperAdmin Engine (Override) — создание, удаление, сжатие, расширение и форматирование томов",
-    "🏎 Аппаратный полнодуплексный движок копирования (Full-Duplex Streaming Pipeline) со скоростью до 5+ ГБ/с",
-    "✨ Бесконфликтная архитектура интерфейса (Zero-Conflict Layout) и адаптивный ультра-плавный скроллинг 120 FPS",
-    "🔄 Встроенная система автоматического обновления приложений (In-App Auto-Updater)"
-  ],
-  "downloadUrl": "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.0.0-Portable.zip",
-  "installerUrl": "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.0.0-Portable.zip"
+﻿{
+    "version":  "3.1.0",
+    "releaseDate":  "2026-09-04",
+    "productName":  "Motion Commander",
+    "author":  "BlackTecCom - Jaborov Daler",
+    "license":  "MIT",
+    "minWindowsVersion":  "10.0.19041",
+    "changelog":  [
+                      "Direct I/O Streamer: Hardware saturation PCIe/SATA pipeline with null-allocation pool",
+                      "Speed Telemetry HUD: 30 FPS Canvas speed graph, 4-tile neon indicators and bottleneck detector",
+                      "WizTree Disk Space Analyzer: Folder weights treemap, Top-100 heavy files and extensions statistics",
+                      "Duplicate File Cleaner: 3-stage high-speed scan (Size -\u003e 4KB Pre-Hash -\u003e Full SHA-256)",
+                      "System Driver Inspector: WMI PnP device audit, state indicators, devmgmt.msc and report export",
+                      "Settings Window: 10 designer themes (Cyberpunk, OLED Midnight, Matrix, Sunset), backdrops, haptics and JSON editor"
+                  ],
+    "downloadUrl":  "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.1.0-Portable.zip",
+    "installerUrl":  "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.1.0-Portable.zip"
 }
