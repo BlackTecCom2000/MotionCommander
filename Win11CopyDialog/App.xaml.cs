@@ -141,6 +141,11 @@ public partial class App : Application
         {
             new Views.Dialogs.SettingsWindow().Show();
         }
+        else if (e.Args.Contains("--folder-picker-demo"))
+        {
+            var picker = new Views.Dialogs.CyberFolderPickerDialog("Выберите папку для копирования (Motion Transfer)", @"F:\ANTIGRAVITY\WIN11 COPY", 42_500_000_000L);
+            picker.Show();
+        }
         else if (e.Args.Contains("--advanced-tools-demo"))
         {
             new Views.Dialogs.AdvancedToolsWindow(@"C:\Windows\System32\notepad.exe").Show();

@@ -73,14 +73,11 @@ public partial class WizTreeAnalyzerWindow : Window
     private void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var dlg = new OpenFolderDialog
+        string initial = Directory.Exists(TargetFolderBox.Text) ? TargetFolderBox.Text : "C:\\";
+        var folder = CyberFolderPickerDialog.PickFolder(this, "ВЫБОР ПАПКИ ДЛЯ АНАЛИЗА WIZTREE", initial);
+        if (!string.IsNullOrEmpty(folder))
         {
-            Title = "Выберите диск или папку для анализа",
-            InitialDirectory = Directory.Exists(TargetFolderBox.Text) ? TargetFolderBox.Text : "C:\\"
-        };
-        if (dlg.ShowDialog() == true)
-        {
-            TargetFolderBox.Text = dlg.FolderName;
+            TargetFolderBox.Text = folder;
         }
     }
 

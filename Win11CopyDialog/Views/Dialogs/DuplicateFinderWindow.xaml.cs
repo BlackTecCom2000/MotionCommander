@@ -60,14 +60,11 @@ public partial class DuplicateFinderWindow : Window
     private void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var dlg = new OpenFolderDialog
+        string initial = Directory.Exists(SearchFolderBox.Text) ? SearchFolderBox.Text : "C:\\";
+        var folder = CyberFolderPickerDialog.PickFolder(this, "ВЫБОР ПАПКИ ДЛЯ ПОИСКА ДУБЛИКАТОВ", initial);
+        if (!string.IsNullOrEmpty(folder))
         {
-            Title = "Выберите папку для поиска дубликатов",
-            InitialDirectory = Directory.Exists(SearchFolderBox.Text) ? SearchFolderBox.Text : "C:\\"
-        };
-        if (dlg.ShowDialog() == true)
-        {
-            SearchFolderBox.Text = dlg.FolderName;
+            SearchFolderBox.Text = folder;
         }
     }
 

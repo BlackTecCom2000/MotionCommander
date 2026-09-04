@@ -28,14 +28,10 @@ public partial class ExtractArchiveWindow : Window
     private void Browse_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var dialog = new Microsoft.Win32.OpenFolderDialog
+        var folder = CyberFolderPickerDialog.PickFolder(this, "ВЫБОР ПАПКИ ДЛЯ РАСПАКОВКИ", DestFolderBox.Text);
+        if (!string.IsNullOrEmpty(folder))
         {
-            Title = "Выберите папку для распаковки",
-            InitialDirectory = DestFolderBox.Text
-        };
-        if (dialog.ShowDialog() == true)
-        {
-            DestFolderBox.Text = dialog.FolderName;
+            DestFolderBox.Text = folder;
         }
     }
 

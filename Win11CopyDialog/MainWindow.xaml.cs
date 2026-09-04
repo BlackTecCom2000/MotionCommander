@@ -602,6 +602,101 @@ public partial class MainWindow : Window
         NavigateTo(_currentPath, false);
     }
 
+    private async void CopyToFolder_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var items = FileBrowserList.SelectedItems.Cast<FileSystemItem>().ToList();
+        if (items.Count == 0)
+        {
+            MessageBox.Show("Выберите один или несколько файлов или папок для копирования.", "Копирование в папку", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        long totalBytes = 0;
+        foreach (var it in items)
+        {
+            if (!it.IsDirectory)
+                totalBytes += it.Length;
+        }
+
+        string? targetDir = Win11CopyDialog.Views.Dialogs.CyberFolderPickerDialog.PickFolder(
+            this,
+            $"Выберите целевую папку для копирования ({items.Count} эл.)",
+            _currentPath,
+            totalBytes > 0 ? totalBytes : null);
+
+        if (string.IsNullOrEmpty(targetDir) || !Directory.Exists(targetDir)) return;
+
+        var sources = items.Select(i => i.FullPath).ToList();
+        await LaunchRealTransferBatchAsync(sources, targetDir, isCut: false);
+    }
+
+    private async void MoveToFolder_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var items = FileBrowserList.SelectedItems.Cast<FileSystemItem>().ToList();
+        if (items.Count == 0)
+        {
+            MessageBox.Show("Выберите один или несколько файлов или папок для перемещения.", "Перемещение в папку", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        long totalBytes = 0;
+        foreach (var it in items)
+        {
+            if (!it.IsDirectory)
+                totalBytes += it.Length;
+        }
+
+        string? targetDir = Win11CopyDialog.Views.Dialogs.CyberFolderPickerDialog.PickFolder(
+            this,
+            $"Выберите целевую папку для перемещения ({items.Count} эл.)",
+            _currentPath,
+            totalBytes > 0 ? totalBytes : null);
+
+        if (string.IsNullOrEmpty(targetDir) || !Directory.Exists(targetDir)) return;
+
+        var sources = items.Select(i => i.FullPath).ToList();
+        await LaunchRealTransferBatchAsync(sources, targetDir, isCut: true);
+    }
+
+    private async Task LaunchRealTransferBatchAsync(IEnumerable<string> sources, string dst, bool isCut = false)
+    {
+        var sList = sources.ToList();
+        if (sList.Count == 0) return;
+
+        var motion = new MotionCopyWindow { Owner = this };
+        _activeMotionWindow = motion;
+        motion.Show();
+        motion.Activate();
+
+        try
+        {
+            await motion.StartRealTransferAsync(sList, dst);
+
+            if (isCut && motion.Engine.IsCompleted)
+            {
+                foreach (var s in sList)
+                {
+                    try
+                    {
+                        if (File.Exists(s)) File.Delete(s);
+                        else if (Directory.Exists(s)) Directory.Delete(s, true);
+                    }
+                    catch { }
+                }
+            }
+            HapticAudio.PlaySuccess();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка передачи данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        NavigateTo(_currentPath, false);
+    }
+
     private void ShowHashes_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
@@ -1005,26 +1100,20 @@ public partial class MainWindow : Window
     private void BrowseSourceFolder_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var ofd = new Microsoft.Win32.OpenFolderDialog
+        var folder = CyberFolderPickerDialog.PickFolder(this, "ВЫБОР ИСХОДНОЙ ПАПКИ ДЛЯ ПЕРЕДАЧИ", TransferSourceBox.Text);
+        if (!string.IsNullOrEmpty(folder))
         {
-            Title = "Выберите исходную папку"
-        };
-        if (ofd.ShowDialog() == true)
-        {
-            TransferSourceBox.Text = ofd.FolderName;
+            TransferSourceBox.Text = folder;
         }
     }
 
     private void BrowseDestFolder_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var ofd = new Microsoft.Win32.OpenFolderDialog
+        var folder = CyberFolderPickerDialog.PickFolder(this, "ВЫБОР ЦЕЛЕВОЙ ПАПКИ НАЗНАЧЕНИЯ", TransferDestBox.Text);
+        if (!string.IsNullOrEmpty(folder))
         {
-            Title = "Выберите целевую папку"
-        };
-        if (ofd.ShowDialog() == true)
-        {
-            TransferDestBox.Text = ofd.FolderName;
+            TransferDestBox.Text = folder;
         }
     }
 
@@ -1113,10 +1202,10 @@ public partial class MainWindow : Window
             }
             else
             {
-                var fbd = new Microsoft.Win32.OpenFolderDialog { Title = "Выберите исходную папку для передачи" };
-                if (fbd.ShowDialog() == true)
+                var pickedSrc = Win11CopyDialog.Views.Dialogs.CyberFolderPickerDialog.PickFolder(this, "Выберите исходную папку для передачи");
+                if (!string.IsNullOrEmpty(pickedSrc))
                 {
-                    src = fbd.FolderName;
+                    src = pickedSrc;
                     TransferSourceBox.Text = src;
                 }
                 else
@@ -1130,10 +1219,10 @@ public partial class MainWindow : Window
         // Если приёмник не указан — запрашиваем папку назначения
         if (string.IsNullOrEmpty(dst) || !Directory.Exists(dst))
         {
-            var fbd = new Microsoft.Win32.OpenFolderDialog { Title = "Выберите целевую папку (куда передавать данные)" };
-            if (fbd.ShowDialog() == true)
+            var pickedDst = Win11CopyDialog.Views.Dialogs.CyberFolderPickerDialog.PickFolder(this, "Выберите целевую папку (куда передавать данные)");
+            if (!string.IsNullOrEmpty(pickedDst))
             {
-                dst = fbd.FolderName;
+                dst = pickedDst;
                 TransferDestBox.Text = dst;
             }
             else

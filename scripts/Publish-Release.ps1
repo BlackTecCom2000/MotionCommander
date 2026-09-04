@@ -105,9 +105,9 @@ if (Test-Path $localInstallDir) {
 
 # 6. Git commit, tag, and push
 if (!$SkipPush) {
-    Write-Host "[6/6] Pushing release and tag v$cleanVer to GitHub..." -ForegroundColor Cyan
     & git add -A
-    & git commit -m "release: v$cleanVer - Real recursive copy engine, 3D live transfers, refined modern sidebar, vector icons and drive health meters"
+    $commitMsg = "release: v$cleanVer - " + ($Notes -join "; ")
+    & git commit -m $commitMsg
     
     $existingTag = & git tag -l "v$cleanVer"
     if ($existingTag) {

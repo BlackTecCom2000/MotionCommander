@@ -1,13 +1,13 @@
 ﻿{
-    "version":  "3.2.0",
+    "version":  "3.3.0",
     "releaseDate":  "2026-09-04",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Real recursive file/folder copy engine with hardware saturation and zero mockups"
+                      "Futuristic CyberFolderPickerDialog replacing legacy folder dialogs"
                   ],
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.2.0-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.2.0-Portable.zip"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.3.0-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.3.0-Portable.zip"
 }

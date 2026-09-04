@@ -196,10 +196,10 @@ public partial class AdvancedToolsWindow : Window
     private void SelectFolderAnalyze_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var dialog = new OpenFolderDialog { Title = "Выберите папку для анализа" };
-        if (dialog.ShowDialog() == true)
+        var folder = CyberFolderPickerDialog.PickFolder(this, "Выберите папку для анализа", AnalyzeFolderBox.Text);
+        if (!string.IsNullOrEmpty(folder))
         {
-            AnalyzeFolderBox.Text = dialog.FolderName;
+            AnalyzeFolderBox.Text = folder;
         }
     }
 
