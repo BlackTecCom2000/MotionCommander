@@ -1,13 +1,13 @@
 ﻿{
-    "version":  "3.3.0",
+    "version":  "3.4.0",
     "releaseDate":  "2026-09-04",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Futuristic CyberFolderPickerDialog replacing legacy folder dialogs"
+                      "Harmonized Header \u0026 Navigation: Crisp vector SVG icons for all 6 top tabs with smooth state transitions and glowing neon accents"
                   ],
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.3.0-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.3.0-Portable.zip"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.4.0-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.4.0-Portable.zip"
 }

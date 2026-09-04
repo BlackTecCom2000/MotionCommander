@@ -86,6 +86,30 @@
         <StreamGeometry x:Key="Icon_Drive_Network">M 4,14 A 4,4 0 0 1 7.5,10.2 A 6,6 0 0 1 18,9 A 4,4 0 0 1 19,17 H 4 Z M 12,17 V 21 M 8,21 H 16</StreamGeometry>
         <StreamGeometry x:Key="Icon_Refresh">M 17.65,6.35 A 8,8 0 1,0 19.73,13 H 17.65 A 6,6 0 1,1 16.24,7.76 L 13,11 H 20 V 4 L 17.65,6.35 Z</StreamGeometry>
         <StreamGeometry x:Key="Icon_ChevronRight">M 9,6 L 15,12 L 9,18</StreamGeometry>
+        <StreamGeometry x:Key="Icon_ChevronLeft">M 15,6 L 9,12 L 15,18</StreamGeometry>
+        <StreamGeometry x:Key="Icon_ChevronUp">M 6,15 L 12,9 L 18,15</StreamGeometry>
+        <StreamGeometry x:Key="Icon_ChevronDown">M 6,9 L 12,15 L 18,9</StreamGeometry>
+        <StreamGeometry x:Key="Icon_NavFiles">M 3,4 H 10 L 12,6 H 21 V 19 H 3 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_NavSpeed">M 13,2 L 4,14 H 11 L 10,22 L 20,9 H 13 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_NavStorage">M 3,4 H 21 V 8 H 3 Z M 3,10 H 21 V 14 H 3 Z M 3,16 H 21 V 20 H 3 Z M 17,6 H 18 M 17,12 H 18 M 17,18 H 18</StreamGeometry>
+        <StreamGeometry x:Key="Icon_NavDiagnostics">M 4,19 H 20 V 21 H 4 Z M 5,13 H 8 V 18 H 5 Z M 10,8 H 13 V 18 H 10 Z M 15,4 H 18 V 18 H 15 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_NavTools">M 14.7,3.3 C 12.8,1.4 9.8,1.6 8.1,3.4 C 6.9,4.6 6.5,6.3 6.9,7.9 L 2.3,12.5 C 1.9,12.9 1.9,13.5 2.3,13.9 L 4.1,15.7 C 4.5,16.1 5.1,16.1 5.5,15.7 L 10.1,11.1 C 11.7,11.5 13.4,11.1 14.6,9.9 C 16.4,8.2 16.6,5.2 14.7,3.3 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_NavSettings">M 12,15 A 3,3 0 1 0 12,9 A 3,3 0 0 0 12,15 Z M 19.4,13 A 7.8,7.8 0 0 0 19.5,12 A 7.8,7.8 0 0 0 19.4,11 L 21.5,9.4 C 21.7,9.2 21.8,8.9 21.6,8.7 L 19.6,5.2 C 19.5,5 19.2,4.9 19,5 L 16.5,6 A 7.5,7.5 0 0 0 14.8,5 L 14.4,2.4 C 14.4,2.2 14.2,2 13.9,2 H 10.1 C 9.8,2 9.6,2.2 9.6,2.4 L 9.2,5 A 7.5,7.5 0 0 0 7.5,6 L 5,5 C 4.8,4.9 4.5,5 4.4,5.2 L 2.4,8.7 C 2.2,8.9 2.3,9.2 2.5,9.4 L 4.6,11 A 7.8,7.8 0 0 0 4.5,12 A 7.8,7.8 0 0 0 4.6,13 L 2.5,14.6 C 2.3,14.8 2.2,15.1 2.4,15.3 L 4.4,18.8 C 4.5,19 4.8,19.1 5,19 L 7.5,18 A 7.5,7.5 0 0 0 9.2,19 L 9.6,21.6 C 9.6,21.8 9.8,22 10.1,22 H 13.9 C 14.2,22 14.4,21.8 14.4,21.6 L 14.8,19 A 7.5,7.5 0 0 0 16.5,18 L 19,19 C 19.2,19.1 19.5,19 19.6,18.8 L 21.6,15.3 C 21.8,15.1 21.7,14.8 21.5,14.6 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Archive">M 4,4 H 20 V 20 H 4 Z M 11,4 V 14 L 12,15 L 13,14 V 4 M 11,7 H 13 M 11,10 H 13</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Extract">M 12,3 L 4,7 V 17 L 12,21 L 20,17 V 7 Z M 12,3 V 11 M 12,11 L 4,7 M 12,11 L 20,7</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Shield">M 12,2 L 4,5 V 11 C 4,16.5 7.4,21.7 12,23 C 16.6,21.7 20,16.5 20,11 V 5 Z M 10,15.5 L 6.5,12 L 7.9,10.6 L 10,12.7 L 16.1,6.6 L 17.5,8 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Copy">M 8,4 H 19 V 17 H 8 Z M 5,7 H 4 V 20 H 16 V 19</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Cut">M 6,4 A 3,3 0 1 0 7.8,8.6 L 12,12 L 7.8,15.4 A 3,3 0 1 0 6,14 A 3,3 0 0 0 5,14.2 L 10.5,12 L 5,9.8 A 3,3 0 0 0 6,4 Z M 12,12 L 19,6 M 12,12 L 19,18</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Paste">M 9,4 V 2 H 15 V 4 M 5,4 H 7 V 6 H 17 V 4 H 19 V 20 H 5 Z M 9,11 H 15 M 9,14 H 13</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Transfer">M 3,12 H 17 M 12,7 L 17,12 L 12,17 M 21,5 V 19</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Move">M 4,7 L 12,3 L 20,7 V 17 L 12,21 L 4,17 Z M 12,12 L 12,17 M 12,12 L 17,9.5 M 12,12 L 7,9.5</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Delete">M 6,7 H 18 M 9,7 V 4 H 15 V 7 M 8,7 V 19 H 16 V 7 M 10,11 V 16 M 14,11 V 16</StreamGeometry>
+        <StreamGeometry x:Key="Icon_NewFolder">M 3,4 H 10 L 12,6 H 21 V 19 H 3 Z M 12,10 V 16 M 9,13 H 15</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Hashes">M 9.5,4 H 8 L 7.4,8 H 4 V 9.5 H 7.1 L 6.4,14 H 3 V 15.5 H 6.2 L 5.5,20 H 7 L 7.7,15.5 H 12 L 11.3,20 H 12.8 L 13.5,15.5 H 17 V 14 H 13.7 L 14.4,9.5 H 18 V 8 H 14.6 L 15.3,4 H 13.8 L 13.1,8 H 8.8 Z M 8.6,9.5 H 12.9 L 12.2,14 H 7.9 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Search">M 15.5,14 H 14.7 L 14.4,13.7 A 6.5,6.5 0 1 0 9.5,16 A 6.5,6.5 0 0 0 14,14.4 L 14.3,14.7 V 15.5 L 19,20.5 L 20.5,19 Z M 9.5,14 A 4.5,4.5 0 1 1 14,9.5 A 4.5,4.5 0 0 1 9.5,14 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Close">M 19,6.4 L 17.6,5 L 12,10.6 L 6.4,5 L 5,6.4 L 10.6,12 L 5,17.6 L 6.4,19 L 12,13.4 L 17.6,19 L 19,17.6 L 13.4,12 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Minimize">M 4,12 H 20</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Maximize">M 4,4 H 20 V 20 H 4 Z</StreamGeometry>
 
         <!-- Футуристическая навигационная пилюля (Futuristic Nav Tab) -->
         <Style x:Key="FuturisticNavTab" TargetType="RadioButton">
@@ -242,6 +266,54 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Фирменная кнопка панели команд (RibbonActionButton) -->
+        <Style x:Key="RibbonActionButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="9,4"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value><ScaleTransform ScaleX="0.96" ScaleY="0.96"/></Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Акцентная кнопка панели команд (RibbonPrimaryActionButton) -->
+        <Style x:Key="RibbonPrimaryActionButton" TargetType="Button" BasedOn="{StaticResource RibbonActionButton}">
+            <Setter Property="Background" Value="{DynamicResource ListRowSelectedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         </Style>
 
         <!-- Элегантный элемент бокового меню навигации (SidebarNavItem) -->

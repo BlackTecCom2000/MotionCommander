@@ -38,8 +38,8 @@
                         <TextBlock Text="✦" FontSize="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
-                    <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="9" Padding="7,2" Margin="8,0,0,0">
-                        <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.1 All-in-One" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                    <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                        <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.4.0 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>
 
@@ -49,18 +49,54 @@
                         HorizontalAlignment="Center" VerticalAlignment="Center"
                         WindowChrome.IsHitTestVisibleInChrome="True">
                     <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
-                        <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}" Content="📁 Файлы"
-                                     GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}" Content="⚡ Скорость"
-                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}" Content="🖴 Накопители"
-                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}" Content="📊 Диагностика"
-                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}" Content="🛠 Утилиты"
-                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabSettingsRadio" Style="{StaticResource FuturisticNavTab}" Content="⚙ Опции"
-                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavFiles}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Файлы" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavSpeed}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Скорость" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavStorage}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Накопители" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavDiagnostics}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Диагностика" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavTools}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Утилиты" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabSettingsRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavSettings}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Опции" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
                     </StackPanel>
                 </Border>
 
@@ -68,19 +104,25 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="OpenSettingsWindowBtn" Style="{StaticResource CaptionButton}"
                             ToolTip="Параметры и темы оформления" Click="OpenSettingsWindow_Click" Margin="0,0,4,0">
-                        <TextBlock Text="⚙" FontSize="13"/>
+                        <Path Data="{StaticResource Icon_NavSettings}" Fill="{DynamicResource TitleForegroundBrush}" Width="13" Height="13" Stretch="Uniform"/>
                     </Button>
                     <Button x:Name="QuickThemeBtn" Style="{StaticResource CaptionButton}"
                             ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0">
-                        <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13"/>
+                        <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13" Foreground="{DynamicResource TitleForegroundBrush}"/>
                     </Button>
                 </StackPanel>
 
                 <!-- Кнопки управления окном -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal">
-                    <Button Style="{StaticResource CaptionButton}" Content="─" Click="Min_Click"/>
-                    <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" Content="□" Click="Max_Click"/>
-                    <Button Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+                    <Button Style="{StaticResource CaptionButton}" ToolTip="Свернуть" Click="Min_Click">
+                        <Path Data="{StaticResource Icon_Minimize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="2" Stretch="Fill"/>
+                    </Button>
+                    <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" ToolTip="Развернуть" Click="Max_Click">
+                        <Path Data="{StaticResource Icon_Maximize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                    </Button>
+                    <Button Style="{StaticResource CaptionCloseButton}" ToolTip="Закрыть" Click="Close_Click">
+                        <Path Data="{StaticResource Icon_Close}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -91,31 +133,79 @@
                     <DockPanel>
                         <!-- Панель команд (Floating Glass Ribbon Dock) -->
                         <Border DockPanel.Dock="Top" Background="{DynamicResource RibbonBackgroundBrush}"
-                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,1" Padding="12,7">
+                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,1" Padding="12,6">
                             <DockPanel>
+                                <!-- Правая часть: Скрытые файлы и Обновить (всегда прижаты вправо) -->
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <CheckBox x:Name="ShowHiddenCheck" Content="Скрытые файлы" Foreground="{DynamicResource PrimaryTextBrush}"
+                                              FontSize="11.5" FontWeight="Medium" Cursor="Hand" VerticalAlignment="Center" Margin="0,0,12,0" Click="ShowHidden_Click"/>
+                                    <Button Style="{StaticResource CyberNavCircleButton}" ToolTip="Обновить список (F5)" Click="Refresh_Click">
+                                        <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource PrimaryTextBrush}" Width="12" Height="12" Stretch="Uniform"/>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Основные действия с архивами и файлами -->
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button x:Name="CreateArchiveBtn" Style="{StaticResource CyberButton}" Content="🗜 Создать архив"
-                                            Height="32" Padding="12,0" Margin="0,0,8,0" Click="CreateArchive_Click"/>
-                                    <Button x:Name="ExtractArchiveBtn" Style="{StaticResource CyberToolButton}" Content="📦 Распаковать"
-                                            Click="ExtractArchive_Click"/>
-                                    <Button x:Name="TestArchiveBtn" Style="{StaticResource CyberToolButton}" Content="🛡 Проверить"
-                                            Click="TestArchive_Click"/>
+                                    <Button x:Name="CreateArchiveBtn" Style="{StaticResource RibbonPrimaryActionButton}"
+                                            Click="CreateArchive_Click" ToolTip="Создать новый архив из выбранных файлов">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Archive}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
+                                            <TextBlock Text="Создать архив" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="ExtractArchiveBtn" Style="{StaticResource RibbonActionButton}"
+                                            Click="ExtractArchive_Click" ToolTip="Распаковать архив в папку">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Extract}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
+                                            <TextBlock Text="Распаковать" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="TestArchiveBtn" Style="{StaticResource RibbonActionButton}"
+                                            Click="TestArchive_Click" ToolTip="Проверить целостность архива">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Shield}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
+                                            <TextBlock Text="Проверить" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
 
                                     <Rectangle Width="1" Height="20" Fill="{DynamicResource GlassBorderBrush}" Margin="6,0,8,0"/>
 
-                                    <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" Click="CopyItem_Click"/>
-                                    <Button Style="{StaticResource CyberToolButton}" Content="✂ Вырезать" Click="CutItem_Click"/>
-                                    <Button Style="{StaticResource CyberToolButton}" Content="📥 Вставить" Click="PasteItem_Click"/>
-                                    <Button Style="{StaticResource CyberButton}" Content="🚀 Копировать в…" Click="CopyToFolder_Click" Height="30" Padding="12,0" Margin="4,0,4,0"/>
-                                    <Button Style="{StaticResource CyberToolButton}" Content="📦 Переместить в…" Click="MoveToFolder_Click"/>
-                                    <Button Style="{StaticResource CyberToolButton}" Content="🗑 Удалить" Click="DeleteItem_Click"/>
-                                    <Button Style="{StaticResource CyberToolButton}" Content="➕ Папка" Click="NewFolder_Click"/>
-                                    <Button Style="{StaticResource CyberToolButton}" Content="# Хэши" Click="ShowHashes_Click"/>
-                                </StackPanel>
-
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <CheckBox x:Name="ShowHiddenCheck" Content="Скрытые файлы" VerticalAlignment="Center" Margin="0,0,12,0" Click="ShowHidden_Click"/>
-                                    <Button Style="{StaticResource CyberNavCircleButton}" Content="⟳" ToolTip="Обновить" Click="Refresh_Click"/>
+                                    <Button Style="{StaticResource RibbonActionButton}" Click="CopyItem_Click" ToolTip="Копировать в буфер обмена (Ctrl+C)">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                            <TextBlock Text="Копировать" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonActionButton}" Click="CutItem_Click" ToolTip="Вырезать в буфер обмена (Ctrl+X)">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                            <TextBlock Text="Вырезать" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonActionButton}" Click="PasteItem_Click" ToolTip="Вставить из буфера обмена (Ctrl+V)">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                            <TextBlock Text="Вставить" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonActionButton}" Click="DeleteItem_Click" ToolTip="Удалить выбранные элементы (Del)">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Delete}" Fill="#EF4444" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                            <TextBlock Text="Удалить" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonActionButton}" Click="NewFolder_Click" ToolTip="Создать новую папку (Ctrl+Shift+N)">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_NewFolder}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                            <TextBlock Text="Папка" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource RibbonActionButton}" Click="ShowHashes_Click" ToolTip="Вычисление контрольных сумм MD5, SHA-256">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                            <TextBlock Text="Хэши" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                             </DockPanel>
                         </Border>
@@ -126,27 +216,54 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="220"/>
+                                    <ColumnDefinition Width="240"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                                    <Button x:Name="BackBtn" Style="{StaticResource CyberNavCircleButton}" Content="◀" ToolTip="Назад" Click="Back_Click"/>
-                                    <Button x:Name="ForwardBtn" Style="{StaticResource CyberNavCircleButton}" Content="▶" ToolTip="Вперёд" Click="Forward_Click"/>
-                                    <Button x:Name="UpBtn" Style="{StaticResource CyberNavCircleButton}" Content="▲" ToolTip="Вверх" Click="Up_Click"/>
+                                    <Button x:Name="BackBtn" Style="{StaticResource CyberNavCircleButton}" ToolTip="Назад" Click="Back_Click">
+                                        <Path Data="{StaticResource Icon_ChevronLeft}" Fill="{DynamicResource PrimaryTextBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                                    </Button>
+                                    <Button x:Name="ForwardBtn" Style="{StaticResource CyberNavCircleButton}" ToolTip="Вперёд" Click="Forward_Click">
+                                        <Path Data="{StaticResource Icon_ChevronRight}" Fill="{DynamicResource PrimaryTextBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                                    </Button>
+                                    <Button x:Name="UpBtn" Style="{StaticResource CyberNavCircleButton}" ToolTip="Вверх" Click="Up_Click">
+                                        <Path Data="{StaticResource Icon_ChevronUp}" Fill="{DynamicResource PrimaryTextBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                                    </Button>
                                 </StackPanel>
 
                                 <Border Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
-                                        BorderThickness="1" CornerRadius="8" Padding="8,2">
-                                    <TextBox x:Name="PathBox" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center"
-                                             Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" KeyDown="PathBox_KeyDown"/>
+                                        BorderThickness="1" CornerRadius="8" Padding="6,2">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="{DynamicResource MediaNVMeBackground}" CornerRadius="5" Width="22" Height="22" Margin="0,0,6,0">
+                                            <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource MediaNVMeBrush}" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBox x:Name="PathBox" Grid.Column="1" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center"
+                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" KeyDown="PathBox_KeyDown"/>
+                                        <Button Grid.Column="2" Style="{StaticResource CaptionButton}" Width="26" Height="24" ToolTip="Скопировать путь" Click="CopyCurrentPath_Click" Margin="4,0,0,0">
+                                            <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource SecondaryTextBrush}" Width="11" Height="11" Stretch="Uniform"/>
+                                        </Button>
+                                    </Grid>
                                 </Border>
 
                                 <Border Grid.Column="2" Margin="8,0,0,0" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
-                                        BorderThickness="1" CornerRadius="8" Padding="8,2">
+                                        BorderThickness="1" CornerRadius="8" Padding="6,2">
                                     <Grid>
-                                        <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center"
-                                                 Padding="20,0,4,0" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Path Grid.Column="0" Data="{StaticResource Icon_Search}" Fill="{DynamicResource SecondaryTextBrush}" Width="12" Height="12" Stretch="Uniform" Margin="4,0,6,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                        <TextBox x:Name="SearchBox" Grid.Column="1" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center"
+                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12"
                                                  TextChanged="SearchBox_TextChanged"/>
-                                        <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" Style="{StaticResource MutedText}"/>
+                                        <Button x:Name="ClearSearchBtn" Grid.Column="2" Style="{StaticResource CaptionButton}" Width="22" Height="22" ToolTip="Очистить поиск" Click="ClearSearch_Click" Visibility="Collapsed">
+                                            <Path Data="{StaticResource Icon_Close}" Fill="{DynamicResource SecondaryTextBrush}" Width="9" Height="9" Stretch="Uniform"/>
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </Grid>

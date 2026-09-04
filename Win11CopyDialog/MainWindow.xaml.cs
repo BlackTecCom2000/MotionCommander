@@ -281,10 +281,34 @@ public partial class MainWindow : Window
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         _searchFilter = SearchBox.Text.Trim();
+        if (ClearSearchBtn != null)
+        {
+            ClearSearchBtn.Visibility = string.IsNullOrEmpty(SearchBox.Text) ? Visibility.Collapsed : Visibility.Visible;
+        }
         if (!_isInsideArchive && Directory.Exists(_currentPath))
         {
             FileBrowserList.ItemsSource = FileSystemService.EnumeratePath(_currentPath, _showHidden, _searchFilter);
         }
+    }
+
+    private void ClearSearch_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SearchBox.Text = string.Empty;
+        SearchBox.Focus();
+    }
+
+    private void CopyCurrentPath_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(PathBox.Text))
+            {
+                Clipboard.SetText(PathBox.Text);
+                HapticAudio.PlaySuccess();
+            }
+        }
+        catch { }
     }
 
     private void QuickAccess_Click(object sender, RoutedEventArgs e)
