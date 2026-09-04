@@ -1,13 +1,16 @@
-﻿{
-    "version":  "3.4.0",
-    "releaseDate":  "2026-09-04",
+{
+    "version":  "3.5.0",
+    "releaseDate":  "2026-09-05",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Harmonized Header \u0026 Navigation: Crisp vector SVG icons for all 6 top tabs with smooth state transitions and glowing neon accents"
+                      "Удалены нерабочие макеты и вкладка симуляции",
+                      "Кнопка 'Настройки' перенесена в заголовок окна",
+                      "Добавлена реальная кнопка уведомления о новых обновлениях",
+                      "Оптимизация интерфейса: теперь все утилиты функциональны"
                   ],
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.4.0-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.4.0-Portable.zip"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.5.0-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.5.0-Portable.zip"
 }
