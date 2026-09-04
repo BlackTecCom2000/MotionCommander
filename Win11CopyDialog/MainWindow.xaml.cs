@@ -1506,7 +1506,8 @@ public partial class MainWindow : Window
     private void QuickTheme_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        // Toggle light/dark logic can be implemented here or delegated to ThemeManager
+        ThemeManager.Instance.Theme = ThemeManager.Instance.IsDark ? AppTheme.MicaLight : AppTheme.MicaDark;
+        QuickThemeIcon.Text = ThemeManager.Instance.IsDark ? "☾" : "☀";
     }
 
     // ---------- НАСТРОЙКИ (TAB 4) ----------
