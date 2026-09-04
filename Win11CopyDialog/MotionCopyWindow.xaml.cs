@@ -6,6 +6,8 @@ using Win11CopyDialog.Helpers;
 using Win11CopyDialog.Models;
 using Win11CopyDialog.Controls;
 
+using IOPath = System.IO.Path;
+
 namespace Win11CopyDialog;
 
 /// <summary>
@@ -68,9 +70,39 @@ public partial class MotionCopyWindow : Window
     public async Task StartRealCopyAsync(IEnumerable<(string source, string dest)> files, CancellationToken ct = default)
     {
         HideCheck();
-        WaveGraph.Max = Engine.BaseSpeedBytesPerSec * 1.4;
+        var pairs = files.ToList();
+        if (pairs.Count > 0)
+        {
+            HeroFlow.SourceLabel = pairs.Count == 1 ? IOPath.GetFileName(pairs[0].source.TrimEnd('\\', '/')) : $"{pairs.Count} элементов";
+            HeroFlow.DestLabel = IOPath.GetFileName(pairs[0].dest.TrimEnd('\\', '/'));
+        }
+        WaveGraph.Max = 500 * 1024 * 1024;
         RefreshTargets();
-        await Engine.StartRealCopyAsync(files, ct);
+        await Engine.StartRealCopyAsync(pairs, ct);
+    }
+
+    public async Task StartRealTransferAsync(string source, string destDir, CancellationToken ct = default)
+    {
+        HideCheck();
+        HeroFlow.SourceLabel = IOPath.GetFileName(source.TrimEnd('\\', '/'));
+        HeroFlow.DestLabel = IOPath.GetFileName(destDir.TrimEnd('\\', '/'));
+        WaveGraph.Max = 500 * 1024 * 1024;
+        RefreshTargets();
+        await Engine.StartRealCopyAsync(new[] { (source, destDir) }, ct);
+    }
+
+    public async Task StartRealTransferAsync(IEnumerable<string> sources, string destDirectory, CancellationToken ct = default)
+    {
+        HideCheck();
+        var sList = sources.ToList();
+        HeroFlow.SourceLabel = sList.Count == 1
+            ? IOPath.GetFileName(sList[0].TrimEnd('\\', '/'))
+            : $"{sList.Count} элементов";
+        HeroFlow.DestLabel = IOPath.GetFileName(destDirectory.TrimEnd('\\', '/'));
+        WaveGraph.Max = 500 * 1024 * 1024;
+        RefreshTargets();
+        var pairs = sList.Select(s => (s, destDirectory)).ToList();
+        await Engine.StartRealCopyAsync(pairs, ct);
     }
 
     public static MotionCopyWindow ShowSimulation(IEnumerable<(string name, long size)> files,

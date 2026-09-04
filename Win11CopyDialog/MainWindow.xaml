@@ -39,7 +39,7 @@
                     </Border>
                     <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
                     <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="9" Padding="7,2" Margin="8,0,0,0">
-                        <TextBlock Text="v3.0 All-in-One" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.1 All-in-One" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
                     </Border>
                 </StackPanel>
 
@@ -165,51 +165,149 @@
                         <!-- Основное тело (Splitter: Левая колонка - Диски/Быстрый доступ, Правая колонка - Браузер) -->
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="230" MinWidth="180"/>
+                                <ColumnDefinition Width="250" MinWidth="200"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*" MinWidth="350"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Левая панель -->
+                            <!-- Левая панель навигации: Быстрый доступ и Накопители -->
                             <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{DynamicResource WindowBackgroundBrush}">
                                 <StackPanel Margin="10,8">
-                                    <TextBlock Text="Быстрый доступ" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="6,0,0,6"/>
+                                    
+                                    <!-- Заголовок: Быстрый доступ -->
+                                    <DockPanel Margin="6,2,6,8">
+                                        <Border DockPanel.Dock="Right" Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="6,1" VerticalAlignment="Center">
+                                            <TextBlock x:Name="SidebarQuickAccessCountBadge" Text="7" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="⚡" FontSize="11" Foreground="{DynamicResource AccentBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="БЫСТРЫЙ ДОСТУП" FontSize="10.5" FontWeight="Bold" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <!-- Список папок быстрого доступа -->
                                     <ItemsControl x:Name="QuickAccessList">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Button Style="{StaticResource CyberToolButton}" HorizontalContentAlignment="Left" Margin="0,0,0,3" Padding="8,5" Click="QuickAccess_Click">
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Icon}" FontSize="12" Margin="0,0,8,0"/>
-                                                        <TextBlock Text="{Binding Name}" FontSize="12"/>
-                                                    </StackPanel>
+                                                <Button Style="{StaticResource SidebarNavItem}" Click="QuickAccess_Click">
+                                                    <Button.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="📂 Открыть" Click="QuickAccessContextOpen_Click"/>
+                                                            <MenuItem Header="⚡ Открыть в терминале" Click="QuickAccessContextTerminal_Click"/>
+                                                            <MenuItem Header="📋 Копировать путь" Click="QuickAccessContextCopyPath_Click"/>
+                                                        </ContextMenu>
+                                                    </Button.ContextMenu>
+                                                    <DockPanel LastChildFill="True">
+                                                        <!-- Иконка в мягком цветном бейдже -->
+                                                        <Border Width="28" Height="28" CornerRadius="8" Background="{Binding IconTintBrush}" BorderBrush="{Binding IconBorderBrush}" BorderThickness="1" Margin="0,0,9,0" VerticalAlignment="Center">
+                                                            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Path Data="{Binding VectorGeometry}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding IconForegroundBrush}"
+                                                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Grid>
+                                                        </Border>
+
+                                                        <!-- Шеврон перехода справа -->
+                                                        <TextBlock DockPanel.Dock="Right" Text="›" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SecondaryTextBrush}"
+                                                                   Opacity="0.4" VerticalAlignment="Center" Margin="4,0,2,0"/>
+
+                                                        <!-- Название и назначение папки -->
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Subtitle}" FontSize="9.5" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
                                                 </Button>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <TextBlock Text="Диски и накопители" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="6,12,0,6"/>
+                                    <!-- Заголовок: Диски и накопители -->
+                                    <DockPanel Margin="6,16,6,8">
+                                        <!-- Справа: кнопка обновить и бейдж количества томов -->
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="6,1" Margin="0,0,5,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="SidebarDrivesCountBadge" Text="4 тома" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            </Border>
+                                            <Button Style="{StaticResource CyberNavCircleButton}" Width="24" Height="24" ToolTip="Обновить список дисков" Click="RefreshDrives_Click" Margin="0">
+                                                <Path Data="{StaticResource Icon_Refresh}" Width="10.5" Height="10.5" Stretch="Uniform" Fill="{DynamicResource SecondaryTextBrush}"/>
+                                            </Button>
+                                        </StackPanel>
+                                        
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="💽" FontSize="11" Foreground="{DynamicResource AccentBrush}" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="ДИСКИ И НАКОПИТЕЛИ" FontSize="10.5" FontWeight="Bold" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <!-- Список дисков и накопителей системы -->
                                     <ItemsControl x:Name="DrivesList">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Style="{StaticResource Card}" Padding="10,8" Margin="0,0,0,6" CornerRadius="10" Cursor="Hand" MouseLeftButtonUp="Drive_Click">
+                                                <Border Style="{StaticResource SidebarDriveCard}" MouseLeftButtonUp="Drive_Click">
+                                                    <Border.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="📂 Открыть диск" Click="DriveContextOpen_Click"/>
+                                                            <MenuItem Header="📊 Анализ диска (WizTree)" Click="DriveContextWizTree_Click"/>
+                                                            <MenuItem Header="⚡ Тест скорости накопителя" Click="DriveContextSpeed_Click"/>
+                                                            <Separator/>
+                                                            <MenuItem Header="ℹ️ Свойства диска" Click="DriveContextProperties_Click"/>
+                                                        </ContextMenu>
+                                                    </Border.ContextMenu>
                                                     <StackPanel>
-                                                        <DockPanel Margin="0,0,0,4">
-                                                            <Border DockPanel.Dock="Right" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="6,1">
-                                                                <TextBlock Text="{Binding FileSystem}" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                                        <!-- Верхняя строка: Иконка, Имя, Подзаголовок, Справа бейдж ФС и % -->
+                                                        <DockPanel Margin="0,0,0,6">
+                                                            <!-- Справа: Двухцветный бейдж (ФС • Процент) - НИКОГДА НЕ ПУСТОЙ! -->
+                                                            <Border DockPanel.Dock="Right" Background="{Binding BadgeBackgroundBrush}" BorderBrush="{Binding BadgeBorderBrush}" BorderThickness="1" CornerRadius="7" Padding="7,2" VerticalAlignment="Center">
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding DriveBadge}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                                    <TextBlock Text=" • " FontSize="9.5" Foreground="{DynamicResource SubtleBorderBrush}"/>
+                                                                    <TextBlock Text="{Binding PercentFormatted}" FontSize="9.5" FontWeight="Bold" Foreground="{Binding UsageBrush}"/>
+                                                                </StackPanel>
                                                             </Border>
-                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Icon}" FontSize="13" Margin="0,0,6,0"/>
-                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis"/>
+
+                                                            <!-- Слева: Иконка в цветном бейдже с подсветкой -->
+                                                            <Border Width="28" Height="28" CornerRadius="7" Background="{Binding IconBgBrush}" BorderBrush="{Binding IconBorderBrush}" BorderThickness="1" Margin="0,0,9,0" VerticalAlignment="Center">
+                                                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <Path Data="{Binding VectorGeometry}" Width="14" Height="14" Stretch="Uniform" Fill="{Binding IconForegroundBrush}"
+                                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Grid>
+                                                            </Border>
+
+                                                            <!-- Заголовок диска и описание -->
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="11.5" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Subtitle}" FontSize="9.5" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
                                                         </DockPanel>
-                                                        <ProgressBar Height="4" Margin="0,4,0,3" Minimum="0" Maximum="100" Value="{Binding PercentUsed, Mode=OneWay}"
-                                                                     BorderThickness="0" Background="{DynamicResource ProgressTrackBrush}" Foreground="{DynamicResource AccentBrush}"/>
-                                                        <TextBlock Text="{Binding SpaceFormatted}" FontSize="10" Style="{StaticResource MutedText}"/>
+
+                                                        <!-- Прогресс-бар с плавным градиентом заполнения -->
+                                                        <ProgressBar Height="6" Margin="0,2,0,5" Minimum="0" Maximum="100" Value="{Binding PercentUsed, Mode=OneWay}"
+                                                                     BorderThickness="0" Background="{DynamicResource ProgressTrackBrush}" Foreground="{Binding UsageGradientBrush}"/>
+
+                                                        <!-- Нижняя строка: Свободное место и общий объем -->
+                                                        <DockPanel LastChildFill="True">
+                                                            <TextBlock DockPanel.Dock="Right" Text="{Binding TotalSpaceFormatted}" FontSize="9.5" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding FreeSpaceFormatted}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                                                        </DockPanel>
                                                     </StackPanel>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+
+                                    <!-- Сводка общего дискового пространства системы -->
+                                    <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10,8" Margin="0,6,0,12">
+                                        <DockPanel LastChildFill="True">
+                                            <Border Width="26" Height="26" CornerRadius="7" Background="{DynamicResource HoverBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}" BorderThickness="1" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock Text="📊" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Все накопители системы" FontSize="9" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="SidebarStorageSummaryText" Text="Загрузка хранилищ…" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+
                                 </StackPanel>
                             </ScrollViewer>
 
@@ -219,7 +317,7 @@
                             <!-- Правая панель: Файловый браузер -->
                             <ListView x:Name="FileBrowserList" Grid.Column="2" BorderThickness="0" Background="Transparent"
                                       AllowDrop="True" Drop="FileBrowserList_Drop" MouseDoubleClick="FileBrowserList_DoubleClick"
-                                      SelectionChanged="FileBrowserList_SelectionChanged">
+                                      SelectionChanged="FileBrowserList_SelectionChanged" KeyDown="FileBrowserList_KeyDown">
 
                                 <ListView.ContextMenu>
                                     <ContextMenu>
@@ -230,6 +328,7 @@
                                         <Separator/>
                                         <MenuItem Header="Копировать" Click="CopyItem_Click"/>
                                         <MenuItem Header="Вырезать" Click="CutItem_Click"/>
+                                        <MenuItem Header="Вставить" Click="PasteItem_Click"/>
                                         <MenuItem Header="Дублировать" Click="ContextDuplicate_Click"/>
                                         <MenuItem Header="Переименовать" Click="ContextRename_Click"/>
                                         <MenuItem Header="Удалить" Click="DeleteItem_Click"/>

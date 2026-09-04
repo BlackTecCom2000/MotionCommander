@@ -81,6 +81,10 @@ public partial class MainWindow : Window
         // Запуск 30 FPS телеметрии графика скорости
         InitSpeedGraph();
 
+        string currentVer = UpdateService.GetCurrentVersion();
+        if (CurrentVersionBadgeText != null) CurrentVersionBadgeText.Text = $"Версия: v{currentVer}";
+        if (AppVersionHeaderBadgeText != null) AppVersionHeaderBadgeText.Text = $"v{currentVer} All-in-One";
+
         if (_initialTab > 0)
         {
             SelectTab(_initialTab);
@@ -109,10 +113,31 @@ public partial class MainWindow : Window
         }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
+    public void TriggerCheckForUpdates()
+    {
+        CheckUpdate_Click(CheckUpdateBtn, new RoutedEventArgs());
+    }
+
     private void RefreshDrivesAndQuickAccess()
     {
-        QuickAccessList.ItemsSource = FileSystemService.GetQuickAccessLocations();
-        DrivesList.ItemsSource = FileSystemService.GetDrives();
+        var quickItems = FileSystemService.GetQuickAccessLocations();
+        QuickAccessList.ItemsSource = quickItems;
+        if (SidebarQuickAccessCountBadge != null)
+            SidebarQuickAccessCountBadge.Text = quickItems.Count.ToString();
+
+        var drives = FileSystemService.GetDrives();
+        DrivesList.ItemsSource = drives;
+        if (SidebarDrivesCountBadge != null)
+            SidebarDrivesCountBadge.Text = $"{drives.Count} тома";
+
+        if (SidebarStorageSummaryText != null)
+        {
+            long totalBytes = drives.Sum(d => d.TotalSize);
+            long freeBytes = drives.Sum(d => d.FreeSpace);
+            SidebarStorageSummaryText.Text = totalBytes > 0
+                ? $"{Formatters.Bytes(freeBytes)} свободно из {Formatters.Bytes(totalBytes)}"
+                : "Накопители готовы";
+        }
     }
 
     private void UpdateShellButtonUI()
@@ -277,6 +302,98 @@ public partial class MainWindow : Window
         {
             HapticAudio.PlayClick();
             NavigateTo(drive.RootDirectory);
+        }
+    }
+
+    private void RefreshDrives_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        RefreshDrivesAndQuickAccess();
+    }
+
+    private void DriveContextOpen_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is DriveItem drive)
+        {
+            HapticAudio.PlayClick();
+            NavigateTo(drive.RootDirectory);
+        }
+    }
+
+    private void DriveContextWizTree_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is DriveItem drive)
+        {
+            HapticAudio.PlayClick();
+            new Views.Dialogs.WizTreeAnalyzerWindow(drive.RootDirectory) { Owner = this }.Show();
+        }
+    }
+
+    private void DriveContextSpeed_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is DriveItem drive)
+        {
+            HapticAudio.PlayClick();
+            SelectTab(1);
+        }
+    }
+
+    private void DriveContextProperties_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is DriveItem drive)
+        {
+            HapticAudio.PlayClick();
+            try
+            {
+                string info = $"Метка тома: {drive.Title}\n" +
+                              $"Буква накопителя: {drive.CleanDriveLetter}\n" +
+                              $"Файловая система: {drive.DriveBadge}\n" +
+                              $"Тип устройства: {drive.Subtitle}\n" +
+                              $"Общая емкость: {Formatters.Bytes(drive.TotalSize)}\n" +
+                              $"Свободное пространство: {drive.FreeSpaceFormatted} ({100.0 - drive.PercentUsed:F1}%)\n" +
+                              $"Занято данными: {drive.UsedSpaceFormatted} ({drive.PercentFormatted})";
+                MessageBox.Show(info, $"Свойства накопителя {drive.CleanDriveLetter}", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Свойства диска", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private void QuickAccessContextOpen_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QuickAccessItem item)
+        {
+            HapticAudio.PlayClick();
+            NavigateTo(item.Path);
+        }
+    }
+
+    private void QuickAccessContextTerminal_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QuickAccessItem item && Directory.Exists(item.Path))
+        {
+            HapticAudio.PlayClick();
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    WorkingDirectory = item.Path,
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+    }
+
+    private void QuickAccessContextCopyPath_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.DataContext is QuickAccessItem item)
+        {
+            HapticAudio.PlayClick();
+            try { Clipboard.SetText(item.Path); } catch { }
         }
     }
 
@@ -446,21 +563,40 @@ public partial class MainWindow : Window
         _clipboardIsCut = true;
     }
 
-    private void PasteItem_Click(object sender, RoutedEventArgs e)
+    private async void PasteItem_Click(object sender, RoutedEventArgs e)
     {
         if (_clipboardPaths.Count == 0 || _isInsideArchive) return;
         HapticAudio.PlayClick();
 
-        // Открытие Motion Copy Window для копирования
-        var filesToCopy = _clipboardPaths.Select(src => (src, Path.Combine(_currentPath, Path.GetFileName(src)))).ToList();
-        var motion = new MotionCopyWindow();
-        _ = motion.StartRealCopyAsync(filesToCopy);
-        motion.Show();
+        var sources = _clipboardPaths.ToList();
+        bool isCut = _clipboardIsCut;
 
-        if (_clipboardIsCut)
+        var motion = new MotionCopyWindow { Owner = this };
+        motion.Show();
+        motion.Activate();
+
+        try
         {
-            _clipboardPaths.Clear();
-            _clipboardIsCut = false;
+            await motion.StartRealTransferAsync(sources, _currentPath);
+
+            if (isCut && motion.Engine.IsCompleted)
+            {
+                foreach (var s in sources)
+                {
+                    try
+                    {
+                        if (File.Exists(s)) File.Delete(s);
+                        else if (Directory.Exists(s)) Directory.Delete(s, true);
+                    }
+                    catch { }
+                }
+                _clipboardPaths.Clear();
+                _clipboardIsCut = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка вставки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
         NavigateTo(_currentPath, false);
@@ -474,7 +610,49 @@ public partial class MainWindow : Window
         dlg.ShowDialog();
     }
 
-    // ---------- КОНТЕКСТНОЕ МЕНЮ ----------
+    // ---------- КОНТЕКСТНОЕ МЕНЮ И КЛАВИАТУРА ----------
+
+    private void FileBrowserList_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (e.Key == Key.C)
+            {
+                CopyItem_Click(sender, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.X)
+            {
+                CutItem_Click(sender, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.V)
+            {
+                PasteItem_Click(sender, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.A)
+            {
+                FileBrowserList.SelectAll();
+                e.Handled = true;
+            }
+        }
+        else if (e.Key == Key.Delete)
+        {
+            DeleteItem_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F2)
+        {
+            ContextRename_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F5)
+        {
+            Refresh_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+    }
 
     private void ContextOpen_Click(object sender, RoutedEventArgs e) => FileBrowserList_DoubleClick(this, null!);
     private void ContextCompress_Click(object sender, RoutedEventArgs e) => CreateArchive_Click(this, e);
@@ -509,16 +687,27 @@ public partial class MainWindow : Window
         }
     }
 
-    private void FileBrowserList_Drop(object sender, DragEventArgs e)
+    private async void FileBrowserList_Drop(object sender, DragEventArgs e)
     {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        if (e.Data.GetDataPresent(DataFormats.FileDrop) && !_isInsideArchive)
         {
-            string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-            if (files != null && files.Length > 0)
+            if (e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
             {
                 HapticAudio.PlayClick();
-                var dlg = new CreateArchiveWindow(files) { Owner = this };
-                if (dlg.ShowDialog() == true) Refresh_Click(this, new RoutedEventArgs());
+                var motion = new MotionCopyWindow { Owner = this };
+                motion.Show();
+                motion.Activate();
+
+                try
+                {
+                    await motion.StartRealTransferAsync(files, _currentPath);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка копирования: {ex.Message}", "Ошибка I/O", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
+                NavigateTo(_currentPath, false);
             }
         }
     }
@@ -867,12 +1056,30 @@ public partial class MainWindow : Window
         }
     }
 
+    private MotionCopyWindow? _activeMotionWindow;
+
     private void OpenMotionWindow_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var motion = new MotionCopyWindow();
-        motion.StartSimulation(DefaultMixedScenario(), speedBytesPerSec: 500 * 1024 * 1024);
-        motion.Show();
+
+        if (_activeMotionWindow != null && _activeMotionWindow.IsVisible && _activeMotionWindow.Engine.IsRunning)
+        {
+            _activeMotionWindow.Activate();
+            return;
+        }
+
+        string src = TransferSourceBox?.Text?.Trim() ?? "";
+        string dst = TransferDestBox?.Text?.Trim() ?? "";
+
+        if (!string.IsNullOrEmpty(src) && (File.Exists(src) || Directory.Exists(src)) &&
+            !string.IsNullOrEmpty(dst) && Directory.Exists(dst))
+        {
+            _ = LaunchRealTransferAsync(src, dst);
+        }
+        else
+        {
+            StartLiveTransfer_Click(sender, e);
+        }
     }
 
     private void SpeedChip_Click(object sender, RoutedEventArgs e)
@@ -895,144 +1102,112 @@ public partial class MainWindow : Window
         string src = TransferSourceBox?.Text?.Trim() ?? "";
         string dst = TransferDestBox?.Text?.Trim() ?? "";
 
-        // Если пути не заданы — запускаем ультра-быструю симуляцию со сценарием
-        bool isRealTransfer = (File.Exists(src) || Directory.Exists(src)) && Directory.Exists(dst);
+        // Если источник не указан — запрашиваем файл или папку
+        if (string.IsNullOrEmpty(src) || (!File.Exists(src) && !Directory.Exists(src)))
+        {
+            var ofd = new Microsoft.Win32.OpenFileDialog { Title = "Выберите исходный файл (или нажмите Отмена для выбора папки)" };
+            if (ofd.ShowDialog() == true)
+            {
+                src = ofd.FileName;
+                TransferSourceBox.Text = src;
+            }
+            else
+            {
+                var fbd = new Microsoft.Win32.OpenFolderDialog { Title = "Выберите исходную папку для передачи" };
+                if (fbd.ShowDialog() == true)
+                {
+                    src = fbd.FolderName;
+                    TransferSourceBox.Text = src;
+                }
+                else
+                {
+                    MessageBox.Show("Пожалуйста, выберите исходный файл или папку для передачи.", "Выбор источника", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+            }
+        }
 
+        // Если приёмник не указан — запрашиваем папку назначения
+        if (string.IsNullOrEmpty(dst) || !Directory.Exists(dst))
+        {
+            var fbd = new Microsoft.Win32.OpenFolderDialog { Title = "Выберите целевую папку (куда передавать данные)" };
+            if (fbd.ShowDialog() == true)
+            {
+                dst = fbd.FolderName;
+                TransferDestBox.Text = dst;
+            }
+            else
+            {
+                MessageBox.Show("Пожалуйста, выберите папку назначения для передачи.", "Выбор назначения", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+        }
+
+        await LaunchRealTransferAsync(src, dst);
+    }
+
+    private async Task LaunchRealTransferAsync(string src, string dst)
+    {
         StartTransferBtn.IsEnabled = false;
         PauseTransferBtn.IsEnabled = true;
         CancelTransferBtn.IsEnabled = true;
         _transferIsPaused = false;
         PauseTransferBtn.Content = "⏸ Пауза";
 
+        _peakSpeedMb = 0;
+        _currentSpeedMb = 0;
+        LiveTransferProgressBar.Value = 0;
+
         _transferCts = new CancellationTokenSource();
         var ct = _transferCts.Token;
 
-        _peakSpeedMb = 0;
-        LiveTransferProgressBar.Value = 0;
-
-        int bufferSizeKb = TransferBufferCombo?.SelectedIndex switch
-        {
-            0 => 256,
-            1 => 512,
-            2 => 1024,
-            3 => 2048,
-            4 => 4096,
-            5 => 8192,
-            _ => 1024
-        };
+        var motion = new MotionCopyWindow { Owner = this };
+        _activeMotionWindow = motion;
+        motion.Show();
+        motion.Activate();
 
         var sw = Stopwatch.StartNew();
 
+        void OnProgressTick(object? s, EventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                double speedMb = motion.Engine.CurrentSpeed / (1024.0 * 1024.0);
+                _currentSpeedMb = speedMb;
+                if (speedMb > _peakSpeedMb) _peakSpeedMb = speedMb;
+
+                double pct = motion.Engine.OverallProgress;
+                LiveTransferProgressBar.Value = pct;
+
+                HudCurrentSpeedText.Text = $"{speedMb:F1} МБ/с";
+                HudPeakSpeedText.Text = $"{_peakSpeedMb:F1} МБ/с";
+                HudProgressText.Text = $"{pct:F0}% ({motion.Engine.DoneCount} / {motion.Engine.Items.Count})";
+                HudBytesText.Text = $"{Formatters.Bytes(motion.Engine.CopiedBytes)} из {Formatters.Bytes(motion.Engine.TotalBytes)}";
+                HudEtaText.Text = Formatters.Eta(motion.Engine.Eta);
+
+                double avgSpeed = (motion.Engine.CopiedBytes / (1024.0 * 1024.0)) / Math.Max(0.1, sw.Elapsed.TotalSeconds);
+                HudAvgSpeedText.Text = $"Средняя: {avgSpeed:F1} МБ/с";
+
+                UpdateBottleneckIndicator(speedMb);
+            });
+        }
+
+        motion.Engine.ProgressTick += OnProgressTick;
+
         try
         {
-            if (isRealTransfer && File.Exists(src))
+            await motion.StartRealTransferAsync(src, dst, ct);
+
+            if (motion.Engine.IsCompleted)
             {
-                // Реальная пофайловая потоковая передача
-                string targetFile = Path.Combine(dst, Path.GetFileName(src));
-                long totalBytes = new FileInfo(src).Length;
-                long copiedBytes = 0;
-                byte[] buf = new byte[bufferSizeKb * 1024];
-
-                using var inStream = new FileStream(src, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, buf.Length, FileOptions.SequentialScan);
-                using var outStream = new FileStream(targetFile, FileMode.Create, FileAccess.Write, FileShare.None, buf.Length, FileOptions.SequentialScan);
-
-                long lastCopied = 0;
-                var speedSw = Stopwatch.StartNew();
-
-                int read;
-                while ((read = await inStream.ReadAsync(buf, 0, buf.Length, ct)) > 0)
-                {
-                    while (_transferIsPaused)
-                    {
-                        await Task.Delay(100, ct);
-                    }
-
-                    await outStream.WriteAsync(buf.AsMemory(0, read), ct);
-                    copiedBytes += read;
-
-                    if (speedSw.ElapsedMilliseconds >= 100)
-                    {
-                        double sec = speedSw.Elapsed.TotalSeconds;
-                        double curSpeed = (copiedBytes - lastCopied) / (1024.0 * 1024.0 * sec);
-                        lastCopied = copiedBytes;
-                        speedSw.Restart();
-
-                        _currentSpeedMb = curSpeed;
-                        if (curSpeed > _peakSpeedMb) _peakSpeedMb = curSpeed;
-
-                        double pct = (double)copiedBytes / totalBytes * 100.0;
-                        LiveTransferProgressBar.Value = pct;
-
-                        HudCurrentSpeedText.Text = $"{curSpeed:F1} МБ/с";
-                        HudPeakSpeedText.Text = $"{_peakSpeedMb:F1} МБ/с";
-                        HudProgressText.Text = $"{pct:F0}% (1 / 1)";
-                        HudBytesText.Text = $"{Formatters.Bytes(copiedBytes)} из {Formatters.Bytes(totalBytes)}";
-
-                        double remainingBytes = totalBytes - copiedBytes;
-                        if (curSpeed > 0)
-                        {
-                            var eta = TimeSpan.FromSeconds(remainingBytes / (curSpeed * 1024 * 1024));
-                            HudEtaText.Text = eta.ToString(@"hh\:mm\:ss");
-                        }
-
-                        double avgSpeed = (copiedBytes / (1024.0 * 1024.0)) / Math.Max(0.1, sw.Elapsed.TotalSeconds);
-                        HudAvgSpeedText.Text = $"Средняя: {avgSpeed:F1} МБ/с";
-
-                        UpdateBottleneckIndicator(curSpeed);
-                    }
-                }
+                LiveTransferProgressBar.Value = 100;
+                _currentSpeedMb = 0;
+                HudCurrentSpeedText.Text = "0.0 МБ/с";
+                HudEtaText.Text = "00:00:00";
+                HudProgressText.Text = $"100% ({motion.Engine.DoneCount} / {motion.Engine.Items.Count})";
+                HudBytesText.Text = $"{Formatters.Bytes(motion.Engine.TotalBytes)} из {Formatters.Bytes(motion.Engine.TotalBytes)}";
+                HapticAudio.PlaySuccess();
             }
-            else
-            {
-                // Режим демонстрационного прямого теста производительности шины
-                long totalBytes = 15L * 1024 * 1024 * 1024; // 15 GB
-                long copiedBytes = 0;
-                var rand = new Random();
-                double targetSpeed = 1250.0; // 1.25 GB/s
-
-                while (copiedBytes < totalBytes)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    while (_transferIsPaused)
-                    {
-                        await Task.Delay(100, ct);
-                    }
-
-                    double jitter = (rand.NextDouble() * 300.0) - 150.0;
-                    double curSpeed = Math.Max(50.0, targetSpeed + jitter);
-                    _currentSpeedMb = curSpeed;
-                    if (curSpeed > _peakSpeedMb) _peakSpeedMb = curSpeed;
-
-                    long chunk = (long)(curSpeed * 1024 * 1024 * 0.1);
-                    copiedBytes = Math.Min(totalBytes, copiedBytes + chunk);
-
-                    double pct = (double)copiedBytes / totalBytes * 100.0;
-                    LiveTransferProgressBar.Value = pct;
-
-                    HudCurrentSpeedText.Text = $"{curSpeed:F0} МБ/с";
-                    HudPeakSpeedText.Text = $"{_peakSpeedMb:F0} МБ/с";
-                    HudProgressText.Text = $"{pct:F0}% (12 / 12)";
-                    HudBytesText.Text = $"{Formatters.Bytes(copiedBytes)} из {Formatters.Bytes(totalBytes)}";
-
-                    double remainingBytes = totalBytes - copiedBytes;
-                    var eta = TimeSpan.FromSeconds(remainingBytes / (curSpeed * 1024 * 1024));
-                    HudEtaText.Text = eta.ToString(@"hh\:mm\:ss");
-
-                    double avgSpeed = (copiedBytes / (1024.0 * 1024.0)) / Math.Max(0.1, sw.Elapsed.TotalSeconds);
-                    HudAvgSpeedText.Text = $"Средняя: {avgSpeed:F0} МБ/с";
-
-                    UpdateBottleneckIndicator(curSpeed);
-                    await Task.Delay(100, ct);
-                }
-            }
-
-            LiveTransferProgressBar.Value = 100;
-            _currentSpeedMb = 0;
-            HudCurrentSpeedText.Text = "0.0 МБ/с";
-            HudEtaText.Text = "00:00:00";
-            HapticAudio.PlaySuccess();
-            MessageBox.Show("Передача данных успешно завершена!\nШина отработала на максимальной пропускной способности без задержек.",
-                "Передача завершена", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (OperationCanceledException)
         {
@@ -1043,10 +1218,11 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             _currentSpeedMb = 0;
-            MessageBox.Show($"Ошибка передачи: {ex.Message}", "Ошибка I/O", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Ошибка передачи данных: {ex.Message}", "Ошибка ввода-вывода", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
+            motion.Engine.ProgressTick -= OnProgressTick;
             StartTransferBtn.IsEnabled = true;
             PauseTransferBtn.IsEnabled = false;
             CancelTransferBtn.IsEnabled = false;
@@ -1056,18 +1232,29 @@ public partial class MainWindow : Window
     private void PauseLiveTransfer_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        _transferIsPaused = !_transferIsPaused;
-        PauseTransferBtn.Content = _transferIsPaused ? "▶ Продолжить" : "⏸ Пауза";
-        if (_transferIsPaused)
+        if (_activeMotionWindow?.Engine != null)
         {
-            _currentSpeedMb = 0;
-            BottleneckStatusText.Text = "⏸ Поток данных временно приостановлен пользователем.";
+            if (_activeMotionWindow.Engine.IsPaused)
+            {
+                _activeMotionWindow.Engine.Resume();
+                _transferIsPaused = false;
+                PauseTransferBtn.Content = "⏸ Пауза";
+            }
+            else
+            {
+                _activeMotionWindow.Engine.Pause();
+                _transferIsPaused = true;
+                PauseTransferBtn.Content = "▶ Продолжить";
+                _currentSpeedMb = 0;
+                BottleneckStatusText.Text = "⏸ Поток данных временно приостановлен пользователем.";
+            }
         }
     }
 
     private void CancelLiveTransfer_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
+        _activeMotionWindow?.Engine?.Cancel();
         _transferCts?.Cancel();
     }
 

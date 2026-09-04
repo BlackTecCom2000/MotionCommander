@@ -159,25 +159,121 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
 
     // ---------- Real copy ----------
 
+    public static List<(string sourceFile, string destFile)> ExpandSourcesToFiles(IEnumerable<(string source, string dest)> inputs)
+    {
+        var result = new List<(string sourceFile, string destFile)>();
+        foreach (var (src, dst) in inputs)
+        {
+            if (string.IsNullOrWhiteSpace(src)) continue;
+
+            if (Directory.Exists(src))
+            {
+                // Рекурсивное сканирование папки
+                string folderName = Path.GetFileName(src.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                if (string.IsNullOrEmpty(folderName)) folderName = "Folder";
+
+                string targetBaseDir = dst;
+                if (Directory.Exists(dst))
+                {
+                    string dstName = Path.GetFileName(dst.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                    if (!string.Equals(dstName, folderName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetBaseDir = Path.Combine(dst, folderName);
+                    }
+                }
+
+                try { Directory.CreateDirectory(targetBaseDir); } catch { }
+
+                try
+                {
+                    foreach (var sub in Directory.GetDirectories(src, "*", SearchOption.AllDirectories))
+                    {
+                        string rel = Path.GetRelativePath(src, sub);
+                        try { Directory.CreateDirectory(Path.Combine(targetBaseDir, rel)); } catch { }
+                    }
+                }
+                catch { }
+
+                try
+                {
+                    foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
+                    {
+                        string rel = Path.GetRelativePath(src, file);
+                        result.Add((file, Path.Combine(targetBaseDir, rel)));
+                    }
+                }
+                catch { }
+            }
+            else if (File.Exists(src))
+            {
+                string targetFile = dst;
+                if (Directory.Exists(dst))
+                {
+                    targetFile = Path.Combine(dst, Path.GetFileName(src));
+                }
+                else
+                {
+                    string? pDir = Path.GetDirectoryName(dst);
+                    if (!string.IsNullOrEmpty(pDir))
+                    {
+                        try { Directory.CreateDirectory(pDir); } catch { }
+                    }
+                }
+
+                if (string.Equals(Path.GetFullPath(src), Path.GetFullPath(targetFile), StringComparison.OrdinalIgnoreCase))
+                {
+                    targetFile = GenerateDuplicateFileName(targetFile);
+                }
+
+                result.Add((src, targetFile));
+            }
+        }
+        return result;
+    }
+
+    private static string GenerateDuplicateFileName(string filePath)
+    {
+        string dir = Path.GetDirectoryName(filePath) ?? "";
+        string name = Path.GetFileNameWithoutExtension(filePath);
+        string ext = Path.GetExtension(filePath);
+        int counter = 1;
+        string candidate;
+        do
+        {
+            candidate = Path.Combine(dir, $"{name} - Копия{(counter > 1 ? $" ({counter})" : "")}{ext}");
+            counter++;
+        } while (File.Exists(candidate));
+        return candidate;
+    }
+
     public async Task StartRealCopyAsync(IEnumerable<(string source, string dest)> files, CancellationToken outer = default)
     {
         Reset();
         IsRealMode = true;
         _realCts = CancellationTokenSource.CreateLinkedTokenSource(outer);
 
-        var pairs = files.ToList();
-        foreach (var (s, d) in pairs)
+        var filePairs = ExpandSourcesToFiles(files);
+        foreach (var (s, d) in filePairs)
         {
-            long size = File.Exists(s) ? new FileInfo(s).Length : 0;
+            long size = 0;
+            try { size = new FileInfo(s).Length; } catch { }
             Items.Add(new CopyItem(Path.GetFileName(s), size, s, d));
         }
+
         TotalBytes = Items.Sum(i => i.SizeBytes);
         OnChanged(nameof(TotalBytes));
         _startedAt = DateTime.Now;
         IsRunning = true;
 
+        if (Items.Count == 0)
+        {
+            Finish(completed: true);
+            return;
+        }
+
+        _tick.Start();
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        long lastTotal = 0;
 
         try
         {
@@ -186,12 +282,13 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
                 _realCts.Token.ThrowIfCancellationRequested();
                 if (item.Status == CopyItemStatus.Skipped) continue;
                 item.Status = CopyItemStatus.Copying;
+                OnChanged(nameof(CurrentItem));
+
                 await CopyOneFileAsync(item, _realCts.Token);
                 item.Status = CopyItemStatus.Done;
 
-                // Скорость по скользящему окну
-                double sec = Math.Max(0.2, sw.Elapsed.TotalSeconds);
-                _smoothedSpeed = (CopiedBytes - lastTotal) / sec;
+                double sec = Math.Max(0.1, sw.Elapsed.TotalSeconds);
+                _smoothedSpeed = CopiedBytes / sec;
                 CurrentSpeed = _smoothedSpeed;
                 PushHistory(_smoothedSpeed);
                 OnChanged(nameof(Elapsed));
@@ -234,7 +331,14 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
                 if (telemetry.InstantThroughputBytesPerSec > 0)
                 {
                     CurrentSpeed = telemetry.InstantThroughputBytesPerSec;
+                    PushHistory(CurrentSpeed);
                 }
+                OnChanged(nameof(CopiedBytes));
+                OnChanged(nameof(RemainingBytes));
+                OnChanged(nameof(OverallProgress));
+                OnChanged(nameof(Elapsed));
+                OnChanged(nameof(Eta));
+                ProgressTick?.Invoke(this, EventArgs.Empty);
             },
             _pauseGate,
             ct);

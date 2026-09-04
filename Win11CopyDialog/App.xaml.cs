@@ -171,6 +171,17 @@ public partial class App : Application
             main.Loaded += (_, _) => main.ScrollSettingsToBottom();
             main.Show();
         }
+        else if (e.Args.Contains("--check-update-demo"))
+        {
+            var main = new MainWindow(null, 5);
+            main.Loaded += async (_, _) =>
+            {
+                main.ScrollSettingsToBottom();
+                await Task.Delay(800);
+                main.TriggerCheckForUpdates();
+            };
+            main.Show();
+        }
         else if (e.Args.Contains("--tab-settings"))
         {
             var main = new MainWindow(null, 5);

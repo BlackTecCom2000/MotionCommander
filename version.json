@@ -1,18 +1,13 @@
 ﻿{
-    "version":  "3.1.0",
+    "version":  "3.2.0",
     "releaseDate":  "2026-09-04",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Direct I/O Streamer: Hardware saturation PCIe/SATA pipeline with null-allocation pool",
-                      "Speed Telemetry HUD: 30 FPS Canvas speed graph, 4-tile neon indicators and bottleneck detector",
-                      "WizTree Disk Space Analyzer: Folder weights treemap, Top-100 heavy files and extensions statistics",
-                      "Duplicate File Cleaner: 3-stage high-speed scan (Size -\u003e 4KB Pre-Hash -\u003e Full SHA-256)",
-                      "System Driver Inspector: WMI PnP device audit, state indicators, devmgmt.msc and report export",
-                      "Settings Window: 10 designer themes (Cyberpunk, OLED Midnight, Matrix, Sunset), backdrops, haptics and JSON editor"
+                      "Real recursive file/folder copy engine with hardware saturation and zero mockups"
                   ],
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.1.0-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.1.0-Portable.zip"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.2.0-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.2.0-Portable.zip"
 }

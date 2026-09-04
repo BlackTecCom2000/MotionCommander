@@ -106,8 +106,8 @@ if (Test-Path $localInstallDir) {
 # 6. Git commit, tag, and push
 if (!$SkipPush) {
     Write-Host "[6/6] Pushing release and tag v$cleanVer to GitHub..." -ForegroundColor Cyan
-    & git add "$repoRoot\version.json" "$distDir" "$repoRoot\Win11CopyDialog\Win11CopyDialog.csproj" "$repoRoot\src\MotionCommander.Core\MotionCommander.Core.csproj" "$repoRoot\src\MotionCommander.Cli\MotionCommander.Cli.csproj" "$repoRoot\.github\workflows\build-crossplatform.yml" "$repoRoot\Win11CopyDialog\Modules\UpdateEngine\UpdateService.cs" "$repoRoot\scripts\Publish-Release.ps1"
-    & git commit -m "release: v$cleanVer - Update release assets, portable zip, updater, and version manifest"
+    & git add -A
+    & git commit -m "release: v$cleanVer - Real recursive copy engine, 3D live transfers, refined modern sidebar, vector icons and drive health meters"
     
     $existingTag = & git tag -l "v$cleanVer"
     if ($existingTag) {

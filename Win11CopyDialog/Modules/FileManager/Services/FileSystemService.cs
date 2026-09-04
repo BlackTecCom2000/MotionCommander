@@ -24,12 +24,15 @@ public static class FileSystemService
             foreach (var d in DriveInfo.GetDrives())
             {
                 if (!d.IsReady) continue;
+                string fs = "NTFS";
+                try { if (!string.IsNullOrWhiteSpace(d.DriveFormat)) fs = d.DriveFormat; } catch { }
                 list.Add(new DriveItem
                 {
                     Name = d.Name,
                     RootDirectory = d.RootDirectory.FullName,
                     VolumeLabel = d.VolumeLabel,
                     DriveType = d.DriveType.ToString(),
+                    FileSystem = fs,
                     TotalSize = d.TotalSize,
                     FreeSpace = d.AvailableFreeSpace
                 });
@@ -42,27 +45,66 @@ public static class FileSystemService
     public static List<QuickAccessItem> GetQuickAccessLocations()
     {
         var items = new List<QuickAccessItem>();
-        void Add(string name, Environment.SpecialFolder folder, string icon)
+        void Add(string name, string subtitle, Environment.SpecialFolder folder, string icon, string glyph, string vectorKey, string color)
         {
             try
             {
                 var p = Environment.GetFolderPath(folder);
-                if (!string.IsNullOrEmpty(p) && Directory.Exists(p))
-                    items.Add(new QuickAccessItem { Name = name, Path = p, Icon = icon });
+                if (!string.IsNullOrEmpty(p) && Directory.Exists(p) && items.All(i => !string.Equals(i.Path, p, StringComparison.OrdinalIgnoreCase)))
+                {
+                    items.Add(new QuickAccessItem
+                    {
+                        Name = name,
+                        Subtitle = subtitle,
+                        Path = p,
+                        Icon = icon,
+                        Glyph = glyph,
+                        VectorIconKey = vectorKey,
+                        ColorHex = color
+                    });
+                }
             }
             catch { }
         }
 
-        Add("Рабочий стол", Environment.SpecialFolder.Desktop, "🖥");
-        Add("Загрузки", Environment.SpecialFolder.UserProfile, "📥"); // UserProfile/Downloads
-        var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-        if (Directory.Exists(downloads) && items.All(i => i.Path != downloads))
-            items.Insert(1, new QuickAccessItem { Name = "Загрузки", Path = downloads, Icon = "📥" });
+        Add("Рабочий стол", "Системный стол", Environment.SpecialFolder.Desktop, "🖥", "\uE7F4", "Icon_Desktop", "#3B82F6");
 
-        Add("Документы", Environment.SpecialFolder.MyDocuments, "📑");
-        Add("Изображения", Environment.SpecialFolder.MyPictures, "🖼");
-        Add("Видео", Environment.SpecialFolder.MyVideos, "🎬");
-        Add("Музыка", Environment.SpecialFolder.MyMusic, "🎵");
+        // Загрузки — ровно один раз
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var downloads = Path.Combine(userProfile, "Downloads");
+        if (Directory.Exists(downloads))
+        {
+            items.Add(new QuickAccessItem
+            {
+                Name = "Загрузки",
+                Subtitle = "Загруженные файлы",
+                Path = downloads,
+                Icon = "📥",
+                Glyph = "\uE896",
+                VectorIconKey = "Icon_Downloads",
+                ColorHex = "#10B981"
+            });
+        }
+
+        Add("Документы", "Личные документы", Environment.SpecialFolder.MyDocuments, "📑", "\uE8A5", "Icon_Documents", "#F59E0B");
+        Add("Изображения", "Фото и галерея", Environment.SpecialFolder.MyPictures, "🖼", "\uEB9F", "Icon_Pictures", "#8B5CF6");
+        Add("Видео", "Видеозаписи и клипы", Environment.SpecialFolder.MyVideos, "🎬", "\uE714", "Icon_Videos", "#EC4899");
+        Add("Музыка", "Аудиозаписи и треки", Environment.SpecialFolder.MyMusic, "🎵", "\uEC4F", "Icon_Music", "#F43F5E");
+
+        // Личная папка пользователя
+        if (Directory.Exists(userProfile) && items.All(i => !string.Equals(i.Path, userProfile, StringComparison.OrdinalIgnoreCase)))
+        {
+            items.Add(new QuickAccessItem
+            {
+                Name = "Личная папка",
+                Subtitle = "Профиль пользователя",
+                Path = userProfile,
+                Icon = "👤",
+                Glyph = "\uE77B",
+                VectorIconKey = "Icon_User",
+                ColorHex = "#06B6D4"
+            });
+        }
 
         return items;
     }

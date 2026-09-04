@@ -70,6 +70,23 @@
             <GradientStop Color="#334155" Offset="1"/>
         </LinearGradientBrush>
 
+        <!-- Векторные иконки интерфейса (Crisp Vector Geometries) -->
+        <StreamGeometry x:Key="Icon_Desktop">M 2,3 H 22 V 17 H 2 Z M 7,21 H 17 M 12,17 V 21</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Downloads">M 12,3 V 15 M 7,11 L 12,16 L 17,11 M 4,18 V 21 H 20 V 18</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Documents">M 6,2 H 14 L 19,7 V 22 H 6 Z M 14,2 V 7 H 19 M 9,12 H 16 M 9,16 H 14</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Pictures">M 3,4 H 21 V 20 H 3 Z M 8.5,8 A 1.5,1.5 0 1 0 8.5,5 A 1.5,1.5 0 1 0 8.5,8 Z M 4,18 L 9,13 L 13,17 L 16,14 L 20,18</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Videos">M 3,4 H 21 V 20 H 3 Z M 3,8 H 21 M 3,16 H 21 M 7,4 L 5,8 M 11,4 L 9,8 M 15,4 L 13,8 M 19,4 L 17,8 M 10,11 L 15,13.5 L 10,16 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Music">M 9,18 A 3,3 0 1 1 6,15 A 3,3 0 0 1 9,18 Z M 9,18 V 5 L 20,2 V 15 M 20,15 A 3,3 0 1 1 17,12 A 3,3 0 0 1 20,15 Z M 9,8 L 20,5</StreamGeometry>
+        <StreamGeometry x:Key="Icon_User">M 12,12 A 4,4 0 1 0 12,4 A 4,4 0 1 0 12,12 Z M 4,20 C 4,16 7,14 12,14 C 17,14 20,16 20,20</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Folder">M 3,4 H 10 L 12,6 H 21 V 19 H 3 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Drive_Windows">M 3,5.5 L 10.5,4.3 V 11.2 H 3 Z M 11.5,4.1 L 21,2.8 V 11.2 H 11.5 Z M 3,12.2 H 10.5 V 19.1 L 3,17.9 Z M 11.5,12.2 H 21 V 20.6 L 11.5,19.3 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Drive_SSD">M 4,4 H 20 V 20 H 4 Z M 7,7 H 17 V 11 H 7 Z M 8,14 H 10 V 17 H 8 Z M 11,14 H 13 V 17 H 11 Z M 14,14 H 16 V 17 H 14 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Drive_HDD">M 4,4 H 20 V 20 H 4 Z M 12,13 A 4,4 0 1 0 12,5 A 4,4 0 1 0 12,13 Z M 12,10 A 1,1 0 1 0 12,8 A 1,1 0 1 0 12,10 Z M 16,16 H 18 M 6,16 H 12</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Drive_USB">M 8,3 H 16 V 7 H 8 Z M 9,5 H 11 V 6 H 9 Z M 13,5 H 15 V 6 H 13 Z M 6,7 H 18 V 18 C 18,19.5 16.5,21 15,21 H 9 C 7.5,21 6,19.5 6,18 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Drive_Network">M 4,14 A 4,4 0 0 1 7.5,10.2 A 6,6 0 0 1 18,9 A 4,4 0 0 1 19,17 H 4 Z M 12,17 V 21 M 8,21 H 16</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Refresh">M 17.65,6.35 A 8,8 0 1,0 19.73,13 H 17.65 A 6,6 0 1,1 16.24,7.76 L 13,11 H 20 V 4 L 17.65,6.35 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_ChevronRight">M 9,6 L 15,12 L 9,18</StreamGeometry>
+
         <!-- Футуристическая навигационная пилюля (Futuristic Nav Tab) -->
         <Style x:Key="FuturisticNavTab" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand"/>
@@ -225,6 +242,72 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Элегантный элемент бокового меню навигации (SidebarNavItem) -->
+        <Style x:Key="SidebarNavItem" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <!-- Левая индикаторная полоска активности (Accent Pill) -->
+                                <Border x:Name="IndicatorPill" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                        Width="3" Height="14" CornerRadius="1.5"
+                                        Background="{DynamicResource AccentBrush}" Opacity="0" Margin="-4,0,0,0"/>
+                                <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+                                <Setter TargetName="IndicatorPill" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Карточка накопителя в боковом меню (SidebarDriveCard) -->
+        <Style x:Key="SidebarDriveCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="Margin" Value="0,0,0,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <!-- Круглая кнопка навигации (CyberNavCircleButton) -->
