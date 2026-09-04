@@ -56,7 +56,6 @@ public partial class MainWindow : Window
     {
         ThemeManager.Instance.Apply();
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
-        UpdateThemeTilesUI();
 
         // Загрузка дисков и быстрого доступа
         RefreshDrivesAndQuickAccess();
@@ -72,22 +71,67 @@ public partial class MainWindow : Window
 
         NavigateTo(startPath);
 
-        // Обновление статуса интеграции оболочки
-        UpdateShellButtonUI();
-
-        // Инициализация параметров скроллинга и визуальных эффектов
-        InitSettingsUI();
 
         // Запуск 30 FPS телеметрии графика скорости
         InitSpeedGraph();
 
         string currentVer = UpdateService.GetCurrentVersion();
-        if (CurrentVersionBadgeText != null) CurrentVersionBadgeText.Text = $"Версия: v{currentVer}";
         if (AppVersionHeaderBadgeText != null) AppVersionHeaderBadgeText.Text = $"v{currentVer} All-in-One";
 
         if (_initialTab > 0)
         {
             SelectTab(_initialTab);
+        }
+
+        CheckForUpdatesOnStartupAsync();
+    }
+
+    private async void CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            var updateInfo = await UpdateService.CheckForUpdatesAsync();
+            if (updateInfo.IsUpdateAvailable)
+            {
+                AvailableUpdateBtn.Visibility = Visibility.Visible;
+                AvailableUpdateBtn.ToolTip = $"Доступна новая версия: v{updateInfo.LatestVersion}";
+            }
+        }
+        catch { }
+    }
+
+    private async void AvailableUpdateBtn_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        AvailableUpdateBtn.IsEnabled = false;
+        
+        try
+        {
+            var updateInfo = await UpdateService.CheckForUpdatesAsync();
+            if (updateInfo.IsUpdateAvailable)
+            {
+                var res = MessageBox.Show(
+                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая версия: v{updateInfo.CurrentVersion}\n\nСкачать и установить обновление?", 
+                    "Доступно обновление", 
+                    MessageBoxButton.YesNo, 
+                    MessageBoxImage.Information);
+
+                if (res == MessageBoxResult.Yes)
+                {
+                    string downloadedFile = await UpdateService.DownloadUpdateAsync(
+                        !string.IsNullOrEmpty(updateInfo.InstallerUrl) ? updateInfo.InstallerUrl : updateInfo.DownloadUrl);
+                    UpdateService.ApplyUpdateAndRestart(downloadedFile);
+                }
+                else
+                {
+                    AvailableUpdateBtn.IsEnabled = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка обновления:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            AvailableUpdateBtn.IsEnabled = true;
         }
     }
 
@@ -99,7 +143,6 @@ public partial class MainWindow : Window
             2 => TabStorageRadio,
             3 => TabDiagnosticsRadio,
             4 => TabToolsRadio,
-            5 => TabSettingsRadio,
             _ => TabFilesRadio
         };
         SwitchTab(target);
@@ -107,16 +150,8 @@ public partial class MainWindow : Window
 
     public void ScrollSettingsToBottom()
     {
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            SettingsScrollViewer?.ScrollToBottom();
-        }), System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
-    public void TriggerCheckForUpdates()
-    {
-        CheckUpdate_Click(CheckUpdateBtn, new RoutedEventArgs());
-    }
 
     private void RefreshDrivesAndQuickAccess()
     {
@@ -138,12 +173,6 @@ public partial class MainWindow : Window
                 ? $"{Formatters.Bytes(freeBytes)} свободно из {Formatters.Bytes(totalBytes)}"
                 : "Накопители готовы";
         }
-    }
-
-    private void UpdateShellButtonUI()
-    {
-        bool integrated = ShellIntegrationService.IsIntegrated();
-        ShellToggleBtn.Content = integrated ? "Отключить" : "Включить";
     }
 
     // ---------- НАВИГАЦИЯ ----------
@@ -793,7 +822,47 @@ public partial class MainWindow : Window
         if (FileBrowserList.SelectedItem is FileSystemItem item && !_isInsideArchive)
         {
             HapticAudio.PlayClick();
-            // Быстрое переименование с суффиксом или диалогом
+            
+            var window = new Window
+            {
+                Title = "Переименовать",
+                Width = 400,
+                Height = 160,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = (Brush)FindResource("WindowBackgroundBrush"),
+                Foreground = (Brush)FindResource("PrimaryTextBrush")
+            };
+            var stack = new StackPanel { Margin = new Thickness(20) };
+            stack.Children.Add(new TextBlock { Text = "Введите новое имя:", Margin = new Thickness(0,0,0,10), FontSize = 14, FontWeight = FontWeights.SemiBold });
+            var textBox = new TextBox { Text = item.Name, Padding = new Thickness(6), FontSize = 14, Background = (Brush)FindResource("ControlBackgroundBrush"), Foreground = (Brush)FindResource("PrimaryTextBrush") };
+            stack.Children.Add(textBox);
+            var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0,15,0,0) };
+            
+            var btnCancel = new Button { Content = "Отмена", Width = 90, Padding = new Thickness(5), Margin = new Thickness(0,0,10,0), Style = (Style)FindResource("CyberToolButton") };
+            btnCancel.Click += (s, args) => { window.DialogResult = false; window.Close(); };
+            
+            var btnOk = new Button { Content = "OK", Width = 90, Padding = new Thickness(5), Style = (Style)FindResource("CyberPrimaryButton") };
+            btnOk.Click += (s, args) => { window.DialogResult = true; window.Close(); };
+            
+            btnStack.Children.Add(btnCancel);
+            btnStack.Children.Add(btnOk);
+            stack.Children.Add(btnStack);
+            window.Content = stack;
+            
+            textBox.SelectAll();
+            textBox.Focus();
+            
+            if (window.ShowDialog() == true && !string.IsNullOrWhiteSpace(textBox.Text) && textBox.Text != item.Name)
+            {
+                FileSystemService.Rename(item.FullPath, textBox.Text, out _, out var error);
+                if (!string.IsNullOrEmpty(error))
+                {
+                    MessageBox.Show(error, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                NavigateTo(_currentPath, false);
+            }
         }
     }
 
@@ -803,6 +872,23 @@ public partial class MainWindow : Window
         {
             HapticAudio.PlayClick();
             MessageBox.Show($"Имя: {item.Name}\nПуть: {item.FullPath}\nРазмер: {item.SizeFormatted}\nИзменен: {item.DateModifiedFormatted}\nCRC32: {item.CrcHex}", "Свойства", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void FileBrowserList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var originalSource = e.OriginalSource as DependencyObject;
+        while (originalSource != null && !(originalSource is ListViewItem))
+        {
+            originalSource = VisualTreeHelper.GetParent(originalSource);
+        }
+
+        if (originalSource is ListViewItem item && item.DataContext is FileSystemItem fsItem)
+        {
+            if (!FileBrowserList.SelectedItems.Contains(fsItem))
+            {
+                FileBrowserList.SelectedItem = fsItem;
+            }
         }
     }
 
@@ -853,7 +939,7 @@ public partial class MainWindow : Window
 
     private void SwitchTab(object sender)
     {
-        if (FilesView == null || TransferView == null || StorageView == null || DiagnosticsView == null || ToolsView == null || SettingsView == null)
+        if (FilesView == null || TransferView == null || StorageView == null || DiagnosticsView == null || ToolsView == null)
             return;
 
         HapticAudio.PlayClick();
@@ -865,7 +951,6 @@ public partial class MainWindow : Window
             TabStorageRadio.IsChecked = false;
             TabDiagnosticsRadio.IsChecked = false;
             TabToolsRadio.IsChecked = false;
-            TabSettingsRadio.IsChecked = false;
         }
         else if (sender == TabTransferRadio)
         {
@@ -874,7 +959,6 @@ public partial class MainWindow : Window
             TabStorageRadio.IsChecked = false;
             TabDiagnosticsRadio.IsChecked = false;
             TabToolsRadio.IsChecked = false;
-            TabSettingsRadio.IsChecked = false;
         }
         else if (sender == TabStorageRadio)
         {
@@ -883,7 +967,6 @@ public partial class MainWindow : Window
             TabStorageRadio.IsChecked = true;
             TabDiagnosticsRadio.IsChecked = false;
             TabToolsRadio.IsChecked = false;
-            TabSettingsRadio.IsChecked = false;
         }
         else if (sender == TabDiagnosticsRadio)
         {
@@ -892,7 +975,6 @@ public partial class MainWindow : Window
             TabStorageRadio.IsChecked = false;
             TabDiagnosticsRadio.IsChecked = true;
             TabToolsRadio.IsChecked = false;
-            TabSettingsRadio.IsChecked = false;
         }
         else if (sender == TabToolsRadio)
         {
@@ -901,16 +983,6 @@ public partial class MainWindow : Window
             TabStorageRadio.IsChecked = false;
             TabDiagnosticsRadio.IsChecked = false;
             TabToolsRadio.IsChecked = true;
-            TabSettingsRadio.IsChecked = false;
-        }
-        else if (sender == TabSettingsRadio)
-        {
-            TabFilesRadio.IsChecked = false;
-            TabTransferRadio.IsChecked = false;
-            TabStorageRadio.IsChecked = false;
-            TabDiagnosticsRadio.IsChecked = false;
-            TabToolsRadio.IsChecked = false;
-            TabSettingsRadio.IsChecked = true;
         }
 
         UIElement activeView = FilesView;
@@ -918,14 +990,12 @@ public partial class MainWindow : Window
         else if (TabStorageRadio.IsChecked == true) activeView = StorageView;
         else if (TabDiagnosticsRadio.IsChecked == true) activeView = DiagnosticsView;
         else if (TabToolsRadio.IsChecked == true) activeView = ToolsView;
-        else if (TabSettingsRadio.IsChecked == true) activeView = SettingsView;
 
         FilesView.Visibility = activeView == FilesView ? Visibility.Visible : Visibility.Collapsed;
         TransferView.Visibility = activeView == TransferView ? Visibility.Visible : Visibility.Collapsed;
         StorageView.Visibility = activeView == StorageView ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsView.Visibility = activeView == DiagnosticsView ? Visibility.Visible : Visibility.Collapsed;
         ToolsView.Visibility = activeView == ToolsView ? Visibility.Visible : Visibility.Collapsed;
-        SettingsView.Visibility = activeView == SettingsView ? Visibility.Visible : Visibility.Collapsed;
 
         SmoothFadeIn(activeView);
 
@@ -1195,19 +1265,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SpeedChip_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button b && double.TryParse(b.Tag?.ToString(), out double s))
-        {
-            HapticAudio.PlayClick();
-            _currentSpeedMb = s;
-            if (_peakSpeedMb < s) _peakSpeedMb = s;
-            HudCurrentSpeedText.Text = $"{s:F0} МБ/с";
-            HudPeakSpeedText.Text = $"{_peakSpeedMb:F0} МБ/с";
-            UpdateBottleneckIndicator(s);
-        }
-    }
-
     private async void StartLiveTransfer_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
@@ -1446,413 +1503,13 @@ public partial class MainWindow : Window
         new AdvancedToolsWindow(_currentPath) { Owner = this }.ShowDialog();
     }
 
-    // ---------- НАСТРОЙКИ (TAB 4) ----------
-
-    private void ShellToggle_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        bool enable = !ShellIntegrationService.IsIntegrated();
-        if (ShellIntegrationService.SetIntegration(enable, out string err))
-        {
-            UpdateShellButtonUI();
-            MessageBox.Show(enable ? "Интеграция с Проводником Windows включена!" : "Интеграция с Проводником отключена.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        else
-        {
-            MessageBox.Show($"Ошибка настройки оболочки: {err}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private void ThemeTile_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is FrameworkElement fe && fe.Tag is string tag)
-        {
-            HapticAudio.PlayClick();
-            switch (tag)
-            {
-                case "MicaLight": ThemeManager.Instance.Theme = AppTheme.MicaLight; break;
-                case "MicaDark": ThemeManager.Instance.Theme = AppTheme.MicaDark; break;
-                case "Acrylic": ThemeManager.Instance.Theme = AppTheme.Acrylic; break;
-                case "Light": ThemeManager.Instance.Theme = AppTheme.Light; break;
-                case "Dark": ThemeManager.Instance.Theme = AppTheme.Dark; break;
-            }
-            BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
-            UpdateThemeTilesUI();
-        }
-    }
-
     private void QuickTheme_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        ThemeManager.Instance.Theme = ThemeManager.Instance.IsDark ? AppTheme.MicaLight : AppTheme.MicaDark;
-        BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
-        UpdateThemeTilesUI();
+        // Toggle light/dark logic can be implemented here or delegated to ThemeManager
     }
 
-    private void UpdateThemeTilesUI()
-    {
-        if (QuickThemeIcon != null)
-            QuickThemeIcon.Text = ThemeManager.Instance.IsDark ? "☀" : "☾";
-    }
-
-    // ---------- УПРАВЛЕНИЕ СКРОЛЛИНГОМ И ВИЗУАЛЬНЫМИ НАСТРОЙКАМИ ----------
-
-    private bool _suppressSettingsUpdate;
-
-    private void InitSettingsUI()
-    {
-        _suppressSettingsUpdate = true;
-        try
-        {
-            var s = AppSettings.Instance;
-            SmoothScrollCheck.IsChecked = s.SmoothScrollEnabled;
-            DampingSlider.Value = s.ScrollDampingRate;
-            DampingValueText.Text = s.ScrollDampingRate.ToString("F1");
-            StepSlider.Value = s.ScrollStepSize;
-            StepValueText.Text = $"{s.ScrollStepSize:F0} px";
-            ScrollInertiaCheck.IsChecked = s.ScrollInertiaEnabled;
-            ScrollHapticCheck.IsChecked = s.ScrollHapticEnabled;
-            TabAnimCheck.IsChecked = s.TabAnimationsEnabled;
-            NeonGlowCheck.IsChecked = s.NeonGlowEnabled;
-            HapticAudioCheck.IsChecked = s.HapticSoundsEnabled;
-            HapticAudio.Enabled = s.HapticSoundsEnabled;
-
-            UpdatePresetButtonsUI();
-            PopulateTestSandbox();
-        }
-        finally
-        {
-            _suppressSettingsUpdate = false;
-        }
-    }
-
-    private void PopulateTestSandbox()
-    {
-        if (TestSandboxStack.Children.Count > 0) return;
-        (string title, string desc)[] items = new[]
-        {
-            ("🚀 NVMe Gen5 Скорость", "Чтение до 14 500 МБ/с без троттлинга"),
-            ("⚡ 120 FPS Кинетика", "Субпиксельная интерполяция Motion.Damp"),
-            ("💎 Liquid Glass Карточка", "Mica & Acrylic адаптивный бэкдроп"),
-            ("🗜 Zstandard v1.5.5", "Сжатие уровня 22 с мультипотоком"),
-            ("🔒 AES-256 GCM", "Аппаратное шифрование архивов"),
-            ("📊 IOPS Realtime Монитор", "Низколатентные операции параллельного ввода"),
-            ("🌌 Неоновые направляющие", "Тонкий световод 1px с мягким ореолом"),
-            ("🔊 Haptic Audio синтез", "Тактильные звуки в оперативной памяти"),
-            ("📦 Virtualizing StackPanel", "Recycling режим с нулевой аллокацией GC"),
-            ("🛡 Rollback Snapshot", "Безопасный откат системных твиков"),
-            ("🎯 Damping Physics", "Экспоненциальное затухание скорости"),
-            ("🔋 Ultimate Performance", "Разблокированный план питания CPU"),
-            ("💾 Direct I/O Bypass", "Прямая запись без промежуточных буферов"),
-            ("🛰 Космический HUD", "Мониторинг потоков в реальном времени"),
-            ("📈 60/120/144/240 Hz", "Поддержка киберспортивных мониторов"),
-            ("⚙ Smart Shell Hook", "Нативная интеграция в проводник"),
-            ("📂 Tree / List GridView", "Многоколоночный файловый браузер"),
-            ("✨ Cyber Cyan Glow", "Акцентные неоновые цвета"),
-            ("🏎 Скоростное копирование", "Многопоточный буфер 8 МБ"),
-            ("🏁 Финал оптимизации", "Готовность к любым нагрузкам")
-        };
-
-        for (int i = 0; i < items.Length; i++)
-        {
-            var item = items[i];
-            var b = new Border
-            {
-                Background = (System.Windows.Media.Brush)FindResource("CardBackgroundBrush"),
-                BorderBrush = (System.Windows.Media.Brush)FindResource("SubtleBorderBrush"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(10, 6, 10, 6),
-                Margin = new Thickness(0, 0, 0, 4)
-            };
-            var dp = new DockPanel();
-            var badge = new Border
-            {
-                Background = (System.Windows.Media.Brush)FindResource("ChipBackgroundBrush"),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(6, 1, 6, 1)
-            };
-            badge.Child = new TextBlock
-            {
-                Text = $"#{i + 1:D2}",
-                FontSize = 9,
-                FontWeight = FontWeights.Bold,
-                Foreground = (System.Windows.Media.Brush)FindResource("AccentBrush")
-            };
-            DockPanel.SetDock(badge, Dock.Right);
-            dp.Children.Add(badge);
-
-            var sp = new StackPanel();
-            sp.Children.Add(new TextBlock { Text = item.title, FontSize = 11, FontWeight = FontWeights.SemiBold });
-            sp.Children.Add(new TextBlock { Text = item.desc, FontSize = 9, Style = (Style)FindResource("MutedText") });
-            dp.Children.Add(sp);
-
-            b.Child = dp;
-            TestSandboxStack.Children.Add(b);
-        }
-    }
-
-    private void SmoothScrollCheck_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized || _suppressSettingsUpdate) return;
-        HapticAudio.PlayClick();
-        AppSettings.Instance.SmoothScrollEnabled = SmoothScrollCheck?.IsChecked == true;
-        AppSettings.Instance.Save();
-    }
-
-    private void PresetSilk_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        ApplyPreset("UltraSilk", 14.0, 120.0, true);
-    }
-
-    private void PresetBalanced_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        ApplyPreset("Balanced", 22.0, 110.0, true);
-    }
-
-    private void PresetSnappy_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        ApplyPreset("Snappy", 32.0, 90.0, false);
-    }
-
-    private void ApplyPreset(string name, double damping, double step, bool inertia)
-    {
-        _suppressSettingsUpdate = true;
-        try
-        {
-            AppSettings.Instance.ScrollPreset = name;
-            AppSettings.Instance.ScrollDampingRate = damping;
-            AppSettings.Instance.ScrollStepSize = step;
-            AppSettings.Instance.ScrollInertiaEnabled = inertia;
-
-            if (DampingSlider != null) DampingSlider.Value = damping;
-            if (DampingValueText != null) DampingValueText.Text = damping.ToString("F1");
-            if (StepSlider != null) StepSlider.Value = step;
-            if (StepValueText != null) StepValueText.Text = $"{step:F0} px";
-            if (ScrollInertiaCheck != null) ScrollInertiaCheck.IsChecked = inertia;
-
-            UpdatePresetButtonsUI();
-            AppSettings.Instance.Save();
-        }
-        finally
-        {
-            _suppressSettingsUpdate = false;
-        }
-    }
-
-    private void UpdatePresetButtonsUI()
-    {
-        string p = AppSettings.Instance.ScrollPreset;
-        HighlightPresetButton(PresetSilkBtn, p == "UltraSilk");
-        HighlightPresetButton(PresetBalancedBtn, p == "Balanced");
-        HighlightPresetButton(PresetSnappyBtn, p == "Snappy");
-    }
-
-    private void HighlightPresetButton(Button? btn, bool active)
-    {
-        if (btn == null) return;
-        btn.BorderBrush = active ? (System.Windows.Media.Brush)FindResource("AccentBrush") : System.Windows.Media.Brushes.Transparent;
-        btn.BorderThickness = active ? new Thickness(1.5) : new Thickness(1);
-    }
-
-    private void DampingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (DampingValueText != null)
-            DampingValueText.Text = e.NewValue.ToString("F1");
-
-        if (!_isInitialized || _suppressSettingsUpdate) return;
-        AppSettings.Instance.ScrollDampingRate = Math.Round(e.NewValue, 1);
-        AppSettings.Instance.ScrollPreset = "Custom";
-        UpdatePresetButtonsUI();
-        AppSettings.Instance.Save();
-    }
-
-    private void StepSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (StepValueText != null)
-            StepValueText.Text = $"{e.NewValue:F0} px";
-
-        if (!_isInitialized || _suppressSettingsUpdate) return;
-        AppSettings.Instance.ScrollStepSize = Math.Round(e.NewValue);
-        AppSettings.Instance.ScrollPreset = "Custom";
-        UpdatePresetButtonsUI();
-        AppSettings.Instance.Save();
-    }
-
-    private void Option_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!_isInitialized || _suppressSettingsUpdate) return;
-        HapticAudio.PlayClick();
-        if (ScrollInertiaCheck != null) AppSettings.Instance.ScrollInertiaEnabled = ScrollInertiaCheck.IsChecked == true;
-        if (ScrollHapticCheck != null) AppSettings.Instance.ScrollHapticEnabled = ScrollHapticCheck.IsChecked == true;
-        if (TabAnimCheck != null) AppSettings.Instance.TabAnimationsEnabled = TabAnimCheck.IsChecked == true;
-        if (NeonGlowCheck != null) AppSettings.Instance.NeonGlowEnabled = NeonGlowCheck.IsChecked == true;
-        if (HapticAudioCheck != null)
-        {
-            AppSettings.Instance.HapticSoundsEnabled = HapticAudioCheck.IsChecked == true;
-            HapticAudio.Enabled = AppSettings.Instance.HapticSoundsEnabled;
-        }
-        AppSettings.Instance.Save();
-    }
-
-    private void ResetSettings_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        ApplyPreset("Balanced", 22.0, 110.0, true);
-        SmoothScrollCheck.IsChecked = true;
-        ScrollHapticCheck.IsChecked = false;
-        TabAnimCheck.IsChecked = true;
-        NeonGlowCheck.IsChecked = true;
-        HapticAudioCheck.IsChecked = true;
-        HapticAudio.Enabled = true;
-        AppSettings.Instance.Save();
-        HapticAudio.PlaySuccess();
-    }
-
-    // ---------- ОБНОВЛЕНИЯ И ЛИЦЕНЗИЯ (BLACKTECCOM) ----------
-    private UpdateInfo? _latestUpdateInfo;
-
-    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        CheckUpdateBtn.IsEnabled = false;
-        CheckUpdateBtn.Content = "⏳ Проверка...";
-        UpdateStatusTitleText.Text = "Связь с сервером обновлений...";
-        UpdateStatusDescText.Text = "Запрос манифеста версий и проверка релизов на GitHub...";
-
-        try
-        {
-            _latestUpdateInfo = await UpdateService.CheckForUpdatesAsync();
-
-            if (_latestUpdateInfo.IsUpdateAvailable)
-            {
-                UpdateStatusTitleText.Text = $"🚀 Доступно обновление: v{_latestUpdateInfo.LatestVersion}";
-                UpdateStatusTitleText.Foreground = (Brush)FindResource("AccentBrush");
-                UpdateStatusDescText.Text = $"Текущая версия: v{_latestUpdateInfo.CurrentVersion} • Дата релиза: {_latestUpdateInfo.ReleaseDate}";
-
-                NewVersionTitleText.Text = $"🎉 Доступна новая версия: v{_latestUpdateInfo.LatestVersion}!";
-                ReleaseDateText.Text = _latestUpdateInfo.ReleaseDate;
-                ChangelogText.Text = _latestUpdateInfo.Changelog.Count > 0 
-                    ? string.Join("\n", _latestUpdateInfo.Changelog) 
-                    : "• Улучшения стабильности и скорости работы.";
-
-                UpdateAvailableBox.Visibility = Visibility.Visible;
-                HapticAudio.PlaySuccess();
-            }
-            else
-            {
-                UpdateStatusTitleText.Text = $"✔ У вас установлена самая актуальная версия v{_latestUpdateInfo.CurrentVersion}";
-                UpdateStatusTitleText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-                UpdateStatusDescText.Text = "Обновлений не требуется. Все модули и алгоритмы ядра работают в последней ревизии.";
-                UpdateAvailableBox.Visibility = Visibility.Collapsed;
-            }
-        }
-        catch (Exception ex)
-        {
-            UpdateStatusTitleText.Text = "⚠ Не удалось проверить обновления";
-            UpdateStatusDescText.Text = ex.Message;
-        }
-        finally
-        {
-            CheckUpdateBtn.IsEnabled = true;
-            CheckUpdateBtn.Content = "🔍 Проверить обновления";
-        }
-    }
-
-    private async void DownloadUpdate_Click(object sender, RoutedEventArgs e)
-    {
-        if (_latestUpdateInfo == null) return;
-        HapticAudio.PlayClick();
-
-        string url = !string.IsNullOrEmpty(_latestUpdateInfo.InstallerUrl) 
-            ? _latestUpdateInfo.InstallerUrl 
-            : _latestUpdateInfo.DownloadUrl;
-
-        if (string.IsNullOrEmpty(url))
-        {
-            OpenGitHub_Click(sender, e);
-            return;
-        }
-
-        DownloadUpdateBtn.IsEnabled = false;
-        DownloadUpdateBtn.Content = "⏳ Загрузка...";
-        UpdateProgressPanel.Visibility = Visibility.Visible;
-
-        var progress = new Progress<(long bytesRead, long totalBytes, int percent, double speedMBps)>(p =>
-        {
-            UpdateProgressBar.Value = p.percent;
-            UpdateProgressPercentText.Text = $"{p.percent}% ({Formatters.Bytes(p.bytesRead)} / {(p.totalBytes > 0 ? Formatters.Bytes(p.totalBytes) : "?")})";
-            UpdateProgressSpeedText.Text = $"{p.speedMBps:F1} МБ/с";
-        });
-
-        try
-        {
-            string downloadedFile = await UpdateService.DownloadUpdateAsync(url, progress);
-            HapticAudio.PlaySuccess();
-
-            var res = MessageBox.Show(
-                $"Обновление v{_latestUpdateInfo.LatestVersion} успешно загружено!\n\nУстановить сейчас и перезапустить приложение?", 
-                "Обновление готово", 
-                MessageBoxButton.YesNo, 
-                MessageBoxImage.Information);
-
-            if (res == MessageBoxResult.Yes)
-            {
-                UpdateService.ApplyUpdateAndRestart(downloadedFile);
-            }
-            else
-            {
-                DownloadUpdateBtn.Content = "✔ Обновление загружено";
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Ошибка при скачивании обновления:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            DownloadUpdateBtn.IsEnabled = true;
-            DownloadUpdateBtn.Content = "⬇ Повторить загрузку";
-        }
-    }
-
-    private void OpenGitHub_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = UpdateService.GitHubRepoUrl,
-                UseShellExecute = true
-            });
-        }
-        catch { }
-    }
-
-    private void CopyAlifCard_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        try
-        {
-            Clipboard.SetText("4444 8888 1022 6013");
-            MessageBox.Show("Номер карты Alif Bank VISA скопирован в буфер обмена:\n\n4444 8888 1022 6013\n\nСпасибо за поддержку автора (BlackTecCom - Jaborov Daler)!", "Motion Commander — Поддержка", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch { }
-    }
-
-    private void CopyDcCard_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        try
-        {
-            Clipboard.SetText("4713 3800 2165 1431");
-            MessageBox.Show("Номер карты DC Bank VISA скопирован в буфер обмена:\n\n4713 3800 2165 1431\n\nСпасибо за поддержку автора (BlackTecCom - Jaborov Daler)!", "Motion Commander — Поддержка", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch { }
-    }
-
-    // ---------- ОКНО (CAPTION) ----------
+    // ---------- НАСТРОЙКИ (TAB 4) ----------
 
     private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -1896,4 +1553,17 @@ public partial class MainWindow : Window
         MaxBtn.Content = WindowState == WindowState.Maximized ? "❐" : "□";
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    // Settings Handlers (Stubs)
+    private void SettingsThemeCombo_Changed(object sender, SelectionChangedEventArgs e) { }
+    private void SettingsBackdrop_Changed(object sender, RoutedEventArgs e) { }
+    private void SettingsHaptics_Changed(object sender, RoutedEventArgs e) { }
+    private void SettingsTestClick_Click(object sender, RoutedEventArgs e) { }
+    private void SettingsTestHover_Click(object sender, RoutedEventArgs e) { }
+    private void SettingsTestSuccess_Click(object sender, RoutedEventArgs e) { }
+    private void SettingsTestScroll_Click(object sender, RoutedEventArgs e) { }
+    private void SettingsOpenConfigFolder_Click(object sender, RoutedEventArgs e) { }
+    private void SettingsReloadConfig_Click(object sender, RoutedEventArgs e) { }
+    private void SettingsResetConfig_Click(object sender, RoutedEventArgs e) { }
+    private void SettingsSaveConfig_Click(object sender, RoutedEventArgs e) { }
 }
