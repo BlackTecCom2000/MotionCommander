@@ -1,0 +1,163 @@
+<Window x:Class="Win11CopyDialog.FileManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
+        Title="Motion File Manager" Height="720" Width="1100" MinWidth="900" MinHeight="560"
+        Background="Transparent" WindowStyle="None" ResizeMode="CanResize"
+        TextOptions.TextFormattingMode="Display">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" CornerRadius="8,8,8,8"
+                      GlassFrameThickness="-1" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo x:Name="TaskbarInfo"/>
+    </Window.TaskbarItemInfo>
+
+    <Border x:Name="RootBorder" Background="{DynamicResource WindowBackgroundBrush}"
+            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8"
+            RenderTransformOrigin="0.5,0.5" Opacity="0">
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="RootScale" ScaleX="0.97" ScaleY="0.97"/>
+        </Border.RenderTransform>
+        <DockPanel>
+            <!-- Title Bar -->
+            <Grid DockPanel.Dock="Top" Height="40">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <TextBlock Text="📁" FontSize="14" VerticalAlignment="Center"/>
+                    <TextBlock Text="Motion File Manager" Margin="8,0,0,0"
+                               Foreground="{DynamicResource TitleForegroundBrush}" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Style="{StaticResource CaptionButton}" Content="─" Click="Min_Click"/>
+                    <Button Style="{StaticResource CaptionButton}" Content="☐" Click="Max_Click"/>
+                    <Button Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Toolbar -->
+            <Border DockPanel.Dock="Top" Background="{DynamicResource CardBackgroundBrush}" 
+                    BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,0,1" Padding="6,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Navigation -->
+                    <StackPanel Orientation="Horizontal" Margin="4,0">
+                        <Button x:Name="BtnBack" Style="{StaticResource IconButton}" Content="◀" ToolTip="Назад" Click="BtnBack_Click" IsEnabled="False"/>
+                        <Button x:Name="BtnForward" Style="{StaticResource IconButton}" Content="▶" ToolTip="Вперёд" Click="BtnForward_Click" IsEnabled="False"/>
+                        <Button x:Name="BtnUp" Style="{StaticResource IconButton}" Content="▲" ToolTip="Вверх" Click="BtnUp_Click"/>
+                        <Button x:Name="BtnRefresh" Style="{StaticResource IconButton}" Content="⟳" ToolTip="Обновить" Click="BtnRefresh_Click"/>
+                    </StackPanel>
+
+                    <!-- Address Bar -->
+                    <TextBox x:Name="AddressBar" Grid.Column="1" Margin="8,0" VerticalAlignment="Center" Padding="8,4"
+                             Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}"
+                             BorderThickness="1" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="13"
+                             KeyDown="AddressBar_KeyDown" GotFocus="AddressBar_GotFocus"/>
+
+                    <!-- View Options -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,8,0">
+                        <Button Style="{StaticResource Win11Button}" Content="📋 Список" Click="ViewList_Click" Padding="10,4" Margin="0,0,4,0"/>
+                        <Button Style="{StaticResource Win11Button}" Content="📁 Плитка" Click="ViewTiles_Click" Padding="10,4" Margin="0,0,4,0"/>
+                        <Button Style="{StaticResource AccentButton}" Content="✦ Новое окно" Click="NewWindow_Click" Padding="10,4"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Main Content -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="280" MinWidth="220" MaxWidth="400"/>
+                    <ColumnDefinition Width="5"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Pane: Folder Tree -->
+                <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" 
+                        BorderThickness="0,0,1,0">
+                    <ctrl:FolderTreeControl x:Name="FolderTree" FolderSelected="FolderTree_FolderSelected"/>
+                </Border>
+
+                <!-- Splitter -->
+                <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent"
+                              DragIncrement="1" Cursor="SizeWE">
+                    <GridSplitter.Template>
+                        <ControlTemplate TargetType="GridSplitter">
+                            <Border x:Name="Border" Background="Transparent" Cursor="SizeWE">
+                                <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" HorizontalAlignment="Center" Visibility="Hidden"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Border" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </GridSplitter.Template>
+                </GridSplitter>
+
+                <!-- Right Pane: File List -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <ctrl:FileListControl x:Name="FileList" ItemActivated="FileList_ItemActivated" 
+                                          SelectionChangedEvent="FileList_SelectionChanged"/>
+
+                    <!-- Status Bar -->
+                    <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" 
+                            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,1,0,0" Padding="8,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="StatusText" Text="Готово" FontSize="12" 
+                                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            <TextBlock x:Name="SelectionText" Grid.Column="1" Text="" FontSize="12" 
+                                       Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="FreeSpaceText" Grid.Column="2" Text="" FontSize="12" 
+                                       Foreground="{DynamicResource SecondaryTextBrush}" Margin="12,0,0,0"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- Copy Progress Overlay (Motion-style) -->
+            <Border x:Name="CopyOverlay" Visibility="Collapsed" Background="#CC000000" Grid.RowSpan="3">
+                <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" 
+                        BorderThickness="2" CornerRadius="12" Padding="20" MaxWidth="480" VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Effect="{DynamicResource DropShadowEffect}">
+                    <StackPanel>
+                        <TextBlock Text="Копирование" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="CopyFileName" Text="" FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" 
+                                   HorizontalAlignment="Center" Margin="0,4,0,12" TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+                        <ctrl:FluidProgressBar x:Name="CopyProgressBar" Height="6" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="CopySpeedText" Text="" FontSize="12" Foreground="{DynamicResource AccentBrush}"/>
+                            <TextBlock x:Name="CopyEtaText" Grid.Column="1" Text="" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="12,0,0,0"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button x:Name="BtnPauseCopy" Style="{StaticResource Win11Button}" Content="❚❚ Пауза" Click="BtnPauseCopy_Click" Margin="0,0,8,0"/>
+                            <Button x:Name="BtnCancelCopy" Style="{StaticResource AccentButton}" Content="Отмена" Click="BtnCancelCopy_Click" MinWidth="100"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Border>
+        </DockPanel>
+    </Border>
+</Window>

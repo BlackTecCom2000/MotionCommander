@@ -205,6 +205,13 @@
                                             <TextBlock Text="Хэши" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
+                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource GlassBorderBrush}" Margin="6,0,8,0"/>
+                                    <Button x:Name="OpenFileManagerBtn" Style="{StaticResource RibbonPrimaryActionButton}" Click="OpenFileManager_Click" ToolTip="Открыть автономный файловый менеджер (Motion UI)">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
+                                            <TextBlock Text="Файловый менеджер" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                             </DockPanel>
                         </Border>

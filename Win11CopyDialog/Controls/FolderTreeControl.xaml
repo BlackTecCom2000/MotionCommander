@@ -1,0 +1,143 @@
+<UserControl x:Class="Win11CopyDialog.Controls.FolderTreeControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:models="clr-namespace:Win11CopyDialog.Models"
+             mc:Ignorable="d"
+             d:DesignWidth="280" d:DesignHeight="500">
+    <UserControl.Resources>
+        <HierarchicalDataTemplate DataType="{x:Type models:FileEntry}" ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal" Margin="2,1">
+                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                <TextBlock x:Name="LoadingIndicator" Text="⟳" FontSize="10" Foreground="{DynamicResource AccentBrush}" 
+                           Margin="6,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+            </StackPanel>
+            <HierarchicalDataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsLoadingChildren}" Value="True">
+                    <Setter TargetName="LoadingIndicator" Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </HierarchicalDataTemplate.Triggers>
+        </HierarchicalDataTemplate>
+
+        <Style x:Key="TreeViewItemStyle" TargetType="TreeViewItem">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+            <Setter Property="Padding" Value="2,1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TreeViewItem">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <ToggleButton x:Name="Expander" ClickMode="Press" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Template="{StaticResource ExpanderTemplate}" VerticalAlignment="Center" Margin="2,0,4,0"/>
+                            <Border x:Name="HeaderBorder" Grid.Column="1" Background="Transparent" Padding="{TemplateBinding Padding}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter x:Name="Header" ContentSource="Header" HorizontalAlignment="Stretch"/>
+                            </Border>
+                            <ItemsPresenter x:Name="ItemsHost" Grid.Row="1" Grid.Column="1" Margin="16,0,0,0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <ControlTemplate x:Key="ExpanderTemplate" TargetType="ToggleButton">
+            <Grid Width="16" Height="16" Background="Transparent">
+                <Path x:Name="Arrow" Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource PrimaryTextBrush}" StrokeThickness="1.5" 
+                      Fill="None" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform>
+                        <RotateTransform Angle="0"/>
+                    </Path.RenderTransform>
+                </Path>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="Arrow" Storyboard.TargetProperty="RenderTransform.Angle" To="90" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="Arrow" Storyboard.TargetProperty="RenderTransform.Angle" To="0" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
+        <ContextMenu x:Key="FolderContextMenu">
+            <MenuItem Header="Открыть в новой вкладке"/>
+            <MenuItem Header="Копировать путь"/>
+            <Separator/>
+            <MenuItem Header="Создать папку" Command="{Binding NewFolderCommand}"/>
+            <MenuItem Header="Вставить" Command="{Binding PasteCommand}"/>
+        </ContextMenu>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Quick Access / Favorites -->
+        <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" 
+                BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,4">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="БЫСТРЫЙ ДОСТУП" FontSize="10" FontWeight="SemiBold" 
+                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
+            </StackPanel>
+        </Border>
+
+        <TreeView x:Name="FolderTree" Grid.Row="1" ItemsSource="{Binding Roots}" 
+                  ItemContainerStyle="{StaticResource TreeViewItemStyle}"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  SelectedItemChanged="FolderTree_SelectedItemChanged"
+                  MouseRightButtonDown="FolderTree_MouseRightButtonDown"
+                  ContextMenu="{StaticResource FolderContextMenu}">
+            <TreeView.ItemTemplate>
+                <HierarchicalDataTemplate DataType="{x:Type models:FileEntry}" ItemsSource="{Binding Children}">
+                    <StackPanel Orientation="Horizontal" Margin="2,1" ContextMenu="{StaticResource FolderContextMenu}">
+                        <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                        <TextBlock x:Name="LoadingIndicator" Text="⟳" FontSize="10" Foreground="{DynamicResource AccentBrush}" 
+                                   Margin="6,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                    </StackPanel>
+                    <HierarchicalDataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsLoadingChildren}" Value="True">
+                            <Setter TargetName="LoadingIndicator" Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </HierarchicalDataTemplate.Triggers>
+                </HierarchicalDataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+    </Grid>
+</UserControl>

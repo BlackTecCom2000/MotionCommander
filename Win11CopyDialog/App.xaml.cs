@@ -191,6 +191,10 @@ public partial class App : Application
             var main = new MainWindow(null, 5);
             main.Show();
         }
+        else if (e.Args.Contains("--filemanager"))
+        {
+            new FileManagerWindow().Show();
+        }
         else if (e.Args.Contains("--motion-demo"))
         {
             // Сразу Motion Copy Engine с демо-набором

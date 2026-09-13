@@ -758,6 +758,13 @@ public partial class MainWindow : Window
         dlg.ShowDialog();
     }
 
+    private void OpenFileManager_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var win = new FileManagerWindow();
+        win.Show();
+    }
+
     // ---------- КОНТЕКСТНОЕ МЕНЮ И КЛАВИАТУРА ----------
 
     private void FileBrowserList_KeyDown(object sender, KeyEventArgs e)

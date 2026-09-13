@@ -1,0 +1,124 @@
+<UserControl x:Class="Win11CopyDialog.Controls.FileListControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:models="clr-namespace:Win11CopyDialog.Models"
+             mc:Ignorable="d"
+             d:DesignHeight="400" d:DesignWidth="600">
+    <UserControl.Resources>
+        <Style x:Key="FileListItemStyle" TargetType="ListViewItem">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <GridViewRowPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" SnapsToDevicePixels="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="NameColumnTemplate" DataType="{x:Type models:FileEntry}">
+            <StackPanel Orientation="Horizontal" ToolTip="{Binding FullPath}">
+                <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <Style x:Key="GridViewColumnHeaderStyle" TargetType="GridViewColumnHeader">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewColumnHeader">
+                        <Border x:Name="HeaderBorder" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border.InputBindings>
+                                <MouseBinding Gesture="LeftClick" Command="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.SortCommand}" 
+                                              CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=GridViewColumnHeader}, Path=Column.DisplayMemberBinding.Path}"/>
+                            </Border.InputBindings>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HeaderBorder" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <ListView x:Name="FileListView" ItemsSource="{Binding Items}" 
+                  ItemContainerStyle="{StaticResource FileListItemStyle}"
+                  SelectionMode="Extended" VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                  ScrollViewer.VerticalScrollBarVisibility="Auto"
+                  MouseDoubleClick="FileListView_MouseDoubleClick"
+                  KeyDown="FileListView_KeyDown"
+                  ContextMenuOpening="FileListView_ContextMenuOpening">
+            <ListView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Открыть" Command="{Binding OpenCommand}"/>
+                    <MenuItem Header="Копировать" Command="{Binding CopyCommand}"/>
+                    <MenuItem Header="Вырезать" Command="{Binding CutCommand}"/>
+                    <MenuItem Header="Вставить" Command="{Binding PasteCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Переименовать" Command="{Binding RenameCommand}"/>
+                    <MenuItem Header="Удалить" Command="{Binding DeleteCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="Свойства" Command="{Binding PropertiesCommand}"/>
+                </ContextMenu>
+            </ListView.ContextMenu>
+            <ListView.View>
+                <GridView x:Name="GridView" ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
+                    <GridViewColumn Header="Имя" Width="300" CellTemplate="{StaticResource NameColumnTemplate}"/>
+                    <GridViewColumn Header="Размер" Width="100" DisplayMemberBinding="{Binding SizeText}">
+                        <GridViewColumn.HeaderTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="Размер" TextAlignment="Right" Margin="0,0,8,0"/>
+                            </DataTemplate>
+                        </GridViewColumn.HeaderTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Тип" Width="120" DisplayMemberBinding="{Binding Type}"/>
+                    <GridViewColumn Header="Изменен" Width="160" DisplayMemberBinding="{Binding LastWriteTime, StringFormat='dd.MM.yyyy HH:mm'}"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <TextBlock x:Name="EmptyText" Text="Папка пуста" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+    </Grid>
+</UserControl>
