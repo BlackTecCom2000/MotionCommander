@@ -135,6 +135,50 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void CheckUpdatesBtn_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var btn = (Button)sender;
+        btn.IsEnabled = false;
+        var originalContent = btn.Content;
+        btn.Content = "⟳";
+
+        try
+        {
+            var updateInfo = await UpdateService.CheckForUpdatesAsync();
+            if (updateInfo.IsUpdateAvailable)
+            {
+                AvailableUpdateBtn.Visibility = Visibility.Visible;
+                AvailableUpdateBtn.ToolTip = $"Доступна новая версия: v{updateInfo.LatestVersion}";
+                var res = MessageBox.Show(
+                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая: v{updateInfo.CurrentVersion}\n\nСкачать и установить?",
+                    "Доступно обновление", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (res == MessageBoxResult.Yes)
+                {
+                    string downloadedFile = await UpdateService.DownloadUpdateAsync(
+                        !string.IsNullOrEmpty(updateInfo.InstallerUrl) ? updateInfo.InstallerUrl : updateInfo.DownloadUrl);
+                    UpdateService.ApplyUpdateAndRestart(downloadedFile);
+                    return;
+                }
+            }
+            else
+            {
+                MessageBox.Show($"Установлена последняя версия v{updateInfo.CurrentVersion}",
+                    "Обновления", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка проверки обновлений:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            btn.Content = originalContent;
+            btn.IsEnabled = true;
+        }
+    }
+
     public void SelectTab(int index)
     {
         RadioButton target = index switch
