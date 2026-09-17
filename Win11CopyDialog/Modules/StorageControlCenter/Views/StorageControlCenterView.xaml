@@ -82,13 +82,14 @@
         <!-- 2. ПОДВКЛАДКИ УПРАВЛЕНИЯ -->
         <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
                 BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,10">
-            <UniformGrid Columns="6">
+            <UniformGrid Columns="7">
                 <RadioButton x:Name="SubTabHealthRadio" GroupName="StorageSubGroup" Content="🩺 Обзор и Health" Style="{StaticResource StorageSubTab}" IsChecked="True" Checked="SubTab_Checked" Click="SubTab_Checked"/>
                 <RadioButton x:Name="SubTabPartitionsRadio" GroupName="StorageSubGroup" Content="🗂 Partition Manager" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
                 <RadioButton x:Name="SubTabBenchmarkRadio" GroupName="StorageSubGroup" Content="🏎 Бенчмарк скорости" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
                 <RadioButton x:Name="SubTabOptimizerRadio" GroupName="StorageSubGroup" Content="⚡ Оптимизация и TRIM" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
                 <RadioButton x:Name="SubTabCleanupRadio" GroupName="StorageSubGroup" Content="🧹 Анализ пространства" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
                 <RadioButton x:Name="SubTabSafetyRadio" GroupName="StorageSubGroup" Content="🛡 Безопасность и Wipe" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                <RadioButton x:Name="SubTabMigrationRadio" GroupName="StorageSubGroup" Content="🔄 Клонирование ОС" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
             </UniformGrid>
         </Border>
 
@@ -599,6 +600,45 @@
                             <TextBlock Text="Политика безопасности и правила защиты накопителей Motion Commander" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,8"/>
                             <TextBlock Text="1. Системный загрузочный раздел (C:) аппаратно и программно заблокирован от удаления, сжатия ниже порога безопасности ОС и форматирования.&#x0a;2. Деструктивные операции (удаление разделов, форматирование) требуют двухэтапного подтверждения с указанием точной модели накопителя.&#x0a;3. Традиционная дефрагментация SSD категорически исключена: поддерживаются только официальные команды TRIM (ReTrim).&#x0a;4. Каждая выполненная операция регистрируется в энергонезависимом журнале аудита."
                                        FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap" LineHeight="18"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ================= G. КЛОНИРОВАНИЕ ОС (MIGRATION) ================= -->
+            <ScrollViewer x:Name="ViewMigration" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,4,0">
+                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <TextBlock Text="🔄 Клонирование работающей Windows (Live Clone)" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                <Border Background="#EF4444" CornerRadius="4" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <TextBlock Text="ВНИМАНИЕ: ОПАСНАЯ ОПЕРАЦИЯ" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                </Border>
+                            </DockPanel>
+
+                            <TextBlock Text="Эта функция позволяет перенести полностью рабочую операционную систему на другой диск (например, со старого HDD на новый SSD) без перезагрузки и использования загрузочных флешек. Технология VSS позволяет безопасно скопировать все заблокированные системой файлы." FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                            <WrapPanel Margin="0,0,0,14">
+                                <TextBlock Text="Выберите целевой диск (КУДА переносить):" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <ComboBox x:Name="MigrationTargetDriveCombo" Width="250" Height="28"/>
+                            </WrapPanel>
+
+                            <TextBlock Text="⚠️ ВАЖНО: Все существующие данные, разделы и файлы на целевом диске будут БЕЗВОЗВРАТНО УНИЧТОЖЕНЫ! Убедитесь, что вы выбрали правильный диск." FontSize="11" FontWeight="Bold" Foreground="#EF4444" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                            <Button x:Name="StartMigrationBtn" Style="{StaticResource CyberButton}" Content="🚀 НАЧАТЬ ПЕРЕНОС (CLONE OS)" Padding="14,10" FontWeight="Bold" FontSize="13" Click="StartMigration_Click" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Прогресс миграции -->
+                    <Border x:Name="MigrationProgressBorder" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="14" Visibility="Collapsed">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <TextBlock x:Name="MigrationStatusText" Text="Подготовка к клонированию..." FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                <TextBlock x:Name="MigrationPercentageText" Text="0%" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" HorizontalAlignment="Right"/>
+                            </DockPanel>
+                            <ProgressBar x:Name="MigrationProgressBar" Height="10" Minimum="0" Maximum="100" Value="0" Foreground="{DynamicResource AccentBrush}"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

@@ -22,6 +22,7 @@ public partial class StorageControlCenterView : UserControl
     private readonly DispatcherTimer _telemetryTimer;
     private CancellationTokenSource? _benchCts;
     private CancellationTokenSource? _wipeCts;
+    private CancellationTokenSource? _migrationCts;
 
     // Поля интерактивной формы Partition Manager
     private string _currentAction = "";
@@ -55,6 +56,7 @@ public partial class StorageControlCenterView : UserControl
             3 => SubTabOptimizerRadio,
             4 => SubTabCleanupRadio,
             5 => SubTabSafetyRadio,
+            6 => SubTabMigrationRadio,
             _ => SubTabHealthRadio
         };
         target.IsChecked = true;
@@ -136,6 +138,7 @@ public partial class StorageControlCenterView : UserControl
 
         // Загрузка категорий очистки
         LoadCleanupCategories();
+        PopulateMigrationDrives();
     }
 
     private UIElement CreateDiskCard(StorageDisk disk)
@@ -613,7 +616,7 @@ public partial class StorageControlCenterView : UserControl
 
     private void SubTab_Checked(object sender, RoutedEventArgs e)
     {
-        if (ViewHealth == null || ViewPartitions == null || ViewBenchmark == null || ViewOptimizer == null || ViewCleanup == null || ViewSafety == null)
+        if (ViewHealth == null || ViewPartitions == null || ViewBenchmark == null || ViewOptimizer == null || ViewCleanup == null || ViewSafety == null || ViewMigration == null)
             return;
 
         if (sender == SubTabHealthRadio)
@@ -624,6 +627,7 @@ public partial class StorageControlCenterView : UserControl
             SubTabOptimizerRadio.IsChecked = false;
             SubTabCleanupRadio.IsChecked = false;
             SubTabSafetyRadio.IsChecked = false;
+            SubTabMigrationRadio.IsChecked = false;
         }
         else if (sender == SubTabPartitionsRadio)
         {
@@ -669,6 +673,17 @@ public partial class StorageControlCenterView : UserControl
             SubTabOptimizerRadio.IsChecked = false;
             SubTabCleanupRadio.IsChecked = false;
             SubTabSafetyRadio.IsChecked = true;
+            SubTabMigrationRadio.IsChecked = false;
+        }
+        else if (sender == SubTabMigrationRadio)
+        {
+            SubTabHealthRadio.IsChecked = false;
+            SubTabPartitionsRadio.IsChecked = false;
+            SubTabBenchmarkRadio.IsChecked = false;
+            SubTabOptimizerRadio.IsChecked = false;
+            SubTabCleanupRadio.IsChecked = false;
+            SubTabSafetyRadio.IsChecked = false;
+            SubTabMigrationRadio.IsChecked = true;
         }
 
         ViewHealth.Visibility = SubTabHealthRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
@@ -677,6 +692,7 @@ public partial class StorageControlCenterView : UserControl
         ViewOptimizer.Visibility = SubTabOptimizerRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewCleanup.Visibility = SubTabCleanupRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewSafety.Visibility = SubTabSafetyRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ViewMigration.Visibility = SubTabMigrationRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void RefreshDrives_Click(object sender, RoutedEventArgs e)
@@ -1378,5 +1394,114 @@ public partial class StorageControlCenterView : UserControl
         if (win != null && win.WindowState == WindowState.Minimized) return;
 
         StorageMonitorService.PollRealtimeTelemetry(_disks);
+    }
+
+    // ================= КЛОНИРОВАНИЕ ОС =================
+    private void PopulateMigrationDrives()
+    {
+        MigrationTargetDriveCombo.Items.Clear();
+        foreach (var disk in _disks)
+        {
+            // Не предлагать системный диск в качестве цели
+            bool isSystem = disk.Partitions.Any(p => p.IsSystem || string.Equals(p.DriveLetter, "C", StringComparison.OrdinalIgnoreCase));
+            if (!isSystem)
+            {
+                MigrationTargetDriveCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = $"Диск {disk.DiskNumber}: {disk.Model} ({disk.TotalSizeFormatted})",
+                    Tag = disk
+                });
+            }
+        }
+        if (MigrationTargetDriveCombo.Items.Count > 0)
+            MigrationTargetDriveCombo.SelectedIndex = 0;
+    }
+
+    private async void StartMigration_Click(object sender, RoutedEventArgs e)
+    {
+        if (MigrationTargetDriveCombo.SelectedItem is not ComboBoxItem selectedItem ||
+            selectedItem.Tag is not StorageDisk targetDisk)
+        {
+            MessageBox.Show("Пожалуйста, выберите целевой диск для переноса ОС.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"ВНИМАНИЕ!\n\nВыбран целевой диск:\nДиск {targetDisk.DiskNumber}: {targetDisk.Model}\n\n" +
+            "ВСЕ ДАННЫЕ НА ЭТОМ ДИСКЕ БУДУТ БЕЗВОЗВРАТНО УНИЧТОЖЕНЫ!\nВы уверены, что хотите продолжить клонирование ОС на этот диск?",
+            "Подтверждение клонирования ОС", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        // Начинаем миграцию
+        StartMigrationBtn.IsEnabled = false;
+        MigrationTargetDriveCombo.IsEnabled = false;
+        MigrationProgressBorder.Visibility = Visibility.Visible;
+        MigrationProgressBar.Value = 0;
+        MigrationPercentageText.Text = "0%";
+        MigrationStatusText.Text = "Инициализация...";
+
+        // Блокируем другие вкладки
+        SubTabHealthRadio.IsEnabled = false;
+        SubTabPartitionsRadio.IsEnabled = false;
+        SubTabBenchmarkRadio.IsEnabled = false;
+        SubTabOptimizerRadio.IsEnabled = false;
+        SubTabCleanupRadio.IsEnabled = false;
+        SubTabSafetyRadio.IsEnabled = false;
+
+        _migrationCts = new CancellationTokenSource();
+
+        var progress = new Progress<double>(p =>
+        {
+            MigrationProgressBar.Value = p;
+            MigrationPercentageText.Text = $"{p:F1}%";
+            
+            if (p < 5) MigrationStatusText.Text = "Подготовка диска (DiskPart)...";
+            else if (p < 15) MigrationStatusText.Text = "Создание теневой копии VSS...";
+            else if (p < 95) MigrationStatusText.Text = "Клонирование файлов ОС (Robocopy)...";
+            else if (p < 100) MigrationStatusText.Text = "Настройка загрузчика (BCDBoot)...";
+            else MigrationStatusText.Text = "Перенос успешно завершен!";
+        });
+
+        try
+        {
+            var (success, message) = await OsMigrationService.MigrateSystemAsync(targetDisk.DiskNumber, progress, _migrationCts.Token);
+            
+            if (success)
+            {
+                MessageBox.Show("Клонирование ОС успешно завершено!\n\nТеперь вы можете выключить компьютер, извлечь старый диск (или изменить приоритет загрузки в BIOS) и загрузиться с нового диска.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show($"Произошла ошибка при клонировании ОС:\n{message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show("Операция клонирования была отменена.", "Отмена", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Произошла ошибка при клонировании ОС:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            StartMigrationBtn.IsEnabled = true;
+            MigrationTargetDriveCombo.IsEnabled = true;
+            MigrationProgressBorder.Visibility = Visibility.Collapsed;
+            MigrationProgressBar.Value = 0;
+            
+            SubTabHealthRadio.IsEnabled = true;
+            SubTabPartitionsRadio.IsEnabled = true;
+            SubTabBenchmarkRadio.IsEnabled = true;
+            SubTabOptimizerRadio.IsEnabled = true;
+            SubTabCleanupRadio.IsEnabled = true;
+            SubTabSafetyRadio.IsEnabled = true;
+            
+            _migrationCts?.Dispose();
+            _migrationCts = null;
+            
+            await RefreshDisksAsync();
+        }
     }
 }
