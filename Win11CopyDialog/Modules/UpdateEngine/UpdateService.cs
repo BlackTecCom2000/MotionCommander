@@ -220,41 +220,48 @@ public static class UpdateService
         string json = JsonSerializer.Serialize(currentState);
         File.WriteAllText(stateFilePath, json);
 
-        // Rename locked files to .old
-        var filesToRename = Directory.GetFiles(currentDir, "*", SearchOption.TopDirectoryOnly)
-            .Where(f => !f.StartsWith(stagingFolder, StringComparison.OrdinalIgnoreCase));
+        // Write a bat-updater that runs AFTER this process exits
+        // This avoids all file-lock issues — we never touch running files
+        string newExePath = Path.Combine(currentDir, "Win11CopyDialog.exe");
+        string batPath = Path.Combine(Path.GetTempPath(), "mc_update.bat");
+        int currentPid = Process.GetCurrentProcess().Id;
 
-        foreach (var file in filesToRename)
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("@echo off");
+        sb.AppendLine($"echo Waiting for Motion Commander to close...");
+        sb.AppendLine($":waitloop");
+        sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" 2>NUL | find /I \"{currentPid}\" >NUL");
+        sb.AppendLine($"if \"%ERRORLEVEL%\"==\"0\" (timeout /t 1 /nobreak >nul && goto waitloop)");
+        sb.AppendLine($"echo Copying update files...");
+
+        // Generate copy commands for each file in staging
+        foreach (var file in Directory.GetFiles(stagingFolder, "*", SearchOption.AllDirectories))
         {
-            try
-            {
-                string ext = Path.GetExtension(file).ToLowerInvariant();
-                if (ext == ".exe" || ext == ".dll" || ext == ".pdb")
-                {
-                    string oldPath = file + ".old";
-                    if (File.Exists(oldPath)) File.Delete(oldPath);
-                    File.Move(file, oldPath);
-                }
-            }
-            catch
-            {
-                // Ignore if we can't rename
-            }
+            string relative = file.Substring(stagingFolder.Length).TrimStart('\\', '/');
+            string dest = Path.Combine(currentDir, relative);
+            string destDir = Path.GetDirectoryName(dest) ?? currentDir;
+            sb.AppendLine($"if not exist \"{destDir}\" mkdir \"{destDir}\"");
+            sb.AppendLine($"copy /Y \"{file}\" \"{dest}\"");
         }
 
-        // Copy files from staging
-        CopyFilesRecursively(stagingFolder, currentDir);
+        sb.AppendLine($"echo Starting updated application...");
+        sb.AppendLine($"start \"\" \"{newExePath}\" --seamless-update \"{stateFilePath}\"");
+        sb.AppendLine($"del \"%~f0\""); // self-delete the bat
 
-        string newExe = Path.Combine(currentDir, "Win11CopyDialog.exe");
-        int currentPid = Process.GetCurrentProcess().Id;
-        
+        File.WriteAllText(batPath, sb.ToString(), System.Text.Encoding.ASCII);
+
         var psi = new ProcessStartInfo
         {
-            FileName = newExe,
-            Arguments = $"--seamless-update {currentPid} \"{stateFilePath}\"",
-            UseShellExecute = true
+            FileName = "cmd.exe",
+            Arguments = $"/c \"{batPath}\"",
+            UseShellExecute = true,
+            WindowStyle = ProcessWindowStyle.Hidden,
+            CreateNoWindow = true
         };
         Process.Start(psi);
+
+        // Now safely close current application
+        Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
     }
 
     private static void CopyFilesRecursively(string sourcePath, string targetPath)
