@@ -1,16 +1,17 @@
 {
-    "version":  "3.5.0",
-    "releaseDate":  "2026-09-05",
+    "version":  "3.6.0",
+    "releaseDate":  "2026-09-17",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
+                      "Клонирование ОС: теперь можно перенести Windows на другой диск 'на лету'",
                       "Удалены нерабочие макеты и вкладка симуляции",
                       "Кнопка 'Настройки' перенесена в заголовок окна",
                       "Добавлена реальная кнопка уведомления о новых обновлениях",
                       "Оптимизация интерфейса: теперь все утилиты функциональны"
                   ],
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.5.0-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.5.0-Portable.zip"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.6.0-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.6.0-Portable.zip"
 }
