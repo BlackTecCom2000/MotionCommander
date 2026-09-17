@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Win11CopyDialog.Modules.PerformanceEngine;
+using Win11CopyDialog.Modules.StorageControlCenter.Models;
 
 namespace Win11CopyDialog.Modules.StorageControlCenter.Services;
 
@@ -14,7 +15,8 @@ namespace Win11CopyDialog.Modules.StorageControlCenter.Services;
 public static class OsMigrationService
 {
     public static async Task<(bool success, string message)> MigrateSystemAsync(
-        int targetDiskNumber, 
+        StorageDisk targetDisk,
+        MigrationPlan plan, 
         IProgress<double> progress, 
         CancellationToken ct = default)
     {
@@ -25,11 +27,27 @@ public static class OsMigrationService
 
         try
         {
+            if (!plan.IsValid)
+            {
+                return (false, "План миграции содержит критические предупреждения или отсутствует подтверждение пользователя.");
+            }
+
             progress?.Report(0);
 
             // Шаг 1: Разметка целевого диска
             progress?.Report(5);
-            var (partSuccess, partMsg) = await PartitionManagementService.CreateSystemPartitionsForMigrationAsync(targetDiskNumber, "GPT", ct);
+            
+            bool partSuccess;
+            string partMsg;
+            if (plan.IsDestructive)
+            {
+                (partSuccess, partMsg) = await PartitionManagementService.WipeAndCreateSystemPartitionsAsync(targetDisk, plan, "GPT", ct);
+            }
+            else
+            {
+                (partSuccess, partMsg) = await PartitionManagementService.CreateSafeOsPartitionAsync(targetDisk.DiskNumber, "GPT", ct);
+            }
+
             if (!partSuccess)
             {
                 return (false, $"Ошибка разметки целевого диска: {partMsg}");
@@ -81,6 +99,12 @@ public static class OsMigrationService
             
             progress?.Report(90);
 
+            // Верификация после копирования
+            if (!Directory.Exists(Path.Combine(targetOsLetter, "Windows", "System32")))
+            {
+                return (false, "КРИТИЧЕСКАЯ ОШИБКА: Копирование завершено, но директория Windows\\System32 не найдена на целевом диске.");
+            }
+
             // Шаг 4: Установка загрузчика (BCD)
             var bcdPsi = new ProcessStartInfo
             {
@@ -104,7 +128,7 @@ public static class OsMigrationService
             progress?.Report(95);
 
             // Шаг 5: Скрытие временных букв S: и W: (чтобы они не мешались при обычной работе)
-            await HideTemporaryLettersAsync(targetDiskNumber, ct);
+            await HideTemporaryLettersAsync(targetDisk.DiskNumber, ct);
 
             progress?.Report(100);
             return (true, "Клонирование ОС успешно завершено. Измените приоритет загрузки в BIOS на новый диск.");

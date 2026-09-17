@@ -1465,7 +1465,11 @@ public partial class StorageControlCenterView : UserControl
 
         try
         {
-            var (success, message) = await OsMigrationService.MigrateSystemAsync(targetDisk.DiskNumber, progress, _migrationCts.Token);
+            // For now, since the UI is not fully updated to the wizard, we simulate the destructive override if they reached here.
+            var plan = await MigrationPlannerService.GeneratePlanAsync(targetDisk.DiskNumber, targetDisk, MigrationMode.FullDiskClone, _migrationCts.Token);
+            plan.UserConfirmedOverride = true;
+            
+            var (success, message) = await OsMigrationService.MigrateSystemAsync(targetDisk, plan, progress, _migrationCts.Token);
             
             if (success)
             {

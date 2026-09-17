@@ -17,7 +17,9 @@ public enum AppTheme
     OledMidnight,
     MatrixEmerald,
     SunsetAmber,
-    RoyalIndigo
+    RoyalIndigo,
+    MotionGlass,
+    MinimalWhite
 }
 
 public sealed class AccentOption
@@ -40,17 +42,15 @@ public sealed class ThemeManager : INotifyPropertyChanged
     public List<AccentOption> Accents { get; } = new()
     {
         new AccentOption("Системный", Colors.Transparent, isSystem: true),
-        new AccentOption("Синий (Fluent)", (Color)ColorConverter.ConvertFromString("#0078D4")),
-        new AccentOption("Неон Циан", (Color)ColorConverter.ConvertFromString("#00F0FF")),
-        new AccentOption("Матрица Зелёный", (Color)ColorConverter.ConvertFromString("#00FF66")),
-        new AccentOption("Фиолетовый", (Color)ColorConverter.ConvertFromString("#7C4DFF")),
-        new AccentOption("Янтарный", (Color)ColorConverter.ConvertFromString("#FF9100")),
-        new AccentOption("Красный Неон", (Color)ColorConverter.ConvertFromString("#FF1744")),
-        new AccentOption("Розовый Маджента", (Color)ColorConverter.ConvertFromString("#F50057")),
-        new AccentOption("Золотой", (Color)ColorConverter.ConvertFromString("#FFD600")),
+        new AccentOption("Motion Glass Blue", (Color)ColorConverter.ConvertFromString("#168CFF")),
+        new AccentOption("Неон Циан", (Color)ColorConverter.ConvertFromString("#00D4FF")),
+        new AccentOption("Фиолетовый", (Color)ColorConverter.ConvertFromString("#7C5CFF")),
+        new AccentOption("Янтарный", (Color)ColorConverter.ConvertFromString("#FFB020")),
+        new AccentOption("Успех Зеленый", (Color)ColorConverter.ConvertFromString("#00D68F")),
+        new AccentOption("Опасность Красный", (Color)ColorConverter.ConvertFromString("#FF4567")),
     };
 
-    private AppTheme _theme = AppTheme.MicaDark;
+    private AppTheme _theme = AppTheme.MotionGlass;
     public AppTheme Theme
     {
         get => _theme;
@@ -64,7 +64,10 @@ public sealed class ThemeManager : INotifyPropertyChanged
         set { if (_accent != value) { _accent = value; OnChanged(); Apply(); } }
     }
 
-    public bool IsDark => Theme is not (AppTheme.Light or AppTheme.MicaLight);
+    public bool IsDark => Theme is not (AppTheme.Light or AppTheme.MicaLight or AppTheme.MinimalWhite);
+    
+    public bool IsAiEnabled => Theme != AppTheme.MinimalWhite;
+    public Visibility AiVisibility => IsAiEnabled ? Visibility.Visible : Visibility.Collapsed;
     
     public BackdropType Backdrop => Theme switch
     {
@@ -76,11 +79,8 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
     private ThemeManager()
     {
-        _accent = Accents[0]; // системный по умолчанию
-        if (SystemAccent.IsSystemDarkTheme())
-        {
-            _theme = AppTheme.MicaDark;
-        }
+        _accent = Accents.FirstOrDefault(a => a.Name == "Motion Glass Blue") ?? Accents[1]; // Синий (Fluent) fallback
+        _theme = AppTheme.MotionGlass;
     }
 
     public Color AccentColor => Accent.IsSystem ? SystemAccent.GetSystemAccent() : Accent.Color;
@@ -97,6 +97,8 @@ public sealed class ThemeManager : INotifyPropertyChanged
         AppTheme.MatrixEmerald => "💻 Matrix Emerald (Terminal)",
         AppTheme.SunsetAmber => "🔥 Sunset Amber (Warm Gold)",
         AppTheme.RoyalIndigo => "🔮 Royal Indigo (Deep Violet)",
+        AppTheme.MotionGlass => "✨ Motion Commander Glass OS",
+        AppTheme.MinimalWhite => "⬜ Minimal White (Светлая чистая)",
         _ => t.ToString()
     };
 
@@ -124,6 +126,8 @@ public sealed class ThemeManager : INotifyPropertyChanged
             AppTheme.MatrixEmerald => (C("#040D07"), C("#0A1A0F"), C("#12381E")),
             AppTheme.SunsetAmber => (C("#14100E"), C("#1F1815"), C("#382A22")),
             AppTheme.RoyalIndigo => (C("#0B0E1F"), C("#131936"), C("#222B57")),
+            AppTheme.MotionGlass => (C("#050912"), C("#0A1426", 0xB8), C("#78BEFF", 0x2E)), // Glass Background and Border
+            AppTheme.MinimalWhite => (C("#FFFFFF"), C("#F9F9F9"), C("#EAEAEA")),
             _ => (C("#202020"), C("#2D2D2D"), C("#3A3A3A"))
         };
 
@@ -136,19 +140,19 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Color graphGrid = dark ? C("#222938") : C("#E3E3E3");
         Color graphFill = Color.FromArgb(0x55, accent.R, accent.G, accent.B);
 
-        Color glowAccent = Color.FromArgb(0x40, accent.R, accent.G, accent.B);
-        Color glassBorder = dark ? Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x35, 0x00, 0x00, 0x00);
-        Color subtleBorder = dark ? Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x1F, 0x00, 0x00, 0x00);
-        Color chipBg = dark ? Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x22, 0x00, 0x00, 0x00);
+        Color glowAccent = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x60, accent.R, accent.G, accent.B) : Color.FromArgb(0x40, accent.R, accent.G, accent.B);
+        Color glassBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x2E, 0x78, 0xBE, 0xFF) : (dark ? Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x35, 0x00, 0x00, 0x00));
+        Color subtleBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x15, 0x78, 0xBE, 0xFF) : (dark ? Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x1F, 0x00, 0x00, 0x00));
+        Color chipBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x30, 0x08, 0x12, 0x22) : (dark ? Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x22, 0x00, 0x00, 0x00));
 
-        Color headerBg = dark ? C("#0F131D") : C("#F1F5F9");
+        Color headerBg = Theme == AppTheme.MotionGlass ? C("#08111F", 0xE0) : (dark ? C("#0F131D") : C("#F1F5F9"));
         Color headerFg = dark ? C("#94A3B8") : C("#475569");
-        Color headerBorder = dark ? C("#1E2536") : C("#E2E8F0");
-        Color headerHover = dark ? C("#1E2638") : C("#E2E8F0");
-        Color listRowSelected = dark ? Color.FromArgb(0x35, accent.R, accent.G, accent.B) : Color.FromArgb(0x25, accent.R, accent.G, accent.B);
-        Color navDockBg = dark ? Color.FromArgb(0x60, 0x08, 0x0B, 0x12) : Color.FromArgb(0x20, 0x00, 0x00, 0x00);
-        Color ribbonBg = dark ? Color.FromArgb(0x80, 0x11, 0x16, 0x22) : Color.FromArgb(0xB8, 0xFF, 0xFF, 0xFF);
-        Color inputBg = dark ? Color.FromArgb(0x60, 0x0D, 0x11, 0x1A) : Color.FromArgb(0xF5, 0xFF, 0xFF, 0xFF);
+        Color headerBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x2E, 0x78, 0xBE, 0xFF) : (dark ? C("#1E2536") : C("#E2E8F0"));
+        Color headerHover = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x30, 0x0F, 0x1E, 0x37) : (dark ? C("#1E2638") : C("#E2E8F0"));
+        Color listRowSelected = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x40, accent.R, accent.G, accent.B) : (dark ? Color.FromArgb(0x35, accent.R, accent.G, accent.B) : Color.FromArgb(0x25, accent.R, accent.G, accent.B));
+        Color navDockBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x80, 0x0A, 0x14, 0x26) : (dark ? Color.FromArgb(0x60, 0x08, 0x0B, 0x12) : Color.FromArgb(0x20, 0x00, 0x00, 0x00));
+        Color ribbonBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0xB2, 0x08, 0x12, 0x22) : (dark ? Color.FromArgb(0x80, 0x11, 0x16, 0x22) : Color.FromArgb(0xB8, 0xFF, 0xFF, 0xFF));
+        Color inputBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x60, 0x08, 0x11, 0x1F) : (dark ? Color.FromArgb(0x60, 0x0D, 0x11, 0x1A) : Color.FromArgb(0xF5, 0xFF, 0xFF, 0xFF));
 
         Color scrollTrack = dark ? Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x0C, 0x00, 0x00, 0x00);
         Color scrollThumb = dark ? Color.FromArgb(0x40, 0x94, 0xA3, 0xB8) : Color.FromArgb(0x40, 0x64, 0x74, 0x8B);
@@ -195,6 +199,8 @@ public sealed class ThemeManager : INotifyPropertyChanged
         OnChanged(nameof(IsDark));
         OnChanged(nameof(Backdrop));
         OnChanged(nameof(AccentColor));
+        OnChanged(nameof(IsAiEnabled));
+        OnChanged(nameof(AiVisibility));
 
         // Применить фон ко всем открытым окнам
         if (Application.Current != null)

@@ -37,6 +37,25 @@ public static class PartitionManagementService
     }
 
     /// <summary>
+    /// Аппаратная и программная проверка безопасности всего диска целиком.
+    /// Блокирует любые деструктивные операции на диске, если он содержит системный том.
+    /// </summary>
+    public static void ValidateSafeTargetDisk(StorageDisk disk, string operationName, MigrationPlan plan = null)
+    {
+        if (disk.Partitions.Any(p => p.IsSystem || p.IsBoot || p.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase)))
+        {
+            LogAction(operationName, $"{disk.Model} (Диск {disk.DiskNumber})", StorageRiskLevel.IRREVERSIBLE, "Заблокировано защитой", "Попытка модификации диска, содержащего работающую ОС Windows");
+            throw new InvalidOperationException($"Безопасность системы: операция «{operationName}» категорически заблокирована для диска {disk.DiskNumber}, так как он является системным диском текущей Windows.");
+        }
+
+        if (plan != null && plan.IsDestructive && !plan.UserConfirmedOverride)
+        {
+            LogAction(operationName, $"{disk.Model}", StorageRiskLevel.IRREVERSIBLE, "Заблокировано защитой", "Отсутствует явное подтверждение пользователя для деструктивной операции");
+            throw new InvalidOperationException($"Безопасность системы: операция «{operationName}» требует явного подтверждения пользователя (UserConfirmedOverride), так как она приведет к полной потере данных на диске.");
+        }
+    }
+
+    /// <summary>
     /// Принудительное удаление любого раздела с флагом OVERRIDE (снимает защиту с OEM/Recovery/GPT атрибутов).
     /// </summary>
     public static async Task<(bool success, string message)> DeletePartitionAsync(StoragePartition partition, bool forceOverride = true, CancellationToken ct = default)
@@ -249,11 +268,7 @@ public static class PartitionManagementService
     public static async Task<(bool success, string message)> CleanDiskAsync(StorageDisk disk, CancellationToken ct = default)
     {
         // Проверка: содержит ли данный диск системный том C:
-        if (disk.Partitions.Any(p => p.IsSystem || p.IsBoot || p.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase)))
-        {
-            LogAction("Очистка диска Clean", disk.Model, StorageRiskLevel.IRREVERSIBLE, "Заблокировано защитой", "Попытка очистки физического диска, содержащего системный раздел Windows C:");
-            throw new InvalidOperationException("Безопасность системы: полная очистка диска Clean заблокирована, так как на этом накопителе установлена работающая ОС Windows!");
-        }
+        ValidateSafeTargetDisk(disk, "Очистка диска (Clean)");
 
         var sb = new StringBuilder();
         sb.AppendLine($"select disk {disk.DiskNumber}");
@@ -326,15 +341,57 @@ public static class PartitionManagementService
     }
 
     /// <summary>
-    /// Создает типовую структуру разделов UEFI/GPT или Legacy/MBR для клонирования Windows.
-    /// Уничтожает все данные на целевом диске.
+    /// Создает структуру разделов для миграции БЕЗ полного удаления других разделов.
+    /// Использует неразмеченное пространство (в данной реализации - весь пустой диск без вызова Clean).
     /// </summary>
-    public static async Task<(bool success, string output)> CreateSystemPartitionsForMigrationAsync(int targetDiskNumber, string partitionStyle = "GPT", CancellationToken ct = default)
+    public static async Task<(bool success, string output)> CreateSafeOsPartitionAsync(int targetDiskNumber, string partitionStyle = "GPT", CancellationToken ct = default)
     {
-        // Базовая логика для GPT: EFI(100MB), MSR(16MB), Primary(остаток), Recovery(500MB).
-        // Для упрощения: мы создаем EFI, MSR, и Primary. Recovery можно опустить или добавить в конце.
         var sb = new StringBuilder();
         sb.AppendLine($"select disk {targetDiskNumber}");
+        
+        if (partitionStyle.Equals("GPT", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine("convert gpt");
+            
+            // EFI System Partition
+            sb.AppendLine("create partition efi size=100");
+            sb.AppendLine("format quick fs=fat32 label=\"System\"");
+            sb.AppendLine("assign letter=S");
+
+            // Microsoft Reserved Partition
+            sb.AppendLine("create partition msr size=16");
+
+            // Windows Partition (uses all remaining unallocated space)
+            sb.AppendLine("create partition primary");
+            sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
+            sb.AppendLine("assign letter=W");
+        }
+        else
+        {
+            sb.AppendLine("convert mbr");
+            sb.AppendLine("create partition primary");
+            sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
+            sb.AppendLine("assign letter=W");
+            sb.AppendLine("active");
+        }
+
+        var res = await RunDiskPartAsync(sb.ToString(), ct);
+        string cleanMsg = CleanOutput(res.output);
+        
+        LogAction("Безопасная разметка", $"Диск {targetDiskNumber} [{partitionStyle}]", StorageRiskLevel.CAUTION, res.success ? "Успешно" : "Ошибка", cleanMsg);
+        
+        return (res.success, cleanMsg);
+    }
+
+    /// <summary>
+    /// Деструктивная операция. Уничтожает все данные на целевом диске и создает чистую структуру.
+    /// </summary>
+    public static async Task<(bool success, string output)> WipeAndCreateSystemPartitionsAsync(StorageDisk targetDisk, MigrationPlan plan, string partitionStyle = "GPT", CancellationToken ct = default)
+    {
+        ValidateSafeTargetDisk(targetDisk, "Полное клонирование с очисткой", plan);
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"select disk {targetDisk.DiskNumber}");
         sb.AppendLine("clean");
         
         if (partitionStyle.Equals("GPT", StringComparison.OrdinalIgnoreCase))
@@ -366,7 +423,7 @@ public static class PartitionManagementService
         var res = await RunDiskPartAsync(sb.ToString(), ct);
         string cleanMsg = CleanOutput(res.output);
         
-        LogAction("Разметка под миграцию", $"Диск {targetDiskNumber} [{partitionStyle}]", StorageRiskLevel.DESTRUCTIVE, res.success ? "Успешно" : "Ошибка", cleanMsg);
+        LogAction("Разметка под миграцию", $"Диск {targetDisk.DiskNumber} [{partitionStyle}]", StorageRiskLevel.DESTRUCTIVE, res.success ? "Успешно" : "Ошибка", cleanMsg);
         
         return (res.success, cleanMsg);
     }

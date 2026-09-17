@@ -86,27 +86,18 @@ Win11CopyDialog/
 | `--advanced-tools-demo` | AdvancedToolsWindow |
 | `<путь>` | MainWindow с открытой папкой |
 
-## Последние изменения (2026-09-13)
+## Последние изменения (2026-09-17)
 
-1. FileManagerWindow: полноценный файловый менеджер (Tree + ListView + Nav + AddressBar + Motion Copy)
-2. FileEntry: модель файла/папки/диска с иконками Win32, размерами, INPC
-3. FileService: навигация, обход дерева, реальное копирование с IProgress<CopyProgress>
-4. FileListControl: колонки (Имя/Размер/Тип/Дата), сортировка, контекстное меню, горячие клавиши (C/X/V/F2/Del/Enter)
-5. FolderTreeControl: TreeView с Expand/Collapse, loading indicator, быстрый доступ, создание папок
-6. Интеграция: кнопка «Файловый менеджер» в Ribbon MainWindow, `--filemanager` arg в App
-7. PROJECT_SNAPSHOT.md: полная документация архитектуры и компонентов
+1. OS Migration: Клонирование ОС (StorageControlCenter, OsMigrationService, VSS, BCD)
+2. FileManagerWindow: полноценный файловый менеджер (Tree + ListView + Nav + AddressBar + Motion Copy)
+3. FileEntry: модель файла/папки/диска с иконками Win32, размерами, INPC
+4. Начало Full Product UI Redesign: внедрение Glassmorphism токенов и футуристического дизайна.
 
-## Известные проблемы / ограничения
-
-1. FileListControl: контекстное меню (Копировать/Вырезать/Вставить/Переименовать/Удалить) — UI есть, логика требует доработки (clipboard)
-2. Drag-drop на FileManagerWindow: определена цель, но drag/drop handlers не реализованы
-3. FileService.CopyAsync: реальное копирование работает, но не прерываемо корректно при паузе (Task.Delay с CancellationToken)
-4. Иконки файлов: используются только системные иконки из SHGetFileInfo, кастомные иконки по расширению не поддерживаются
-5. Mica/Acrylic: только Windows 11 (build ≥ 22000), на Win10 тихий fallback
-6. Файловый менеджер: не поддерживает сетевые пути (UNC), FTP, архивы как папки (только физические файлы)
+## Текущая задача
+- **Full Product UI Redesign**: переход к "Motion Commander Futuristic Glass OS"
+- Замена базового WPF UI на глубокий glassmorphism (Фон #050912, акценты #168CFF / #00D4FF).
 
 ## Гит
 
 Remote: `origin https://github.com/BlackTecCom2000/MotionCommander.git`
-Текущий коммит: `8e26d41 feat: add FileManagerWindow and FileEntry/FileService components`
-Предыдущий: `1d0998b Merge options into settings window and fix theme switching`
+Текущая версия: `3.6.0` (Ожидает релиза UI redesign)

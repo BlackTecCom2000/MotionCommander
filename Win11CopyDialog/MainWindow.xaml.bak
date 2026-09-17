@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
         xmlns:storage="clr-namespace:Win11CopyDialog.Modules.StorageControlCenter.Views"
-        xmlns:models="clr-namespace:Win11CopyDialog.Models"
         Title="Motion Commander — Все-в-одном Файловый Менеджер и Архиватор"
         Height="780" Width="1160"
         MinWidth="920" MinHeight="620"
@@ -20,15 +19,9 @@
 
     <Border Background="{DynamicResource WindowBackgroundBrush}"
             BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="12">
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" /> <!-- Header -->
-                <RowDefinition Height="Auto" /> <!-- Toolbar & Path -->
-                <RowDefinition Height="*" /> <!-- Main Area -->
-                <RowDefinition Height="Auto" /> <!-- Footer -->
-            </Grid.RowDefinitions>
+        <DockPanel>
             <!-- ШАПКА ОКНА (Header with Navigation Tabs) -->
-            <Grid Grid.Row="0" Height="56" Background="Transparent" MouseDown="TitleBar_MouseDown">
+            <Grid DockPanel.Dock="Top" Height="46" Background="Transparent" MouseDown="TitleBar_MouseDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -51,14 +44,55 @@
                     <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" Content="⟳" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="4,0,0,0" Padding="6,3" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <!-- НАВИГАЦИЯ (Центр шапки) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,0">
-                    <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}" Content="Файлы" GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}" Content="Передача" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}" Content="Накопители" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}" Content="Диагностика" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}" Content="Утилиты" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                </StackPanel>
+                <!-- Вкладки верхнего уровня (Футуристический док) -->
+                <Border Grid.Column="1" Background="{DynamicResource NavDockBackgroundBrush}" CornerRadius="16"
+                        Padding="3" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                    <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavFiles}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Файлы" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavSpeed}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Скорость" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavStorage}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Накопители" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavDiagnostics}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Диагностика" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}"
+                                     GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource Icon_NavTools}" Width="13" Height="13" Stretch="Uniform"
+                                      Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                <TextBlock Text="Утилиты" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </RadioButton>
+
+                    </StackPanel>
+                </Border>
 
                 <!-- Быстрые переключатели: Окно настроек и тема -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -93,11 +127,12 @@
             </Grid>
 
             <!-- ОСНОВНОЙ КОНТЕНТ (5 ВКЛАДОК) -->
+            <Grid>
                 <!-- ================= 1. ФАЙЛЫ И АРХИВЫ ================= -->
-            <!-- TOOLBAR -->
-            <StackPanel Grid.Row="1">
-<!-- Панель команд (Floating Glass Ribbon Dock) -->
-                        <Border  Background="{DynamicResource RibbonBackgroundBrush}"
+                <Grid x:Name="FilesView" Visibility="Visible">
+                    <DockPanel>
+                        <!-- Панель команд (Floating Glass Ribbon Dock) -->
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource RibbonBackgroundBrush}"
                                 BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,1" Padding="12,6">
                             <DockPanel>
                                 <!-- Правая часть: Скрытые файлы и Обновить (всегда прижаты вправо) -->
@@ -182,9 +217,8 @@
                             </DockPanel>
                         </Border>
 
-                        
-<!-- Строка пути и Поиск -->
-                        <Border  Background="{DynamicResource WindowBackgroundBrush}" Padding="12,6" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,0,0,1">
+                        <!-- Строка пути и Поиск -->
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource WindowBackgroundBrush}" Padding="12,6" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,0,0,1">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -242,23 +276,27 @@
                             </Grid>
                         </Border>
 
-                        
-            </StackPanel>
+                        <!-- Статус-бар внизу -->
+                        <Border DockPanel.Dock="Bottom" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0" Padding="12,6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="StatusFilesText" FontSize="11" Style="{StaticResource MutedText}" Text="0 элементов"/>
+                                <TextBlock x:Name="StatusDiskText" Grid.Column="1" FontSize="11" Style="{StaticResource MutedText}" Text=""/>
+                            </Grid>
+                        </Border>
 
-            <!-- MAIN AREA -->
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="260" MinWidth="200"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*" MinWidth="350"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="300" MinWidth="200" MaxWidth="500"/>
-                </Grid.ColumnDefinitions>
+                        <!-- Основное тело (Splitter: Левая колонка - Диски/Быстрый доступ, Правая колонка - Браузер) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="250" MinWidth="200"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*" MinWidth="350"/>
+                            </Grid.ColumnDefinitions>
 
-                <!-- SIDEBAR -->
-                <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}">
-                    <StackPanel>
-<!-- Левая панель навигации: Быстрый доступ и Накопители -->
+                            <!-- Левая панель навигации: Быстрый доступ и Накопители -->
                             <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{DynamicResource WindowBackgroundBrush}">
                                 <StackPanel Margin="10,8">
                                     
@@ -399,16 +437,10 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            
-                    </StackPanel>
-                </Border>
-                
-                <GridSplitter Grid.Column="1" Width="1" HorizontalAlignment="Center" Background="{DynamicResource GlassBorderBrush}"/>
+                            <!-- Разделитель колонок -->
+                            <GridSplitter Grid.Column="1" Width="1" HorizontalAlignment="Center" Background="{DynamicResource GlassBorderBrush}"/>
 
-                <!-- WORKSPACE -->
-                <Grid Grid.Column="2" Margin="10">
-                    <Grid x:Name="FilesView" Visibility="Visible">
-<!-- Правая панель: Файловый браузер -->
+                            <!-- Правая панель: Файловый браузер -->
                             <ListView x:Name="FileBrowserList" Grid.Column="2" BorderThickness="0" Background="Transparent"
                                       AllowDrop="True" Drop="FileBrowserList_Drop" MouseDoubleClick="FileBrowserList_DoubleClick"
                                       SelectionChanged="FileBrowserList_SelectionChanged" KeyDown="FileBrowserList_KeyDown"
@@ -455,9 +487,11 @@
                                     </GridView>
                                 </ListView.View>
                             </ListView>
-                        
-                    </Grid>
-<!-- ================= 2. ДВИЖОК ПЕРЕДАЧ (MOTION TRANSFER ENGINE) ================= -->
+                        </Grid>
+                    </DockPanel>
+                </Grid>
+
+                <!-- ================= 2. ДВИЖОК ПЕРЕДАЧ (MOTION TRANSFER ENGINE) ================= -->
                 <Grid x:Name="TransferView" Visibility="Collapsed" Margin="18">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel MaxWidth="880" HorizontalAlignment="Center">
@@ -791,44 +825,7 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
-            
-                <!-- end of workspace grid, no closing tag needed because other_views_part doesn't close the parent grid? wait. -->
-
-                </Grid>
-                
-                <GridSplitter Grid.Column="3" Width="1" HorizontalAlignment="Center" Background="{DynamicResource GlassBorderBrush}"/>
-
-                <!-- INSPECTOR -->
-                <Border Grid.Column="4" Background="{DynamicResource SidebarBackgroundBrush}">
-                    <StackPanel Margin="16">
-                        <TextBlock Text="СВОЙСТВА" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
-                        <Border Style="{StaticResource Card}" Height="150" Margin="0,0,0,10">
-                            <TextBlock Text="Выберите файл для просмотра" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MutedText}"/>
-                        </Border>
-                        <TextBlock Text="MOTION AI" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10" Visibility="{Binding Path=AiVisibility, Source={x:Static models:ThemeManager.Instance}}"/>
-                        <Border Style="{StaticResource Card}" Height="100" Visibility="{Binding Path=AiVisibility, Source={x:Static models:ThemeManager.Instance}}">
-                            <TextBlock Text="Анализ недоступен" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MutedText}"/>
-                        </Border>
-                    </StackPanel>
-                </Border>
             </Grid>
-
-            <!-- FOOTER -->
-            <Border Grid.Row="3" Background="{DynamicResource RibbonBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
-<!-- Статус-бар внизу -->
-                        <Border  Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0" Padding="12,6">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="StatusFilesText" FontSize="11" Style="{StaticResource MutedText}" Text="0 элементов"/>
-                                <TextBlock x:Name="StatusDiskText" Grid.Column="1" FontSize="11" Style="{StaticResource MutedText}" Text=""/>
-                            </Grid>
-                        </Border>
-
-                        
-            </Border>
-        </Grid>
+        </DockPanel>
     </Border>
 </Window>
