@@ -1112,6 +1112,7 @@ public partial class MainWindow : Window
         DiagnosticsView.Visibility = activeView == DiagnosticsView ? Visibility.Visible : Visibility.Collapsed;
         ToolsView.Visibility = activeView == ToolsView ? Visibility.Visible : Visibility.Collapsed;
         UninstallerViewContainer.Visibility = Visibility.Collapsed;
+        DownloadManagerViewContainer.Visibility = Visibility.Collapsed;
 
         SmoothFadeIn(activeView);
 
@@ -1594,6 +1595,22 @@ public partial class MainWindow : Window
     {
         HapticAudio.PlayClick();
         UninstallerViewContainer.Visibility = Visibility.Collapsed;
+        ToolsView.Visibility = Visibility.Visible;
+        SmoothFadeIn(ToolsView);
+    }
+
+    private void OpenDownloadManager_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        ToolsView.Visibility = Visibility.Collapsed;
+        DownloadManagerViewContainer.Visibility = Visibility.Visible;
+        SmoothFadeIn(DownloadManagerViewContainer);
+    }
+
+    private void CloseDownloadManager_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        DownloadManagerViewContainer.Visibility = Visibility.Collapsed;
         ToolsView.Visibility = Visibility.Visible;
         SmoothFadeIn(ToolsView);
     }

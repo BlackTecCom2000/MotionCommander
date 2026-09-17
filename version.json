@@ -1,13 +1,13 @@
-﻿{
-    "version":  "3.7.1",
-    "releaseDate":  "2026-09-17",
-    "productName":  "Motion Commander",
-    "author":  "BlackTecCom - Jaborov Daler",
-    "license":  "MIT",
-    "minWindowsVersion":  "10.0.19041",
-    "changelog":  [
-                      "Исправления стабильности и оптимизация"
-                  ],
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.7.1-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.7.1-Portable.zip"
+{
+  "version": "3.8.0",
+  "releaseDate": "2026-09-18",
+  "downloadUrl": "https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.8.0/MotionCommander-Windows-x64.zip",
+  "installerUrl": "https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.8.0/MotionCommander-Windows-x64.zip",
+  "changelog": [
+    "🆕 Добавлен Download Manager — многопоточный менеджер загрузок с поддержкой докачки, расписания и SQLite-персистентностью",
+    "🆕 Добавлен Uninstaller — профессиональный менеджер удаления программ с защитой системных компонентов",
+    "🆕 Добавлен модуль безопасной миграции Windows (OS Migration / Live Clone) с VSS и многоступенчатой верификацией",
+    "⚡ Улучшена производительность и стабильность Theme Engine",
+    "🛠 Множество мелких исправлений и улучшений UX"
+  ]
 }

@@ -1,0 +1,61 @@
+<UserControl x:Class="Win11CopyDialog.Modules.Utilities.DownloadManager.Views.DownloadManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Margin="20,20,20,10" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
+                <Button Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Content="🗑 Удалить" Command="{Binding DeleteDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Downloads List -->
+        <ListView Grid.Row="1" Margin="20,0,20,20" 
+                  Background="Transparent" 
+                  BorderThickness="0"
+                  ItemsSource="{Binding Downloads}"
+                  SelectedItem="{Binding SelectedDownload}">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Margin" Value="0,0,0,10"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListViewItem">
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="150"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                            <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource PrimaryText}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Url}" Foreground="{DynamicResource MutedText}" FontSize="12" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
+                                            <ProgressBar Value="{Binding BytesDownloaded}" Maximum="{Binding TotalBytes}" Height="4" Margin="0,10,0,0" Background="#33FFFFFF" Foreground="#00FFCC"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding Status}" Foreground="#00FFCC" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right"/>
+                                            <!-- Additional stats like speed could go here -->
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
+        </ListView>
+    </Grid>
+</UserControl>

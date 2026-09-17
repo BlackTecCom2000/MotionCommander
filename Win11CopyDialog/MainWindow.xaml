@@ -4,6 +4,7 @@
         xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
         xmlns:storage="clr-namespace:Win11CopyDialog.Modules.StorageControlCenter.Views"
         xmlns:uninstaller="clr-namespace:Win11CopyDialog.Modules.Utilities.Uninstaller.Views"
+        xmlns:dm="clr-namespace:Win11CopyDialog.Modules.Utilities.DownloadManager.Views"
         xmlns:models="clr-namespace:Win11CopyDialog.Models"
         Title="Motion Commander — Все-в-одном Файловый Менеджер и Архиватор"
         Height="780" Width="1160"
@@ -602,6 +603,20 @@
                 <Grid x:Name="ToolsView" Visibility="Collapsed" Margin="18">
                     <ScrollViewer x:Name="ToolsScrollViewer" VerticalScrollBarVisibility="Auto">
                         <StackPanel MaxWidth="800" HorizontalAlignment="Center">
+                            <!-- Download Manager -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="⬇" FontSize="18" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Менеджер загрузок" Padding="14,6" Click="OpenDownloadManager_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Менеджер загрузок (Download Engine)" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Интеллектуальный многопоточный менеджер загрузок с поддержкой докачки, расписания и Torrent" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
                             <!-- Uninstaller -->
                             <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
                                 <DockPanel>
@@ -699,6 +714,20 @@
                         </Border>
                         
                         <uninstaller:UninstallerView x:Name="UninstallerControl"/>
+                    </DockPanel>
+                </Grid>
+
+                <!-- ================= 4.5 DOWNLOAD MANAGER VIEW ================= -->
+                <Grid x:Name="DownloadManagerViewContainer" Visibility="Collapsed">
+                    <DockPanel>
+                        <!-- Back button panel -->
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,0,0,1" Padding="18,10">
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="⬅ Назад в инструменты" Style="{StaticResource CyberToolButton}" Padding="10,4" Click="CloseDownloadManager_Click"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <dm:DownloadManagerView x:Name="DownloadManagerControl"/>
                     </DockPanel>
                 </Grid>
 
