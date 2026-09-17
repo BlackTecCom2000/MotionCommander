@@ -1,15 +1,13 @@
 ﻿{
-    "version":  "3.7.0",
+    "version":  "3.7.1",
     "releaseDate":  "2026-09-17",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Безопасная миграция ОС: добавлен планировщик миграции и защита системных дисков",
-                      "Новая светлая тема: Minimal White",
-                      "Редизайн навигации: вкладки перенесены в заголовок окна"
+                      "Исправления стабильности и оптимизация"
                   ],
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.7.0-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.7.0-Portable.zip"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.7.1-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.7.1-Portable.zip"
 }
