@@ -1,0 +1,110 @@
+<UserControl x:Class="Win11CopyDialog.Modules.Utilities.Uninstaller.Views.UninstallerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Win11CopyDialog.Modules.Utilities.Uninstaller.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Panel -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="🗑 Менеджер установленных программ" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock x:Name="StatusText" Text="Загрузка списка программ..." FontSize="12" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBox x:Name="SearchBox" Width="250" Height="34" Margin="0,0,10,0" Padding="10,0" 
+                             VerticalContentAlignment="Center" Background="#141923" Foreground="{DynamicResource PrimaryTextBrush}"
+                             BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                             TextChanged="SearchBox_TextChanged" />
+                    
+                    <Button x:Name="RefreshBtn" Style="{StaticResource CyberButton}" Content="🔄 Обновить" Padding="14,6" Margin="0,0,10,0" Click="RefreshBtn_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Apps List -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="4">
+            <ListView x:Name="AppsList" Background="Transparent" BorderThickness="0"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      SelectionMode="Single" SelectionChanged="AppsList_SelectionChanged">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+                        <Setter Property="Padding" Value="10,8"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1A202C"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <DockPanel>
+                                    <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <Border Margin="8,0,0,0" Padding="6,2" CornerRadius="4" Background="#33FF4444" Visibility="{Binding IsSystemComponent, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="System" FontSize="10" FontWeight="Bold" Foreground="#FF4444"/>
+                                    </Border>
+                                </DockPanel>
+                                <TextBlock Text="{Binding Publisher}" FontSize="11" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="1" Text="{Binding DisplayVersion}" FontSize="12" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding EstimatedSize}" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Стандартное удаление" Style="{StaticResource CyberButton}" Padding="10,4" Margin="0,0,8,0"
+                                        CommandParameter="{Binding}" Click="Uninstall_Click"/>
+                                <Button Content="Force Uninstall" Foreground="#FF4444" Background="Transparent" 
+                                        BorderBrush="#FF4444" BorderThickness="1" Padding="10,4"
+                                        CommandParameter="{Binding}" Click="ForceUninstall_Click">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsSystemComponent}" Value="True">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Setter Property="Opacity" Value="0.3"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Border>
+    </Grid>
+</UserControl>

@@ -100,6 +100,68 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    public AppState GetCurrentState()
+    {
+        int tabIndex = 0;
+        if (TabTransferRadio.IsChecked == true) tabIndex = 1;
+        else if (TabStorageRadio.IsChecked == true) tabIndex = 2;
+        else if (TabDiagnosticsRadio.IsChecked == true) tabIndex = 3;
+        else if (TabToolsRadio.IsChecked == true) tabIndex = 4;
+
+        return new AppState
+        {
+            WindowLeft = this.Left,
+            WindowTop = this.Top,
+            WindowWidth = this.Width,
+            WindowHeight = this.Height,
+            WindowState = this.WindowState,
+            ActiveTabIndex = tabIndex
+        };
+    }
+
+    public void StartMorphingAnimation()
+    {
+        MorphingOverlay.Visibility = Visibility.Visible;
+    }
+
+    public void ApplyStateAndTakeover(string stateFilePath, int oldPid)
+    {
+        try
+        {
+            if (File.Exists(stateFilePath))
+            {
+                string json = File.ReadAllText(stateFilePath);
+                var state = System.Text.Json.JsonSerializer.Deserialize<AppState>(json);
+                if (state != null)
+                {
+                    this.WindowStartupLocation = WindowStartupLocation.Manual;
+                    if (!double.IsNaN(state.WindowLeft) && !double.IsNaN(state.WindowTop))
+                    {
+                        this.Left = state.WindowLeft;
+                        this.Top = state.WindowTop;
+                        this.Width = Math.Max(this.MinWidth, state.WindowWidth);
+                        this.Height = Math.Max(this.MinHeight, state.WindowHeight);
+                        this.WindowState = state.WindowState;
+                    }
+                    SelectTab(state.ActiveTabIndex);
+                }
+            }
+
+            // Signal old process to die
+            try
+            {
+                var oldProcess = Process.GetProcessById(oldPid);
+                if (!oldProcess.HasExited)
+                {
+                    oldProcess.Kill();
+                }
+            }
+            catch { }
+        }
+        catch { }
+    }
+
+
     private async void AvailableUpdateBtn_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
@@ -118,9 +180,9 @@ public partial class MainWindow : Window
 
                 if (res == MessageBoxResult.Yes)
                 {
-                    string downloadedFile = await UpdateService.DownloadUpdateAsync(
-                        !string.IsNullOrEmpty(updateInfo.InstallerUrl) ? updateInfo.InstallerUrl : updateInfo.DownloadUrl);
-                    UpdateService.ApplyUpdateAndRestart(downloadedFile);
+                    var progressWin = new UpdateProgressWindow(updateInfo);
+                    progressWin.Owner = this;
+                    progressWin.ShowDialog();
                 }
                 else
                 {
@@ -156,9 +218,11 @@ public partial class MainWindow : Window
 
                 if (res == MessageBoxResult.Yes)
                 {
-                    string downloadedFile = await UpdateService.DownloadUpdateAsync(
-                        !string.IsNullOrEmpty(updateInfo.InstallerUrl) ? updateInfo.InstallerUrl : updateInfo.DownloadUrl);
-                    UpdateService.ApplyUpdateAndRestart(downloadedFile);
+                    var progressWindow = new Views.Dialogs.UpdateProgressWindow(updateInfo)
+                    {
+                        Owner = this
+                    };
+                    progressWindow.ShowDialog();
                     return;
                 }
             }
@@ -1047,6 +1111,7 @@ public partial class MainWindow : Window
         StorageView.Visibility = activeView == StorageView ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsView.Visibility = activeView == DiagnosticsView ? Visibility.Visible : Visibility.Collapsed;
         ToolsView.Visibility = activeView == ToolsView ? Visibility.Visible : Visibility.Collapsed;
+        UninstallerViewContainer.Visibility = Visibility.Collapsed;
 
         SmoothFadeIn(activeView);
 
@@ -1516,6 +1581,22 @@ public partial class MainWindow : Window
     }
 
     // ---------- ИНСТРУМЕНТЫ (TAB 3) ----------
+
+    private void OpenUninstaller_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        ToolsView.Visibility = Visibility.Collapsed;
+        UninstallerViewContainer.Visibility = Visibility.Visible;
+        SmoothFadeIn(UninstallerViewContainer);
+    }
+
+    private void CloseUninstaller_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        UninstallerViewContainer.Visibility = Visibility.Collapsed;
+        ToolsView.Visibility = Visibility.Visible;
+        SmoothFadeIn(ToolsView);
+    }
 
     private void OpenWizTree_Click(object sender, RoutedEventArgs e)
     {

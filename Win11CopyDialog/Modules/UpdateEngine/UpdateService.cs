@@ -199,50 +199,74 @@ public static class UpdateService
         return targetFilePath;
     }
 
-    public static void ApplyUpdateAndRestart(string updatePackagePath)
+    public static async Task<string> PrepareStagingAsync(string zipPath, CancellationToken ct = default)
     {
-        string currentExe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "";
         string currentDir = AppDomain.CurrentDomain.BaseDirectory;
-        string tempDir = Path.GetDirectoryName(updatePackagePath) ?? Path.GetTempPath();
-        string scriptPath = Path.Combine(tempDir, "apply_update.cmd");
+        string stagingDir = Path.Combine(currentDir, "staging");
+        if (Directory.Exists(stagingDir))
+        {
+            Directory.Delete(stagingDir, true);
+        }
+        Directory.CreateDirectory(stagingDir);
 
-        // Автономный командный скрипт для надёжной подмены файлов после выхода процесса
+        await Task.Run(() => System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, stagingDir, true), ct);
+        return stagingDir;
+    }
+
+    public static void ApplySeamlessUpdate(string stagingFolder, AppState currentState)
+    {
+        string currentDir = AppDomain.CurrentDomain.BaseDirectory;
+        string stateFilePath = Path.Combine(currentDir, "app_state.json");
+        string json = JsonSerializer.Serialize(currentState);
+        File.WriteAllText(stateFilePath, json);
+
+        // Rename locked files to .old
+        var filesToRename = Directory.GetFiles(currentDir, "*", SearchOption.TopDirectoryOnly)
+            .Where(f => !f.StartsWith(stagingFolder, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var file in filesToRename)
+        {
+            try
+            {
+                string ext = Path.GetExtension(file).ToLowerInvariant();
+                if (ext == ".exe" || ext == ".dll" || ext == ".pdb")
+                {
+                    string oldPath = file + ".old";
+                    if (File.Exists(oldPath)) File.Delete(oldPath);
+                    File.Move(file, oldPath);
+                }
+            }
+            catch
+            {
+                // Ignore if we can't rename
+            }
+        }
+
+        // Copy files from staging
+        CopyFilesRecursively(stagingFolder, currentDir);
+
+        string newExe = Path.Combine(currentDir, "Win11CopyDialog.exe");
         int currentPid = Process.GetCurrentProcess().Id;
-        string scriptContent = $@"@echo off
-timeout /t 1 /nobreak > nul
-:wait_process
-tasklist /fi ""PID eq {currentPid}"" | find ""{currentPid}"" > nul
-if %ERRORLEVEL% equ 0 (
-    timeout /t 1 /nobreak > nul
-    goto wait_process
-)
-taskkill /F /IM Win11CopyDialog.exe >nul 2>nul
-timeout /t 1 /nobreak > nul
-
-echo Обновление Motion Commander...
-if ""{Path.GetExtension(updatePackagePath).ToLowerInvariant()}""==""exe"" (
-    start """" ""{updatePackagePath}"" /SILENT
-    exit /b 0
-)
-
-powershell -NoProfile -ExecutionPolicy Bypass -Command ""$ErrorActionPreference='SilentlyContinue'; Expand-Archive -Path '{updatePackagePath}' -DestinationPath '{currentDir}' -Force""
-timeout /t 1 /nobreak > nul
-start """" ""{currentExe}""
-del ""%~f0""
-exit /b 0
-";
-        File.WriteAllText(scriptPath, scriptContent);
-
+        
         var psi = new ProcessStartInfo
         {
-            FileName = "cmd.exe",
-            Arguments = $"/c \"{scriptPath}\"",
-            UseShellExecute = true,
-            CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden
+            FileName = newExe,
+            Arguments = $"--seamless-update {currentPid} \"{stateFilePath}\"",
+            UseShellExecute = true
         };
-
         Process.Start(psi);
-        Application.Current.Shutdown();
+    }
+
+    private static void CopyFilesRecursively(string sourcePath, string targetPath)
+    {
+        foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(dirPath.Replace(sourcePath, targetPath));
+        }
+
+        foreach (string newPath in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
+        {
+            File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);
+        }
     }
 }

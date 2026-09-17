@@ -29,10 +29,10 @@ public static class PartitionManagementService
     /// </summary>
     public static void ValidateSafeTarget(StoragePartition partition, string operationName)
     {
-        if (partition.IsSystem || partition.IsBoot || partition.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase))
+        if (partition.IsSystem || partition.IsBoot || partition.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase) || partition.Category == PartitionTypeCategory.Unknown)
         {
-            LogAction(operationName, $"{partition.DriveLetter}: ({partition.DisplayName})", StorageRiskLevel.IRREVERSIBLE, "Заблокировано защитой", "Попытка модификации защищенного системного раздела Windows");
-            throw new InvalidOperationException($"Безопасность системы: операция «{operationName}» категорически заблокирована для системного тома {partition.DriveLetter}: во избежание повреждения работающей операционной системы Windows.");
+            LogAction(operationName, $"{partition.DriveLetter}: ({partition.DisplayName})", StorageRiskLevel.IRREVERSIBLE, "Заблокировано защитой", "Попытка модификации защищенного или неизвестного раздела");
+            throw new InvalidOperationException($"Безопасность системы: операция «{operationName}» категорически заблокирована для раздела {partition.DisplayName} во избежание повреждения данных.");
         }
     }
 
@@ -46,6 +46,15 @@ public static class PartitionManagementService
         {
             LogAction(operationName, $"{disk.Model} (Диск {disk.DiskNumber})", StorageRiskLevel.IRREVERSIBLE, "Заблокировано защитой", "Попытка модификации диска, содержащего работающую ОС Windows");
             throw new InvalidOperationException($"Безопасность системы: операция «{operationName}» категорически заблокирована для диска {disk.DiskNumber}, так как он является системным диском текущей Windows.");
+        }
+
+        if (disk.Partitions.Any(p => p.Category == PartitionTypeCategory.Unknown))
+        {
+            if (plan == null || !plan.UserConfirmedOverride)
+            {
+                LogAction(operationName, $"{disk.Model} (Диск {disk.DiskNumber})", StorageRiskLevel.IRREVERSIBLE, "Заблокировано защитой", "Попытка модификации диска, содержащего неизвестный раздел");
+                throw new InvalidOperationException($"Безопасность системы: операция «{operationName}» категорически заблокирована для диска {disk.DiskNumber}, так как он содержит неизвестные (Unknown) разделы. Они считаются защищенными.");
+            }
         }
 
         if (plan != null && plan.IsDestructive && !plan.UserConfirmedOverride)

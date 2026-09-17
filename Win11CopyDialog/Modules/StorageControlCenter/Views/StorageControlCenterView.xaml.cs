@@ -22,7 +22,6 @@ public partial class StorageControlCenterView : UserControl
     private readonly DispatcherTimer _telemetryTimer;
     private CancellationTokenSource? _benchCts;
     private CancellationTokenSource? _wipeCts;
-    private CancellationTokenSource? _migrationCts;
 
     // Поля интерактивной формы Partition Manager
     private string _currentAction = "";
@@ -138,7 +137,7 @@ public partial class StorageControlCenterView : UserControl
 
         // Загрузка категорий очистки
         LoadCleanupCategories();
-        PopulateMigrationDrives();
+        MigrationWizardComponent.SetDisks(_disks);
     }
 
     private UIElement CreateDiskCard(StorageDisk disk)
@@ -1396,116 +1395,4 @@ public partial class StorageControlCenterView : UserControl
         StorageMonitorService.PollRealtimeTelemetry(_disks);
     }
 
-    // ================= КЛОНИРОВАНИЕ ОС =================
-    private void PopulateMigrationDrives()
-    {
-        MigrationTargetDriveCombo.Items.Clear();
-        foreach (var disk in _disks)
-        {
-            // Не предлагать системный диск в качестве цели
-            bool isSystem = disk.Partitions.Any(p => p.IsSystem || string.Equals(p.DriveLetter, "C", StringComparison.OrdinalIgnoreCase));
-            if (!isSystem)
-            {
-                MigrationTargetDriveCombo.Items.Add(new ComboBoxItem
-                {
-                    Content = $"Диск {disk.DiskNumber}: {disk.Model} ({disk.TotalSizeFormatted})",
-                    Tag = disk
-                });
-            }
-        }
-        if (MigrationTargetDriveCombo.Items.Count > 0)
-            MigrationTargetDriveCombo.SelectedIndex = 0;
-    }
-
-    private async void StartMigration_Click(object sender, RoutedEventArgs e)
-    {
-        if (MigrationTargetDriveCombo.SelectedItem is not ComboBoxItem selectedItem ||
-            selectedItem.Tag is not StorageDisk targetDisk)
-        {
-            MessageBox.Show("Пожалуйста, выберите целевой диск для переноса ОС.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var result = MessageBox.Show(
-            $"ВНИМАНИЕ!\n\nВыбран целевой диск:\nДиск {targetDisk.DiskNumber}: {targetDisk.Model}\n\n" +
-            "ВСЕ ДАННЫЕ НА ЭТОМ ДИСКЕ БУДУТ БЕЗВОЗВРАТНО УНИЧТОЖЕНЫ!\nВы уверены, что хотите продолжить клонирование ОС на этот диск?",
-            "Подтверждение клонирования ОС", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-        if (result != MessageBoxResult.Yes) return;
-
-        // Начинаем миграцию
-        StartMigrationBtn.IsEnabled = false;
-        MigrationTargetDriveCombo.IsEnabled = false;
-        MigrationProgressBorder.Visibility = Visibility.Visible;
-        MigrationProgressBar.Value = 0;
-        MigrationPercentageText.Text = "0%";
-        MigrationStatusText.Text = "Инициализация...";
-
-        // Блокируем другие вкладки
-        SubTabHealthRadio.IsEnabled = false;
-        SubTabPartitionsRadio.IsEnabled = false;
-        SubTabBenchmarkRadio.IsEnabled = false;
-        SubTabOptimizerRadio.IsEnabled = false;
-        SubTabCleanupRadio.IsEnabled = false;
-        SubTabSafetyRadio.IsEnabled = false;
-
-        _migrationCts = new CancellationTokenSource();
-
-        var progress = new Progress<double>(p =>
-        {
-            MigrationProgressBar.Value = p;
-            MigrationPercentageText.Text = $"{p:F1}%";
-            
-            if (p < 5) MigrationStatusText.Text = "Подготовка диска (DiskPart)...";
-            else if (p < 15) MigrationStatusText.Text = "Создание теневой копии VSS...";
-            else if (p < 95) MigrationStatusText.Text = "Клонирование файлов ОС (Robocopy)...";
-            else if (p < 100) MigrationStatusText.Text = "Настройка загрузчика (BCDBoot)...";
-            else MigrationStatusText.Text = "Перенос успешно завершен!";
-        });
-
-        try
-        {
-            // For now, since the UI is not fully updated to the wizard, we simulate the destructive override if they reached here.
-            var plan = await MigrationPlannerService.GeneratePlanAsync(targetDisk.DiskNumber, targetDisk, MigrationMode.FullDiskClone, _migrationCts.Token);
-            plan.UserConfirmedOverride = true;
-            
-            var (success, message) = await OsMigrationService.MigrateSystemAsync(targetDisk, plan, progress, _migrationCts.Token);
-            
-            if (success)
-            {
-                MessageBox.Show("Клонирование ОС успешно завершено!\n\nТеперь вы можете выключить компьютер, извлечь старый диск (или изменить приоритет загрузки в BIOS) и загрузиться с нового диска.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            else
-            {
-                MessageBox.Show($"Произошла ошибка при клонировании ОС:\n{message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            MessageBox.Show("Операция клонирования была отменена.", "Отмена", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Произошла ошибка при клонировании ОС:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            StartMigrationBtn.IsEnabled = true;
-            MigrationTargetDriveCombo.IsEnabled = true;
-            MigrationProgressBorder.Visibility = Visibility.Collapsed;
-            MigrationProgressBar.Value = 0;
-            
-            SubTabHealthRadio.IsEnabled = true;
-            SubTabPartitionsRadio.IsEnabled = true;
-            SubTabBenchmarkRadio.IsEnabled = true;
-            SubTabOptimizerRadio.IsEnabled = true;
-            SubTabCleanupRadio.IsEnabled = true;
-            SubTabSafetyRadio.IsEnabled = true;
-            
-            _migrationCts?.Dispose();
-            _migrationCts = null;
-            
-            await RefreshDisksAsync();
-        }
-    }
 }

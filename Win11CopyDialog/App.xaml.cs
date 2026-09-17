@@ -11,6 +11,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        CleanupOldFiles();
+
         string crashLog = @"C:\Users\djabo\.gemini\antigravity-ide\brain\ab0105fa-d21c-4725-bc46-bf6fbdc2e347\scratch\crash.txt";
         AppDomain.CurrentDomain.UnhandledException += (s, ev) => {
             try { System.IO.File.WriteAllText(crashLog, ev.ExceptionObject?.ToString() ?? "null"); } catch {}
@@ -18,6 +20,19 @@ public partial class App : Application
         DispatcherUnhandledException += (s, ev) => {
             try { System.IO.File.WriteAllText(crashLog, ev.Exception?.ToString() ?? "null"); } catch {}
         };
+
+        int seamlessIdx = Array.IndexOf(e.Args, "--seamless-update");
+        if (seamlessIdx >= 0 && seamlessIdx + 2 < e.Args.Length)
+        {
+            if (int.TryParse(e.Args[seamlessIdx + 1], out int oldPid))
+            {
+                string stateFilePath = e.Args[seamlessIdx + 2];
+                var main = new MainWindow();
+                main.Loaded += (_, _) => main.ApplyStateAndTakeover(stateFilePath, oldPid);
+                main.Show();
+                return;
+            }
+        }
 
         // Автоматический запуск с наивысшими правами Администратора (UAC Elevation)
         if (!Helpers.SuperAdminPrivilegeHelper.IsAdministrator() && !e.Args.Contains("--no-elevate"))
@@ -222,6 +237,25 @@ public partial class App : Application
             }
             new MainWindow(startDir, initialTab).Show();
         }
+    }
+
+    private void CleanupOldFiles()
+    {
+        try
+        {
+            string currentDir = AppDomain.CurrentDomain.BaseDirectory;
+            var oldFiles = System.IO.Directory.GetFiles(currentDir, "*.old", System.IO.SearchOption.TopDirectoryOnly);
+            foreach (var file in oldFiles)
+            {
+                try { System.IO.File.Delete(file); } catch { }
+            }
+            string stagingDir = System.IO.Path.Combine(currentDir, "staging");
+            if (System.IO.Directory.Exists(stagingDir))
+            {
+                try { System.IO.Directory.Delete(stagingDir, true); } catch { }
+            }
+        }
+        catch { }
     }
 }
 
