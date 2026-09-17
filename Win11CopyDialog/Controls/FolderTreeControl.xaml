@@ -21,6 +21,36 @@
             </HierarchicalDataTemplate.Triggers>
         </HierarchicalDataTemplate>
 
+        <ControlTemplate x:Key="ExpanderTemplate" TargetType="ToggleButton">
+            <Grid Width="16" Height="16" Background="Transparent">
+                <Path x:Name="Arrow" Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource PrimaryTextBrush}" StrokeThickness="1.5" 
+                      Fill="None" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform>
+                        <RotateTransform Angle="0"/>
+                    </Path.RenderTransform>
+                </Path>
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="Arrow" Storyboard.TargetProperty="RenderTransform.Angle" To="90" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="Arrow" Storyboard.TargetProperty="RenderTransform.Angle" To="0" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
         <Style x:Key="TreeViewItemStyle" TargetType="TreeViewItem">
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
             <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
@@ -61,36 +91,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <ControlTemplate x:Key="ExpanderTemplate" TargetType="ToggleButton">
-            <Grid Width="16" Height="16" Background="Transparent">
-                <Path x:Name="Arrow" Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource PrimaryTextBrush}" StrokeThickness="1.5" 
-                      Fill="None" HorizontalAlignment="Center" VerticalAlignment="Center"
-                      RenderTransformOrigin="0.5,0.5">
-                    <Path.RenderTransform>
-                        <RotateTransform Angle="0"/>
-                    </Path.RenderTransform>
-                </Path>
-            </Grid>
-            <ControlTemplate.Triggers>
-                <Trigger Property="IsChecked" Value="True">
-                    <Trigger.EnterActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetName="Arrow" Storyboard.TargetProperty="RenderTransform.Angle" To="90" Duration="0:0:0.15"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.EnterActions>
-                    <Trigger.ExitActions>
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <DoubleAnimation Storyboard.TargetName="Arrow" Storyboard.TargetProperty="RenderTransform.Angle" To="0" Duration="0:0:0.15"/>
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </Trigger.ExitActions>
-                </Trigger>
-            </ControlTemplate.Triggers>
-        </ControlTemplate>
 
         <ContextMenu x:Key="FolderContextMenu">
             <MenuItem Header="Открыть в новой вкладке"/>

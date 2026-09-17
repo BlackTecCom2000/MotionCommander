@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:helpers="clr-namespace:Win11CopyDialog.Helpers">
     <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <!-- Базовые кисти (обновляются в ThemeManager.Apply) -->
         <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#E8F3F3F3"/>
         <SolidColorBrush x:Key="CardBackgroundBrush" Color="#B0FFFFFF"/>

@@ -13,7 +13,7 @@ public partial class App : Application
         base.OnStartup(e);
         CleanupOldFiles();
 
-        string crashLog = @"C:\Users\djabo\.gemini\antigravity-ide\brain\ab0105fa-d21c-4725-bc46-bf6fbdc2e347\scratch\crash.txt";
+        string crashLog = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
         AppDomain.CurrentDomain.UnhandledException += (s, ev) => {
             try { System.IO.File.WriteAllText(crashLog, ev.ExceptionObject?.ToString() ?? "null"); } catch {}
         };
@@ -22,11 +22,21 @@ public partial class App : Application
         };
 
         int seamlessIdx = Array.IndexOf(e.Args, "--seamless-update");
-        if (seamlessIdx >= 0 && seamlessIdx + 2 < e.Args.Length)
+        if (seamlessIdx >= 0)
         {
-            if (int.TryParse(e.Args[seamlessIdx + 1], out int oldPid))
+            int oldPid = 0;
+            string? stateFilePath = null;
+            if (seamlessIdx + 2 < e.Args.Length && int.TryParse(e.Args[seamlessIdx + 1], out oldPid))
             {
-                string stateFilePath = e.Args[seamlessIdx + 2];
+                stateFilePath = e.Args[seamlessIdx + 2];
+            }
+            else if (seamlessIdx + 1 < e.Args.Length)
+            {
+                stateFilePath = e.Args[seamlessIdx + 1];
+            }
+
+            if (!string.IsNullOrEmpty(stateFilePath) && System.IO.File.Exists(stateFilePath))
+            {
                 var main = new MainWindow();
                 main.Loaded += (_, _) => main.ApplyStateAndTakeover(stateFilePath, oldPid);
                 main.Show();

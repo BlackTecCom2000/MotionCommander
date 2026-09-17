@@ -19,12 +19,6 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Views
         {
             InitializeComponent();
             
-            // Add boolean converter locally if not in global resources
-            if (!Resources.Contains("BooleanToVisibilityConverter"))
-            {
-                Resources.Add("BooleanToVisibilityConverter", new BooleanToVisibilityConverter());
-            }
-
             _discoveryService = new ApplicationDiscoveryService();
             _removalService = new ApplicationRemovalService();
             _allApps = new List<InstalledApplication>();
