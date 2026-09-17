@@ -326,6 +326,52 @@ public static class PartitionManagementService
     }
 
     /// <summary>
+    /// Создает типовую структуру разделов UEFI/GPT или Legacy/MBR для клонирования Windows.
+    /// Уничтожает все данные на целевом диске.
+    /// </summary>
+    public static async Task<(bool success, string output)> CreateSystemPartitionsForMigrationAsync(int targetDiskNumber, string partitionStyle = "GPT", CancellationToken ct = default)
+    {
+        // Базовая логика для GPT: EFI(100MB), MSR(16MB), Primary(остаток), Recovery(500MB).
+        // Для упрощения: мы создаем EFI, MSR, и Primary. Recovery можно опустить или добавить в конце.
+        var sb = new StringBuilder();
+        sb.AppendLine($"select disk {targetDiskNumber}");
+        sb.AppendLine("clean");
+        
+        if (partitionStyle.Equals("GPT", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine("convert gpt");
+            
+            // EFI System Partition
+            sb.AppendLine("create partition efi size=100");
+            sb.AppendLine("format quick fs=fat32 label=\"System\"");
+            sb.AppendLine("assign letter=S"); // Временная буква для bcdboot
+
+            // Microsoft Reserved Partition
+            sb.AppendLine("create partition msr size=16");
+
+            // Windows Partition
+            sb.AppendLine("create partition primary");
+            sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
+            sb.AppendLine("assign letter=W"); // Временная буква для копирования файлов
+        }
+        else
+        {
+            sb.AppendLine("convert mbr");
+            sb.AppendLine("create partition primary");
+            sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
+            sb.AppendLine("assign letter=W");
+            sb.AppendLine("active"); // Сделать активным для MBR
+        }
+
+        var res = await RunDiskPartAsync(sb.ToString(), ct);
+        string cleanMsg = CleanOutput(res.output);
+        
+        LogAction("Разметка под миграцию", $"Диск {targetDiskNumber} [{partitionStyle}]", StorageRiskLevel.DESTRUCTIVE, res.success ? "Успешно" : "Ошибка", cleanMsg);
+        
+        return (res.success, cleanMsg);
+    }
+
+    /// <summary>
     /// Выполняет низкоуровневый скрипт DiskPart с декодированием в правильной кодировке.
     /// </summary>
     private static async Task<(bool success, string output)> RunDiskPartAsync(string script, CancellationToken ct)
