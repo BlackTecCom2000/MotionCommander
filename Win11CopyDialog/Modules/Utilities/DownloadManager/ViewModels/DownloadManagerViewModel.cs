@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using Win11CopyDialog.Modules.Utilities.DownloadManager.Models;
 using Win11CopyDialog.Modules.Utilities.DownloadManager.Services;
@@ -49,15 +50,23 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
 
         private async Task LoadDownloadsAsync()
         {
-            var items = await _dbService.GetAllDownloadsAsync();
-            App.Current.Dispatcher.Invoke(() =>
+            try
             {
-                Downloads.Clear();
-                foreach (var item in items)
+                var items = await _dbService.GetAllDownloadsAsync().ConfigureAwait(false);
+                var dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher != null)
                 {
-                    Downloads.Add(item);
+                    dispatcher.Invoke(() =>
+                    {
+                        Downloads.Clear();
+                        foreach (var item in items)
+                        {
+                            Downloads.Add(item);
+                        }
+                    });
                 }
-            });
+            }
+            catch { }
         }
 
         private async Task AddDownloadAsync()
