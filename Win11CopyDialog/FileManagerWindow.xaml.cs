@@ -84,9 +84,9 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
         StatusText.Text = "Загрузка...";
         try
         {
-            var entries = new ObservableCollection<FileEntry>();
-            await Task.Run(() =>
+            var entries = await Task.Run(() =>
             {
+                var result = new List<FileEntry>();
                 try
                 {
                     foreach (var dir in Directory.GetDirectories(path))
@@ -97,7 +97,7 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
                             if ((info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
                             var entry = new FileEntry(dir, FileEntryType.Folder, info.LastWriteTime, info.CreationTime, info.Attributes);
                             entry.SetIcon(FileSystemIcons.GetIcon(dir, FileEntryType.Folder));
-                            Application.Current.Dispatcher.Invoke(() => entries.Add(entry));
+                            result.Add(entry);
                         }
                         catch { }
                     }
@@ -110,7 +110,7 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
                             var entry = new FileEntry(file, FileEntryType.File, info.LastWriteTime, info.CreationTime, info.Attributes);
                             entry.SetSize(info.Length);
                             entry.SetIcon(FileSystemIcons.GetIcon(file, FileEntryType.File));
-                            Application.Current.Dispatcher.Invoke(() => entries.Add(entry));
+                            result.Add(entry);
                         }
                         catch { }
                     }
@@ -119,9 +119,11 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
                 {
                     Application.Current.Dispatcher.Invoke(() => StatusText.Text = "Нет доступа к папке");
                 }
+                return result;
             });
 
-            FileList.Items = entries;
+            var observableEntries = new ObservableCollection<FileEntry>(entries);
+            FileList.Items = observableEntries;
             FileList.CurrentPath = path;
             StatusText.Text = $"{entries.Count} объектов";
         }

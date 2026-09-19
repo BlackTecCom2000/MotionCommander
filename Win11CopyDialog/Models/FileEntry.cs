@@ -217,8 +217,9 @@ public static class FileService
         
         parent.IsLoadingChildren = true;
         
-        await Task.Run(() =>
+        var children = await Task.Run(() =>
         {
+            var result = new List<FileEntry>();
             try
             {
                 var dirs = Directory.GetDirectories(parent.FullPath);
@@ -236,7 +237,7 @@ public static class FileService
                         var child = new FileEntry(dir, FileEntryType.Folder, 
                             info.LastWriteTime, info.CreationTime, info.Attributes);
                         child.SetIcon(FileSystemIcons.GetIcon(dir, FileEntryType.Folder));
-                        Application.Current.Dispatcher.Invoke(() => parent.Children.Add(child));
+                        result.Add(child);
                     }
                     catch { /* skip inaccessible */ }
                 }
@@ -254,18 +255,22 @@ public static class FileService
                             info.LastWriteTime, info.CreationTime, info.Attributes);
                         child.SetSize(info.Length);
                         child.SetIcon(FileSystemIcons.GetIcon(file, FileEntryType.File));
-                        Application.Current.Dispatcher.Invoke(() => parent.Children.Add(child));
+                        result.Add(child);
                     }
                     catch { /* skip inaccessible */ }
                 }
             }
             catch (OperationCanceledException) { }
             catch { /* permission denied etc */ }
-            finally
-            {
-                Application.Current.Dispatcher.Invoke(() => parent.IsLoadingChildren = false);
-            }
+            
+            return result;
         }, ct);
+
+        foreach (var child in children)
+        {
+            parent.Children.Add(child);
+        }
+        parent.IsLoadingChildren = false;
     }
 
     public static async Task<long> GetDirectorySizeAsync(string path, CancellationToken ct = default)
