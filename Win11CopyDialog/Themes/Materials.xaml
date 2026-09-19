@@ -82,53 +82,72 @@
 
     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#B2081222"/>
 
+    <!-- ================= SEMANTIC BORDER SYSTEM (Rules 14 & 15) ================= -->
+    <!-- GlassBorderInvisible: 0% opacity -->
+    <SolidColorBrush x:Key="GlassBorderInvisible" Color="#00000000"/>
+    <!-- GlassBorderSubtle: ~4% soft white edge (near-invisible material boundary) -->
+    <SolidColorBrush x:Key="GlassBorderSubtle" Color="#0AFFFFFF"/>
+    <!-- GlassBorderDefault: ~9% subtle blue-tinted material refraction -->
+    <SolidColorBrush x:Key="GlassBorderDefault" Color="#1678BEFF"/>
+    <!-- GlassBorderStrong: for focus, active selections, high elevation -->
+    <SolidColorBrush x:Key="GlassBorderStrong" Color="#3078BEFF"/>
+    <!-- Top-edge specular glass highlight (soft ambient) -->
+    <SolidColorBrush x:Key="GlassSpecularHighlight" Color="#20FFFFFF"/>
+
+    <!-- ================= SEMANTIC SHADOW SYSTEM (Rule 16) ================= -->
+    <DropShadowEffect x:Key="GlassShadowSmall" BlurRadius="16" ShadowDepth="2" Direction="270"
+                      Color="#000000" Opacity="0.30"/>
+    <DropShadowEffect x:Key="GlassShadowMedium" BlurRadius="28" ShadowDepth="4" Direction="270"
+                      Color="#000000" Opacity="0.40"/>
+    <DropShadowEffect x:Key="GlassShadowLarge" BlurRadius="44" ShadowDepth="8" Direction="270"
+                      Color="#000000" Opacity="0.55"/>
+
     <!-- ================= macOS & 2211 LIQUID GLASS CHROMATIC TOKENS ================= -->
-    <SolidColorBrush x:Key="MacOsGlassCoreBrush" Color="#18FFFFFF"/>
-    <SolidColorBrush x:Key="MacOsGlassPerimeterGlow" Color="#50FFFFFF"/>
+    <SolidColorBrush x:Key="MacOsGlassCoreBrush" Color="#0DFFFFFF"/>
+    <SolidColorBrush x:Key="MacOsGlassPerimeterGlow" Color="#1EFFFFFF"/>
     <LinearGradientBrush x:Key="MacOsLiquidGlassBevel" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#CCFFFFFF" Offset="0.0"/>
-        <GradientStop Color="#45FFFFFF" Offset="0.25"/>
-        <GradientStop Color="#10FFFFFF" Offset="0.7"/>
-        <GradientStop Color="#55FFFFFF" Offset="1.0"/>
+        <GradientStop Color="#30FFFFFF" Offset="0.0"/>
+        <GradientStop Color="#14FFFFFF" Offset="0.25"/>
+        <GradientStop Color="#06FFFFFF" Offset="0.7"/>
+        <GradientStop Color="#18FFFFFF" Offset="1.0"/>
     </LinearGradientBrush>
 
-    <!-- Chromatic Lens Dispersion Border Brush (Simulates RGB Channel Separation / SVG Displacement Map from 2211.zip) -->
+    <!-- Chromatic Lens Dispersion Border Brush (Whisper-soft refraction without harsh outlines) -->
     <LinearGradientBrush x:Key="LiquidGlassLensChromaticBorder" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#6000E5FF" Offset="0.0"/>  <!-- Chromatic Cyan Rim -->
-        <GradientStop Color="#80FFFFFF" Offset="0.12"/> <!-- Pristine Specular Glare -->
-        <GradientStop Color="#30FFFFFF" Offset="0.30"/>
-        <GradientStop Color="#1578BEFF" Offset="0.65"/>
-        <GradientStop Color="#55B366FF" Offset="0.88"/> <!-- Chromatic Violet Rim -->
-        <GradientStop Color="#45F43F5E" Offset="1.0"/>  <!-- Chromatic Magenta Edge -->
+        <GradientStop Color="#2200E5FF" Offset="0.0"/>  <!-- Soft Cyan Rim -->
+        <GradientStop Color="#35FFFFFF" Offset="0.15"/> <!-- Diffuse Glare -->
+        <GradientStop Color="#0E78BEFF" Offset="0.55"/>
+        <GradientStop Color="#1C6366FF" Offset="0.85"/> <!-- Soft Violet Rim -->
+        <GradientStop Color="#18F43F5E" Offset="1.0"/>  <!-- Soft Magenta Edge -->
     </LinearGradientBrush>
 
     <!-- Subdued Chromatic Rim (for ambient panels and inputs) -->
     <LinearGradientBrush x:Key="LiquidGlassSubtleChromaticBorder" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#3500E5FF" Offset="0.0"/>
-        <GradientStop Color="#50FFFFFF" Offset="0.15"/>
-        <GradientStop Color="#1878BEFF" Offset="0.5"/>
-        <GradientStop Color="#30B366FF" Offset="1.0"/>
+        <GradientStop Color="#1400E5FF" Offset="0.0"/>
+        <GradientStop Color="#20FFFFFF" Offset="0.18"/>
+        <GradientStop Color="#0A78BEFF" Offset="0.6"/>
+        <GradientStop Color="#14B366FF" Offset="1.0"/>
     </LinearGradientBrush>
 
-    <!-- Multi-stage Inset Specular Bevel Brush (inset 0 0 2px 1px lab(100% 0 0 / .35) + inset 0 0 10px 4px ...) -->
+    <!-- Multi-stage Inset Specular Bevel Brush -->
     <LinearGradientBrush x:Key="LiquidGlassMultiBevelBrush" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#85FFFFFF" Offset="0.0"/>
-        <GradientStop Color="#25FFFFFF" Offset="0.18"/>
-        <GradientStop Color="#06FFFFFF" Offset="0.6"/>
-        <GradientStop Color="#2A78BEFF" Offset="1.0"/>
+        <GradientStop Color="#35FFFFFF" Offset="0.0"/>
+        <GradientStop Color="#10FFFFFF" Offset="0.22"/>
+        <GradientStop Color="#03FFFFFF" Offset="0.6"/>
+        <GradientStop Color="#0F78BEFF" Offset="1.0"/>
     </LinearGradientBrush>
 
-    <!-- General Elevated Glass Card Style with 2211.zip Inset Highlights -->
+    <!-- General Elevated Glass Card Style with Soft Blend & Subtle Shadow -->
     <Style x:Key="LiquidGlassCard" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel3Brush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource LiquidGlassLensChromaticBorder}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{DynamicResource RadiusNormal}"/>
         <Setter Property="Padding" Value="{DynamicResource PaddingCardInner}"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="18" ShadowDepth="3" Direction="270"
-                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.42"/>
+                <DropShadowEffect BlurRadius="24" ShadowDepth="3" Direction="270"
+                                  Color="#000000" Opacity="0.35"/>
             </Setter.Value>
         </Setter>
     </Style>
@@ -136,14 +155,14 @@
     <!-- Liquid Glass Capsule / Pill Container (.liquidglass capsule from 2211.zip) -->
     <Style x:Key="LiquidGlassCapsule" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource LiquidGlassLensChromaticBorder}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="9999"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RadiusMedium}"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="16" ShadowDepth="2.5" Direction="270"
-                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.38"/>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="2.5" Direction="270"
+                                  Color="#000000" Opacity="0.32"/>
             </Setter.Value>
         </Setter>
     </Style>
@@ -151,14 +170,14 @@
     <!-- macOS & 2211 Liquid Glass Container (.glassContainer equivalent) -->
     <Style x:Key="GlassContainer" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource LiquidGlassLensChromaticBorder}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="18"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RadiusLarge}"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="20" ShadowDepth="3.5" Direction="270"
-                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.45"/>
+                <DropShadowEffect BlurRadius="28" ShadowDepth="4" Direction="270"
+                                  Color="#000000" Opacity="0.38"/>
             </Setter.Value>
         </Setter>
     </Style>

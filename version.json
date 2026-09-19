@@ -1,21 +1,20 @@
-{
-    "version":  "3.8.9",
+﻿{
+    "version":  "3.8.10",
     "releaseDate":  "2026-09-20",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Liquid Glass Design System: Full migration of all 8 modal & secondary dialogs to GlassWindowRoot and GlassDialogTitleBar",
-                      "3-Layer Parallax Starfield: Deep space canvas background with 1000 twinkling stars and animStar movement",
-                      "Glass Component Library: Liquid glass sliders, tabs, list headers, pills, statusbars, and frosted inputs",
-                      "Extract & Create Archive: Sleek translucent dialog cards with chromatic RGB dispersion borders and real-time visualizers",
-                      "WizTree & Duplicate Cleaner: Borderless acrylic shells, modern glass data grids, and high-contrast telemetry",
-                      "Driver Inspector & Advanced Tools: Unified floating modal ergonomics, haptic feedback and instant clipboard tools"
+                      "Soft Seamless Liquid Glass: Eliminated sharp borders, frames and outlines in favor of continuous material environment",
+                      "Semantic Radius Architecture: Standardized 8px/12px/16px/18px/20px geometric progression without awkward pills",
+                      "Whisper-Soft Ambient Chromatic Refractions: Retuned RGB lens dispersion to ultra-low opacity chromatic refractions",
+                      "Borderless Command Bar \u0026 Continuous File Table: Zero divider lines, transparent resting states, soft specular top glares",
+                      "Modal Glass Shell Refinement: Softened dialog bevels, translucent backdrops, and deep diffuse drop shadows"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.9-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.10-Patch.zip",
     "patchSizeMb":  1.88,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.9-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.9-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.9-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.10-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.10-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.10-Setup.exe"
 }

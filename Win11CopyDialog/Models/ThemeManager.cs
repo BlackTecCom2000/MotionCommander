@@ -126,7 +126,7 @@ public sealed class ThemeManager : INotifyPropertyChanged
             AppTheme.MatrixEmerald => (C("#040D07"), C("#0A1A0F"), C("#12381E")),
             AppTheme.SunsetAmber => (C("#14100E"), C("#1F1815"), C("#382A22")),
             AppTheme.RoyalIndigo => (C("#0B0E1F"), C("#131936"), C("#222B57")),
-            AppTheme.MotionGlass => (C("#050912"), C("#0A1426", 0xB8), C("#78BEFF", 0x2E)), // Glass Background and Border
+            AppTheme.MotionGlass => (C("#050912"), C("#0A1426", 0xB8), C("#78BEFF", 0x14)), // Soft seamless Glass Background and subtle Border
             AppTheme.MinimalWhite => (C("#FFFFFF"), C("#F9F9F9"), C("#EAEAEA")),
             _ => (C("#202020"), C("#2D2D2D"), C("#3A3A3A"))
         };
@@ -140,22 +140,22 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Color graphGrid = dark ? C("#222938") : C("#E3E3E3");
         Color graphFill = Color.FromArgb(0x55, accent.R, accent.G, accent.B);
 
-        Color glowAccent = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x60, accent.R, accent.G, accent.B) : Color.FromArgb(0x40, accent.R, accent.G, accent.B);
-        Color glassBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x2E, 0x78, 0xBE, 0xFF) : (dark ? Color.FromArgb(0x28, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x35, 0x00, 0x00, 0x00));
-        Color subtleBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x15, 0x78, 0xBE, 0xFF) : (dark ? Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x1F, 0x00, 0x00, 0x00));
-        Color chipBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x30, 0x08, 0x12, 0x22) : (dark ? Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x22, 0x00, 0x00, 0x00));
+        Color glowAccent = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x40, accent.R, accent.G, accent.B) : Color.FromArgb(0x30, accent.R, accent.G, accent.B);
+        Color glassBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x18, 0x78, 0xBE, 0xFF) : (dark ? Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x20, 0x00, 0x00, 0x00));
+        Color subtleBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x0C, 0x78, 0xBE, 0xFF) : (dark ? Color.FromArgb(0x0E, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x12, 0x00, 0x00, 0x00));
+        Color chipBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x20, 0x08, 0x12, 0x22) : (dark ? Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x1A, 0x00, 0x00, 0x00));
 
         Color headerBg = Theme == AppTheme.MotionGlass ? C("#08111F", 0xE0) : (dark ? C("#0F131D") : C("#F1F5F9"));
         Color headerFg = dark ? C("#94A3B8") : C("#475569");
-        Color headerBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x2E, 0x78, 0xBE, 0xFF) : (dark ? C("#1E2536") : C("#E2E8F0"));
-        Color headerHover = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x30, 0x0F, 0x1E, 0x37) : (dark ? C("#1E2638") : C("#E2E8F0"));
-        Color listRowSelected = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x40, accent.R, accent.G, accent.B) : (dark ? Color.FromArgb(0x35, accent.R, accent.G, accent.B) : Color.FromArgb(0x25, accent.R, accent.G, accent.B));
-        Color navDockBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x80, 0x0A, 0x14, 0x26) : (dark ? Color.FromArgb(0x60, 0x08, 0x0B, 0x12) : Color.FromArgb(0x20, 0x00, 0x00, 0x00));
-        Color ribbonBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0xB2, 0x08, 0x12, 0x22) : (dark ? Color.FromArgb(0x80, 0x11, 0x16, 0x22) : Color.FromArgb(0xB8, 0xFF, 0xFF, 0xFF));
-        Color inputBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x60, 0x08, 0x11, 0x1F) : (dark ? Color.FromArgb(0x60, 0x0D, 0x11, 0x1A) : Color.FromArgb(0xF5, 0xFF, 0xFF, 0xFF));
+        Color headerBorder = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x14, 0x78, 0xBE, 0xFF) : (dark ? C("#1E2536") : C("#E2E8F0"));
+        Color headerHover = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x25, 0x0F, 0x1E, 0x37) : (dark ? C("#1E2638") : C("#E2E8F0"));
+        Color listRowSelected = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x38, accent.R, accent.G, accent.B) : (dark ? Color.FromArgb(0x30, accent.R, accent.G, accent.B) : Color.FromArgb(0x20, accent.R, accent.G, accent.B));
+        Color navDockBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x70, 0x0A, 0x14, 0x26) : (dark ? Color.FromArgb(0x50, 0x08, 0x0B, 0x12) : Color.FromArgb(0x18, 0x00, 0x00, 0x00));
+        Color ribbonBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x95, 0x08, 0x12, 0x22) : (dark ? Color.FromArgb(0x70, 0x11, 0x16, 0x22) : Color.FromArgb(0xA0, 0xFF, 0xFF, 0xFF));
+        Color inputBg = Theme == AppTheme.MotionGlass ? Color.FromArgb(0x50, 0x08, 0x11, 0x1F) : (dark ? Color.FromArgb(0x50, 0x0D, 0x11, 0x1A) : Color.FromArgb(0xEA, 0xFF, 0xFF, 0xFF));
 
-        Color scrollTrack = dark ? Color.FromArgb(0x0C, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x0C, 0x00, 0x00, 0x00);
-        Color scrollThumb = dark ? Color.FromArgb(0x40, 0x94, 0xA3, 0xB8) : Color.FromArgb(0x40, 0x64, 0x74, 0x8B);
+        Color scrollTrack = dark ? Color.FromArgb(0x08, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x08, 0x00, 0x00, 0x00);
+        Color scrollThumb = dark ? Color.FromArgb(0x35, 0x94, 0xA3, 0xB8) : Color.FromArgb(0x35, 0x64, 0x74, 0x8B);
         Color scrollThumbHover = accent;
         Color scrollThumbPressed = Lighten(accent, dark ? 0.2 : -0.2);
 
@@ -199,22 +199,22 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
         // Context Menu Tokens
         Color contextBg = Theme == AppTheme.MotionGlass 
-            ? Color.FromArgb(0xF2, 0x0B, 0x14, 0x24) 
+            ? Color.FromArgb(0xEE, 0x0B, 0x14, 0x24) 
             : (dark ? Color.FromArgb(0xF8, 0x1E, 0x23, 0x30) : Color.FromArgb(0xF8, 0xFA, 0xFA, 0xFC));
         Color contextBorder = Theme == AppTheme.MotionGlass
-            ? Color.FromArgb(0x40, 0x78, 0xBE, 0xFF)
-            : (dark ? Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x30, 0x00, 0x00, 0x00));
+            ? Color.FromArgb(0x20, 0x78, 0xBE, 0xFF)
+            : (dark ? Color.FromArgb(0x20, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x20, 0x00, 0x00, 0x00));
         Color contextHover = Theme == AppTheme.MotionGlass
-            ? Color.FromArgb(0x28, 0x16, 0x8C, 0xFF)
-            : (dark ? Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x10, 0x00, 0x00, 0x00));
+            ? Color.FromArgb(0x20, 0x16, 0x8C, 0xFF)
+            : (dark ? Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x0C, 0x00, 0x00, 0x00));
         Color contextPressed = Theme == AppTheme.MotionGlass
-            ? Color.FromArgb(0x45, 0x16, 0x8C, 0xFF)
-            : (dark ? Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x20, 0x00, 0x00, 0x00));
-        Color contextDisabled = dark ? Color.FromArgb(0x55, 0x94, 0xA3, 0xB8) : Color.FromArgb(0x55, 0x60, 0x5E, 0x5C);
+            ? Color.FromArgb(0x35, 0x16, 0x8C, 0xFF)
+            : (dark ? Color.FromArgb(0x2C, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x18, 0x00, 0x00, 0x00));
+        Color contextDisabled = dark ? Color.FromArgb(0x45, 0x94, 0xA3, 0xB8) : Color.FromArgb(0x45, 0x60, 0x5E, 0x5C);
         Color contextDanger = Color.FromRgb(0xFF, 0x45, 0x67);
-        Color contextDangerHover = Color.FromArgb(0x2E, 0xFF, 0x45, 0x67);
-        Color contextDivider = dark ? Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x15, 0x00, 0x00, 0x00);
-        Color contextShadow = dark ? Color.FromArgb(0x90, 0x00, 0x00, 0x00) : Color.FromArgb(0x35, 0x00, 0x00, 0x00);
+        Color contextDangerHover = Color.FromArgb(0x25, 0xFF, 0x45, 0x67);
+        Color contextDivider = dark ? Color.FromArgb(0x12, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x0E, 0x00, 0x00, 0x00);
+        Color contextShadow = dark ? Color.FromArgb(0x80, 0x00, 0x00, 0x00) : Color.FromArgb(0x25, 0x00, 0x00, 0x00);
 
         Set("ContextMenuBackground", new SolidColorBrush(contextBg));
         Set("ContextMenuBorder", new SolidColorBrush(contextBorder));
@@ -240,8 +240,8 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Color lgBorder1 = subtleBorder;
         Color lgBorder2 = glassBorder;
         Color lgBorder3 = border;
-        Color lgBorder4 = dark ? Color.FromArgb(0x45, 0x78, 0xBE, 0xFF) : Color.FromArgb(0x35, 0x00, 0x00, 0x00);
-        Color lgBorder5 = dark ? Color.FromArgb(0x60, 0x78, 0xBE, 0xFF) : Color.FromArgb(0x50, 0x00, 0x00, 0x00);
+        Color lgBorder4 = dark ? Color.FromArgb(0x25, 0x78, 0xBE, 0xFF) : Color.FromArgb(0x20, 0x00, 0x00, 0x00);
+        Color lgBorder5 = dark ? Color.FromArgb(0x35, 0x78, 0xBE, 0xFF) : Color.FromArgb(0x2D, 0x00, 0x00, 0x00);
 
         Color textTertiary = dark ? C("#64748B") : C("#94A3B8");
         Color textDisabled = dark ? C("#475569") : C("#CBD5E1");
@@ -269,18 +269,18 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Set("LiquidGlassInputHoverBackgroundBrush", new SolidColorBrush(hover));
         Set("LiquidGlassInputFocusedBorderBrush", new SolidColorBrush(accent));
 
-        // 2211.zip Chromatic Lens Dispersion Border (Simulates RGB Channel Separation)
+        // 2211.zip Chromatic Lens Dispersion Border (Simulates RGB Channel Separation - Ambient, whisper-soft)
         if (Theme == AppTheme.MotionGlass)
         {
             var chromatic = new LinearGradientBrush(
                 new GradientStopCollection
                 {
-                    new GradientStop(Color.FromArgb(0x60, 0x00, 0xE5, 0xFF), 0.0),  // Cyan Rim
-                    new GradientStop(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF), 0.12), // Specular Peak
-                    new GradientStop(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF), 0.30),
-                    new GradientStop(Color.FromArgb(0x15, 0x78, 0xBE, 0xFF), 0.65),
-                    new GradientStop(Color.FromArgb(0x55, 0xB3, 0x66, 0xFF), 0.88), // Violet Rim
-                    new GradientStop(Color.FromArgb(0x45, 0xF4, 0x3F, 0x5E), 1.0),  // Magenta Edge
+                    new GradientStop(Color.FromArgb(0x22, 0x00, 0xE5, 0xFF), 0.0),  // Subtle Cyan Rim
+                    new GradientStop(Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF), 0.12), // Specular Peak
+                    new GradientStop(Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF), 0.30),
+                    new GradientStop(Color.FromArgb(0x08, 0x78, 0xBE, 0xFF), 0.65),
+                    new GradientStop(Color.FromArgb(0x1E, 0xB3, 0x66, 0xFF), 0.88), // Subtle Violet Rim
+                    new GradientStop(Color.FromArgb(0x15, 0xF4, 0x3F, 0x5E), 1.0),  // Subtle Magenta Edge
                 },
                 new Point(0, 0),
                 new Point(1, 1)
@@ -290,10 +290,10 @@ public sealed class ThemeManager : INotifyPropertyChanged
             var multiBevel = new LinearGradientBrush(
                 new GradientStopCollection
                 {
-                    new GradientStop(Color.FromArgb(0x85, 0xFF, 0xFF, 0xFF), 0.0),
-                    new GradientStop(Color.FromArgb(0x25, 0xFF, 0xFF, 0xFF), 0.18),
-                    new GradientStop(Color.FromArgb(0x06, 0xFF, 0xFF, 0xFF), 0.60),
-                    new GradientStop(Color.FromArgb(0x30, accent.R, accent.G, accent.B), 1.0),
+                    new GradientStop(Color.FromArgb(0x3A, 0xFF, 0xFF, 0xFF), 0.0),
+                    new GradientStop(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF), 0.18),
+                    new GradientStop(Color.FromArgb(0x04, 0xFF, 0xFF, 0xFF), 0.60),
+                    new GradientStop(Color.FromArgb(0x18, accent.R, accent.G, accent.B), 1.0),
                 },
                 new Point(0, 0),
                 new Point(0, 1)

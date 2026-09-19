@@ -23,7 +23,7 @@
 
     <Style TargetType="{x:Type Separator}" BasedOn="{StaticResource GlassMenuSeparator}"/>
 
-    <!-- ContextMenu Style -->
+    <!-- ContextMenu Style (Rule 12: floating glass object, soft shadow, no hard outline) -->
     <Style x:Key="GlassContextMenu" TargetType="{x:Type ContextMenu}">
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="OverridesDefaultStyle" Value="True"/>
@@ -37,16 +37,16 @@
                 <ControlTemplate TargetType="{x:Type ContextMenu}">
                     <Border x:Name="MenuRoot"
                             Background="{DynamicResource ContextMenuBackground}"
-                            BorderBrush="{DynamicResource ContextMenuBorder}"
+                            BorderBrush="{StaticResource GlassBorderSubtle}"
                             BorderThickness="1"
-                            CornerRadius="{DynamicResource RadiusL}"
+                            CornerRadius="{DynamicResource RadiusLarge}"
                             Padding="5,5"
                             MinWidth="210">
                         <Border.Effect>
-                            <DropShadowEffect BlurRadius="24" 
+                            <DropShadowEffect BlurRadius="36" 
                                               ShadowDepth="6" 
                                               Direction="270"
-                                              Color="{DynamicResource ContextMenuShadowColor}" 
+                                              Color="#000000" 
                                               Opacity="0.55"/>
                         </Border.Effect>
                         <StackPanel IsItemsHost="True" 

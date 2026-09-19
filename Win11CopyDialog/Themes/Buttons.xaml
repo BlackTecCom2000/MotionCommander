@@ -63,7 +63,7 @@
         <Setter Property="Padding" Value="{DynamicResource PaddingControlInner}"/>
         <Setter Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -83,56 +83,32 @@
                     <Grid SnapsToDevicePixels="True">
                         <!-- 1. Ambient Depth Drop Shadow -->
                         <Border x:Name="ShadowHost"
-                                CornerRadius="{DynamicResource RadiusNormal}"
+                                CornerRadius="{DynamicResource RadiusMedium}"
                                 Background="Transparent">
                             <Border.Effect>
-                                <DropShadowEffect BlurRadius="8" ShadowDepth="2.5" Direction="270"
-                                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.32"/>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270"
+                                                  Color="#000000" Opacity="0.25"/>
                             </Border.Effect>
                         </Border>
 
-                        <!-- 2. Dark Depth Core Refraction (:before) -->
-                        <Border x:Name="DepthCore"
-                                Margin="1"
-                                CornerRadius="{DynamicResource RadiusNormal}"
-                                Background="#12000000"
-                                IsHitTestVisible="False"/>
-
-                        <!-- 3. Base Glass Body & Outer Rim Double Border -->
+                        <!-- 2. Base Glass Body -->
                         <Border x:Name="ButtonRoot"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{DynamicResource RadiusNormal}"
+                                CornerRadius="{DynamicResource RadiusMedium}"
                                 SnapsToDevicePixels="True"/>
 
-                        <!-- 4. macOS Perimeter Inner Glow Ring (inset 0 0 3px 1px) -->
-                        <Border x:Name="PerimeterGlow"
-                                Margin="1"
-                                CornerRadius="{DynamicResource RadiusNormal}"
-                                BorderThickness="1"
-                                BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
-                                IsHitTestVisible="False"
-                                Opacity="0.7"/>
-
-                        <!-- 5. Concentric Inset Specular Bevel Border (inset 2px 2px) -->
+                        <!-- 3. Soft Top-Edge Specular Highlight -->
                         <Border x:Name="InnerBevel"
                                 Margin="1"
-                                CornerRadius="{DynamicResource RadiusNormal}"
-                                BorderThickness="1.5,1.5,0.5,0.5"
-                                BorderBrush="{StaticResource MacOsLiquidGlassBevel}"
+                                CornerRadius="{DynamicResource RadiusMedium}"
+                                BorderThickness="0,1,0,0"
+                                BorderBrush="{StaticResource GlassSpecularHighlight}"
                                 IsHitTestVisible="False"
-                                Opacity="0.85"/>
+                                Opacity="0.6"/>
 
-                        <!-- 6. 45° Specular Reflection Sheen (:after) -->
-                        <Border x:Name="SpecularSheen"
-                                Margin="1"
-                                CornerRadius="{DynamicResource RadiusNormal}"
-                                Background="{StaticResource LiquidGlassSheenDiagonal}"
-                                IsHitTestVisible="False"
-                                Opacity="0.35"/>
-
-                        <!-- 7. Content Presenter -->
+                        <!-- 4. Content Presenter -->
                         <ContentPresenter x:Name="ContentSite"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
@@ -144,13 +120,11 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
                             <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
                             <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
-                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="0.95"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="12" ShadowDepth="4" Direction="270"
-                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.5"/>
+                                    <DropShadowEffect BlurRadius="16" ShadowDepth="3" Direction="270"
+                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.35"/>
                                 </Setter.Value>
                             </Setter>
                             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
@@ -158,7 +132,7 @@
                                 <Setter.Value>
                                     <TransformGroup>
                                         <ScaleTransform ScaleX="1.01" ScaleY="1.01"/>
-                                        <TranslateTransform X="0" Y="-1.5"/>
+                                        <TranslateTransform X="0" Y="-1"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
@@ -169,13 +143,13 @@
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96"/>
+                                        <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
                                         <TranslateTransform X="0" Y="0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
                             <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.2"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.3"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270"
@@ -586,15 +560,15 @@
     <!--          6. RIBBON ACTION BUTTON (COMMAND BAR DESKTOP DOCK)       -->
     <!-- ================================================================= -->
 
-    <!-- Фирменная 3D Liquid Glass кнопка панели команд (RibbonActionButton) -->
+    <!-- Фирменная Soft Liquid Glass кнопка панели команд (RibbonActionButton) - Rule 6 Seamless Floating Dock -->
     <Style x:Key="RibbonActionButton" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="Height" Value="34"/>
-        <Setter Property="Padding" Value="10,5"/>
-        <Setter Property="Margin" Value="0,0,6,0"/>
-        <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="9,4"/>
+        <Setter Property="Margin" Value="0,0,2,0"/>
+        <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderInvisible}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
@@ -612,42 +586,23 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid SnapsToDevicePixels="True">
-                        <!-- 1. Ambient Depth Drop Shadow -->
-                        <Border x:Name="ShadowHost" CornerRadius="14" Background="Transparent">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="7" ShadowDepth="2" Direction="270"
-                                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.3"/>
-                            </Border.Effect>
-                        </Border>
+                        <!-- 1. Ambient Depth Drop Shadow (soft, active only on hover) -->
+                        <Border x:Name="ShadowHost" CornerRadius="{DynamicResource RadiusMedium}" Background="Transparent"/>
 
-                        <!-- 2. Dark Depth Core Refraction (:before) -->
-                        <Border x:Name="DepthCore" Margin="1" CornerRadius="13"
-                                Background="#10000000" IsHitTestVisible="False"/>
-
-                        <!-- 3. Base Glass Surface & Border -->
+                        <!-- 2. Base Glass Surface & Border (seamless normal state) -->
                         <Border x:Name="ButtonRoot"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="14"
+                                CornerRadius="{DynamicResource RadiusMedium}"
                                 SnapsToDevicePixels="True"/>
 
-                        <!-- 4. macOS Perimeter Inner Glow (inset 0 0 3px 1px) -->
-                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="13"
-                                BorderThickness="1" BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
-                                IsHitTestVisible="False" Opacity="0.75"/>
+                        <!-- 3. Soft Specular Highlight Top Edge -->
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="{DynamicResource RadiusMedium}"
+                                BorderThickness="0,1,0,0" BorderBrush="{StaticResource GlassSpecularHighlight}"
+                                IsHitTestVisible="False" Opacity="0"/>
 
-                        <!-- 5. macOS Concentric Inset Specular Bevel (inset 2px 2px 0px -2px) -->
-                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="13"
-                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource MacOsLiquidGlassBevel}"
-                                IsHitTestVisible="False" Opacity="0.85"/>
-
-                        <!-- 6. 45° Specular Reflection Sheen (:after) -->
-                        <Border x:Name="SpecularSheen" Margin="1" CornerRadius="13"
-                                Background="{StaticResource LiquidGlassSheenDiagonal}"
-                                IsHitTestVisible="False" Opacity="0.32"/>
-
-                        <!-- 7. Content Presenter -->
+                        <!-- 4. Content Presenter -->
                         <ContentPresenter x:Name="ContentSite"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
@@ -655,48 +610,40 @@
                                           RecognizesAccessKey="True"/>
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <!-- Hover: Tactile Lift & Glare Sheen Flare -->
+                        <!-- Hover: Soft Glass Illumination (Rule 6 & Rule 23) -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
-                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
-                            <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
-                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="0.95"/>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.6"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="11" ShadowDepth="3.5" Direction="270"
-                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.5"/>
+                                    <DropShadowEffect BlurRadius="12" ShadowDepth="1.5" Direction="270"
+                                                      Color="#000000" Opacity="0.25"/>
                                 </Setter.Value>
                             </Setter>
                             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="1.015" ScaleY="1.015"/>
-                                        <TranslateTransform X="0" Y="-1.5"/>
+                                        <ScaleTransform ScaleX="1.01" ScaleY="1.01"/>
+                                        <TranslateTransform X="0" Y="-0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
 
-                        <!-- Pressed: Tactile Mechanical Compression -->
+                        <!-- Pressed: Soft Depth Compression -->
                         <Trigger Property="IsPressed" Value="True">
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                        <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
                                         <TranslateTransform X="0" Y="0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
                             <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.2"/>
-                            <Setter TargetName="ShadowHost" Property="Effect">
-                                <Setter.Value>
-                                    <DropShadowEffect BlurRadius="4" ShadowDepth="1" Direction="270"
-                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.2"/>
-                                </Setter.Value>
-                            </Setter>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.1"/>
                         </Trigger>
 
                         <Trigger Property="IsEnabled" Value="False">
@@ -714,49 +661,35 @@
     <!--       7. RIBBON PRIMARY ACTION BUTTON (ARCHIVE, FILE MANAGER)     -->
     <!-- ================================================================= -->
 
-    <!-- Акцентная 3D Liquid Glass кнопка панели команд (RibbonPrimaryActionButton) -->
+    <!-- Акцентная Soft Liquid Glass кнопка панели команд (RibbonPrimaryActionButton) -->
     <Style x:Key="RibbonPrimaryActionButton" TargetType="Button" BasedOn="{StaticResource RibbonActionButton}">
         <Setter Property="Background" Value="{DynamicResource LiquidGlassAccentSoft}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid SnapsToDevicePixels="True">
-                        <!-- Dual Ambient Shadow + Accent Glow -->
-                        <Border x:Name="ShadowHost" CornerRadius="14" Background="Transparent">
+                        <!-- Soft Ambient Glow -->
+                        <Border x:Name="ShadowHost" CornerRadius="{DynamicResource RadiusMedium}" Background="Transparent">
                             <Border.Effect>
-                                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="270"
-                                                  Color="{DynamicResource GlowAccentColor}" Opacity="0.55"/>
+                                <DropShadowEffect BlurRadius="14" ShadowDepth="1.5" Direction="270"
+                                                  Color="{DynamicResource GlowAccentColor}" Opacity="0.35"/>
                             </Border.Effect>
                         </Border>
-
-                        <!-- Dark Depth Core Refraction -->
-                        <Border x:Name="DepthCore" Margin="1" CornerRadius="13"
-                                Background="#1A000000" IsHitTestVisible="False"/>
 
                         <!-- Base Accent Glass Body -->
                         <Border x:Name="ButtonRoot"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="14"
+                                CornerRadius="{DynamicResource RadiusMedium}"
                                 SnapsToDevicePixels="True"/>
 
-                        <!-- Perimeter Inner Glow -->
-                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="13"
-                                BorderThickness="1" BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
-                                IsHitTestVisible="False" Opacity="0.8"/>
-
-                        <!-- Concentric Accent Specular Inset Bevel -->
-                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="13"
-                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource LiquidGlassAccentBevel}"
-                                IsHitTestVisible="False" Opacity="0.9"/>
-
-                        <!-- 45° Specular Sheen -->
-                        <Border x:Name="SpecularSheen" Margin="1" CornerRadius="13"
-                                Background="{StaticResource LiquidGlassSheenDiagonal}"
-                                IsHitTestVisible="False" Opacity="0.45"/>
+                        <!-- Soft Specular Top Highlight -->
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="{DynamicResource RadiusMedium}"
+                                BorderThickness="0,1,0,0" BorderBrush="{StaticResource GlassSpecularHighlight}"
+                                IsHitTestVisible="False" Opacity="0.5"/>
 
                         <!-- Content Presenter -->
                         <ContentPresenter x:Name="ContentSite"
@@ -766,48 +699,37 @@
                                           RecognizesAccessKey="True"/>
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <!-- Hover: Brilliant Accent Flare & Lift -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassAccentGlow}"/>
-                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.9"/>
-                            <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
-                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="0.95"/>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{StaticResource GlassBorderDefault}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.8"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="16" ShadowDepth="3.5" Direction="270"
-                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.85"/>
+                                    <DropShadowEffect BlurRadius="18" ShadowDepth="2" Direction="270"
+                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.55"/>
                                 </Setter.Value>
                             </Setter>
                             <Setter Property="Foreground" Value="White"/>
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
-                                        <TranslateTransform X="0" Y="-1.5"/>
+                                        <ScaleTransform ScaleX="1.01" ScaleY="1.01"/>
+                                        <TranslateTransform X="0" Y="-0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
 
-                        <!-- Pressed -->
                         <Trigger Property="IsPressed" Value="True">
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                        <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
                                         <TranslateTransform X="0" Y="0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
-                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassAccentGlow}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.25"/>
-                            <Setter TargetName="ShadowHost" Property="Effect">
-                                <Setter.Value>
-                                    <DropShadowEffect BlurRadius="5" ShadowDepth="1" Direction="270"
-                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.3"/>
-                                </Setter.Value>
-                            </Setter>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
                         </Trigger>
 
                         <Trigger Property="IsEnabled" Value="False">
@@ -828,11 +750,11 @@
     <!-- Круглая 3D кнопка навигации / действий (CyberNavCircleButton / glassBtn) -->
     <Style x:Key="CyberNavCircleButton" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="Width" Value="32"/>
-        <Setter Property="Height" Value="32"/>
-        <Setter Property="Margin" Value="0,0,4,0"/>
-        <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource MacOsLiquidGlassBevel}"/>
+        <Setter Property="Width" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Margin" Value="0,0,3,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderInvisible}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
         <Setter Property="RenderTransform">
@@ -848,61 +770,41 @@
                 <ControlTemplate TargetType="Button">
                     <Grid SnapsToDevicePixels="True">
                         <!-- 1. Circular Ambient Shadow -->
-                        <Border x:Name="ShadowHost" CornerRadius="16" Background="Transparent">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="7" ShadowDepth="2" Direction="270"
-                                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.3"/>
-                            </Border.Effect>
-                        </Border>
+                        <Border x:Name="ShadowHost" CornerRadius="14" Background="Transparent"/>
 
-                        <!-- 2. Circular Dark Core Refraction -->
-                        <Border x:Name="DepthCore" Margin="1" CornerRadius="15"
-                                Background="#10000000" IsHitTestVisible="False"/>
-
-                        <!-- 3. Circular Base Glass Body (10% translucent glass fill) -->
+                        <!-- 2. Circular Base Glass Body -->
                         <Border x:Name="ButtonRoot"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="16"
+                                CornerRadius="14"
                                 SnapsToDevicePixels="True"/>
 
-                        <!-- 4. macOS Perimeter Inner Glow (inset 0 0 3px 1px) -->
-                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="15"
-                                BorderThickness="1" BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
-                                IsHitTestVisible="False" Opacity="0.8"/>
-
-                        <!-- 5. macOS Concentric Razor Specular Inset Bevel (inset 2px 2px 0px -2px) -->
-                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="15"
-                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource MacOsLiquidGlassBevel}"
-                                IsHitTestVisible="False" Opacity="0.85"/>
-
-                        <!-- 6. 45° Circular Specular Sheen -->
-                        <Border x:Name="SpecularSheen" Margin="1" CornerRadius="15"
-                                Background="{StaticResource LiquidGlassSheenDiagonal}"
-                                IsHitTestVisible="False" Opacity="0.35"/>
+                        <!-- 3. Circular Specular Top Highlight -->
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="13"
+                                BorderThickness="0,1,0,0" BorderBrush="{StaticResource GlassSpecularHighlight}"
+                                IsHitTestVisible="False" Opacity="0"/>
 
                         <!-- Centered Icon / Content -->
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <!-- Hover: Scale up disc & flare sheen -->
+                        <!-- Hover: Soft glow & gentle scale -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.9"/>
-                            <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
-                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="1.0"/>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.6"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="12" ShadowDepth="3" Direction="270"
-                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.55"/>
+                                    <DropShadowEffect BlurRadius="10" ShadowDepth="1" Direction="270"
+                                                      Color="#000000" Opacity="0.3"/>
                                 </Setter.Value>
                             </Setter>
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="1.08" ScaleY="1.08"/>
-                                        <TranslateTransform X="0" Y="-1"/>
+                                        <ScaleTransform ScaleX="1.04" ScaleY="1.04"/>
+                                        <TranslateTransform X="0" Y="-0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
@@ -919,7 +821,7 @@
                                 </Setter.Value>
                             </Setter>
                             <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.2"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.2"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="3" ShadowDepth="1" Direction="270"

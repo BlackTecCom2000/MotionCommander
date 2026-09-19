@@ -2,15 +2,15 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:helpers="clr-namespace:Win11CopyDialog.Helpers">
 
-    <!-- ================= LIQUID GLASS FILE LIST & TABLE ================= -->
+    <!-- ================= LIQUID GLASS FILE LIST & TABLE (Rules 5, 9, 22) ================= -->
 
-    <!-- GridView Column Header -->
+    <!-- GridView Column Header (One continuous header surface, zero vertical divider lines - Rule 9) -->
     <Style TargetType="GridViewColumnHeader">
         <Setter Property="Height" Value="{DynamicResource ControlHeightCompact}"/>
-        <Setter Property="Background" Value="{DynamicResource LiquidGlassPanel}"/>
+        <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
-        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
         <Setter Property="Padding" Value="10,4"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="{DynamicResource FontSizeCaption}"/>
@@ -37,45 +37,40 @@
         </Setter>
     </Style>
 
-    <!-- Liquid Glass ListViewItem (High Performance, Zero Per-Row Blur) -->
+    <!-- Liquid Glass ListViewItem (Rule 5: flat/continuous, NOT a pill; Rule 22: illuminated from within without harsh blue outlines) -->
     <Style TargetType="ListViewItem">
         <Setter Property="Height" Value="{DynamicResource ControlHeightCompact}"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="Margin" Value="2,1"/>
-        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Margin" Value="0,0.5"/>
+        <Setter Property="Padding" Value="8,2"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListViewItem">
-                    <Border x:Name="ItemBorder" CornerRadius="{DynamicResource RadiusSmall}"
+                    <Border x:Name="ItemBorder" CornerRadius="4"
                             Background="{TemplateBinding Background}"
-                            BorderBrush="Transparent" BorderThickness="1"
+                            BorderBrush="{StaticResource GlassBorderInvisible}" BorderThickness="1"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <Grid>
-                            <!-- Selection Left Accent Pill -->
-                            <Border x:Name="LeftAccent" Width="3" HorizontalAlignment="Left" Margin="-6,-2,0,-2"
-                                    CornerRadius="1.5" Background="{DynamicResource AccentBrush}" Opacity="0">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="6" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
-                                </Border.Effect>
-                            </Border>
-                            <GridViewRowPresenter VerticalAlignment="Center" Margin="6,0,0,0"/>
+                            <!-- Selection Left Accent Soft Indicator -->
+                            <Border x:Name="LeftAccent" Width="2.5" HorizontalAlignment="Left" Margin="-8,-2,0,-2"
+                                    CornerRadius="1.25" Background="{DynamicResource AccentBrush}" Opacity="0"/>
+                            <GridViewRowPresenter VerticalAlignment="Center" Margin="4,0,0,0"/>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <!-- Hover State -->
+                        <!-- Hover State: Whisper-soft ambient glass illumination -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
-                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
                         </Trigger>
-                        <!-- Selected State -->
+                        <!-- Selected State: Soft accent-tinted surface illuminated from within, no hard border -->
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
-                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
-                            <Setter TargetName="LeftAccent" Property="Opacity" Value="1"/>
+                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{StaticResource GlassBorderDefault}"/>
+                            <Setter TargetName="LeftAccent" Property="Opacity" Value="0.9"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

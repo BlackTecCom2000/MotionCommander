@@ -26,14 +26,21 @@
     <sys:Double x:Key="PreviewPreferredWidth">300</sys:Double>
     <sys:Double x:Key="PreviewMaxWidth">450</sys:Double>
 
-    <!-- Corner Radii -->
-    <CornerRadius x:Key="RadiusSmall">6</CornerRadius>
-    <CornerRadius x:Key="RadiusNormal">8</CornerRadius>
-    <CornerRadius x:Key="RadiusLarge">12</CornerRadius>
-    <CornerRadius x:Key="RadiusXL">16</CornerRadius>
-    <CornerRadius x:Key="RadiusPill">999</CornerRadius>
+    <!-- Semantic Corner Radii (8 / 12 / 16 / 18 / 20) -->
+    <CornerRadius x:Key="RadiusSmall">8</CornerRadius>
+    <CornerRadius x:Key="RadiusS">8</CornerRadius>
+    <CornerRadius x:Key="RadiusNormal">12</CornerRadius>
+    <CornerRadius x:Key="RadiusMedium">12</CornerRadius>
+    <CornerRadius x:Key="RadiusM">12</CornerRadius>
+    <CornerRadius x:Key="RadiusLarge">16</CornerRadius>
+    <CornerRadius x:Key="RadiusL">16</CornerRadius>
+    <CornerRadius x:Key="RadiusXL">18</CornerRadius>
+    <CornerRadius x:Key="RadiusFloating">18</CornerRadius>
+    <CornerRadius x:Key="RadiusModal">20</CornerRadius>
+    <CornerRadius x:Key="RadiusPill">9999</CornerRadius>
 
-    <!-- Line Widths -->
+    <!-- Semantic Line Widths -->
+    <sys:Double x:Key="BorderThicknessInvisible">0</sys:Double>
     <sys:Double x:Key="BorderThicknessSubtle">1</sys:Double>
     <sys:Double x:Key="BorderThicknessNormal">1</sys:Double>
     <sys:Double x:Key="BorderThicknessFocus">1.5</sys:Double>

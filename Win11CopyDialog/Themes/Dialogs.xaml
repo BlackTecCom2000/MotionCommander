@@ -21,35 +21,36 @@
     </Style>
 
     <!-- ── DIALOG CARD CHROMATIC BEVEL (top-left cyan -> violet -> magenta) ── -->
+    <!-- ── DIALOG CARD CHROMATIC BEVEL (Whisper-soft refraction without harsh outlines) ── -->
     <LinearGradientBrush x:Key="DialogChromaticBevel" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#7000E5FF"  Offset="0.0"/>
-        <GradientStop Color="#BBFFFFFF"  Offset="0.10"/>
-        <GradientStop Color="#35FFFFFF"  Offset="0.28"/>
-        <GradientStop Color="#1278BEFF"  Offset="0.58"/>
-        <GradientStop Color="#50B366FF"  Offset="0.85"/>
-        <GradientStop Color="#40F43F5E"  Offset="1.0"/>
+        <GradientStop Color="#2500E5FF"  Offset="0.0"/>
+        <GradientStop Color="#3AFFFFFF"  Offset="0.12"/>
+        <GradientStop Color="#10FFFFFF"  Offset="0.30"/>
+        <GradientStop Color="#0A78BEFF"  Offset="0.60"/>
+        <GradientStop Color="#18B366FF"  Offset="0.85"/>
+        <GradientStop Color="#14F43F5E"  Offset="1.0"/>
     </LinearGradientBrush>
 
     <!-- Multi-stage top-edge inset specular sheen -->
     <LinearGradientBrush x:Key="DialogBevelSheen" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#90FFFFFF"  Offset="0.0"/>
-        <GradientStop Color="#28FFFFFF"  Offset="0.22"/>
-        <GradientStop Color="#08FFFFFF"  Offset="0.70"/>
-        <GradientStop Color="#25FFFFFF"  Offset="1.0"/>
+        <GradientStop Color="#30FFFFFF"  Offset="0.0"/>
+        <GradientStop Color="#10FFFFFF"  Offset="0.22"/>
+        <GradientStop Color="#02FFFFFF"  Offset="0.70"/>
+        <GradientStop Color="#0CFFFFFF"  Offset="1.0"/>
     </LinearGradientBrush>
 
-    <!-- ── MODAL DIALOG CARD CONTAINER ─────────────────────────────────── -->
+    <!-- ── MODAL DIALOG CARD CONTAINER (Rule 13: soft floating object with 20px radius) ── -->
     <Style x:Key="GlassDialogCard" TargetType="{x:Type Border}">
         <Setter Property="Background"          Value="{DynamicResource LiquidGlassMaterialLevel5Brush}"/>
         <Setter Property="BorderBrush"         Value="{StaticResource DialogChromaticBevel}"/>
-        <Setter Property="BorderThickness"     Value="1.5"/>
-        <Setter Property="CornerRadius"        Value="20"/>
+        <Setter Property="BorderThickness"     Value="1"/>
+        <Setter Property="CornerRadius"        Value="{DynamicResource RadiusModal}"/>
         <Setter Property="Padding"             Value="28,24"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="48" ShadowDepth="12"
-                                  Direction="270" Color="#000000" Opacity="0.72"/>
+                <DropShadowEffect BlurRadius="48" ShadowDepth="10"
+                                  Direction="270" Color="#000000" Opacity="0.65"/>
             </Setter.Value>
         </Setter>
     </Style>
@@ -57,31 +58,31 @@
     <!-- Inner inset specular highlight overlay -->
     <Style x:Key="GlassDialogCardInner" TargetType="{x:Type Border}">
         <Setter Property="Background"       Value="{StaticResource DialogBevelSheen}"/>
-        <Setter Property="BorderBrush"      Value="#18FFFFFF"/>
+        <Setter Property="BorderBrush"      Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="BorderThickness"  Value="0,1,0,0"/>
         <Setter Property="CornerRadius"     Value="19"/>
         <Setter Property="IsHitTestVisible" Value="False"/>
     </Style>
 
-    <!-- ── WINDOW ROOT CONTAINER (all secondary windows) ───────────────── -->
+    <!-- ── WINDOW ROOT CONTAINER (all secondary windows - Rule 13) ── -->
     <Style x:Key="GlassWindowRoot" TargetType="{x:Type Border}">
         <Setter Property="Background">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0.15,0" EndPoint="0.85,1">
-                    <GradientStop Color="#E60A1426" Offset="0.0"/>
-                    <GradientStop Color="#F00B1830" Offset="0.55"/>
-                    <GradientStop Color="#E80A1220" Offset="1.0"/>
+                    <GradientStop Color="#F00A1426" Offset="0.0"/>
+                    <GradientStop Color="#F40B1830" Offset="0.55"/>
+                    <GradientStop Color="#F00A1220" Offset="1.0"/>
                 </LinearGradientBrush>
             </Setter.Value>
         </Setter>
         <Setter Property="BorderBrush"         Value="{StaticResource DialogChromaticBevel}"/>
-        <Setter Property="BorderThickness"     Value="1.5"/>
-        <Setter Property="CornerRadius"        Value="12"/>
+        <Setter Property="BorderThickness"     Value="1"/>
+        <Setter Property="CornerRadius"        Value="{DynamicResource RadiusMedium}"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
         <Setter Property="Effect">
             <Setter.Value>
-                <DropShadowEffect BlurRadius="40" ShadowDepth="10"
-                                  Direction="270" Color="#000000" Opacity="0.70"/>
+                <DropShadowEffect BlurRadius="40" ShadowDepth="8"
+                                  Direction="270" Color="#000000" Opacity="0.65"/>
             </Setter.Value>
         </Setter>
     </Style>
@@ -94,7 +95,7 @@
 
     <Style x:Key="GlassDialogTitleBar" TargetType="{x:Type Border}">
         <Setter Property="Background"      Value="{StaticResource DialogTitleBarBrush}"/>
-        <Setter Property="BorderBrush"     Value="#14FFFFFF"/>
+        <Setter Property="BorderBrush"     Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="BorderThickness" Value="0,0,0,1"/>
         <Setter Property="CornerRadius"    Value="12,12,0,0"/>
     </Style>

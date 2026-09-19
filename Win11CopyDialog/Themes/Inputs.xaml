@@ -38,9 +38,9 @@
                 <ControlTemplate TargetType="{x:Type TextBox}">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{DynamicResource RadiusM}">
+                            BorderBrush="{StaticResource GlassBorderSubtle}"
+                            BorderThickness="1"
+                            CornerRadius="{DynamicResource RadiusMedium}">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Focusable="False"
                                       HorizontalScrollBarVisibility="Hidden"
@@ -49,16 +49,17 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource LiquidGlassHoverBorderBrush}"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource GlassBorderDefault}"/>
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource LiquidGlassInputHoverBackgroundBrush}"/>
                         </Trigger>
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource LiquidGlassInputFocusedBorderBrush}"/>
+                            <!-- Rule 25: Integrated soft focus glow without harsh 2px borders -->
+                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource LiquidGlassInputHoverBackgroundBrush}"/>
                             <Setter TargetName="border" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect Color="{DynamicResource AccentGlowColor}"
-                                                      BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                                                      BlurRadius="12" ShadowDepth="0" Opacity="0.45"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
@@ -76,18 +77,18 @@
     <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource GlassTextBox}"/>
 
     <!-- =========================================================================
-         2. SEARCH BOX (Pill-shaped with icon support)
+         2. SEARCH BOX (Soft seamless glass with icon support)
          ========================================================================= -->
     <Style x:Key="GlassSearchBox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource GlassTextBox}">
-        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="Padding" Value="10,5"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type TextBox}">
                     <Border x:Name="border"
                             Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{DynamicResource RadiusPill}">
+                            BorderBrush="{StaticResource GlassBorderSubtle}"
+                            BorderThickness="1"
+                            CornerRadius="{DynamicResource RadiusMedium}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -99,7 +100,7 @@
                                   Fill="{DynamicResource TextTertiaryBrush}"
                                   Width="12" Height="12"
                                   Stretch="Uniform"
-                                  Margin="10,0,4,0"
+                                  Margin="8,0,4,0"
                                   VerticalAlignment="Center"
                                   IsHitTestVisible="False"/>
                             <ScrollViewer x:Name="PART_ContentHost"
@@ -112,15 +113,15 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource LiquidGlassHoverBorderBrush}"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource GlassBorderDefault}"/>
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource LiquidGlassInputHoverBackgroundBrush}"/>
                         </Trigger>
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource LiquidGlassLensChromaticBorder}"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             <Setter TargetName="border" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect Color="{DynamicResource AccentGlowColor}"
-                                                      BlurRadius="10" ShadowDepth="0" Opacity="0.55"/>
+                                                      BlurRadius="12" ShadowDepth="0" Opacity="0.45"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>

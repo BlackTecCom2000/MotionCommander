@@ -62,77 +62,58 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Grid WindowChrome.IsHitTestVisibleInChrome="True" SnapsToDevicePixels="True">
                         <!-- 1. Ambient Drop Shadow / Glow Host -->
-                        <Border x:Name="ShadowHost" CornerRadius="14" Background="Transparent"
-                                WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Border.Effect>
-                                <DropShadowEffect x:Name="ShadowFx" BlurRadius="6" ShadowDepth="1.5" Direction="270"
-                                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.2"/>
-                            </Border.Effect>
-                        </Border>
+                        <Border x:Name="ShadowHost" CornerRadius="{DynamicResource RadiusMedium}" Background="Transparent"
+                                WindowChrome.IsHitTestVisibleInChrome="True"/>
 
-                        <!-- 2. Dark Depth Core Refraction -->
-                        <Border x:Name="DepthCore" Margin="1" CornerRadius="13"
-                                Background="#10000000" IsHitTestVisible="False"
-                                WindowChrome.IsHitTestVisibleInChrome="False"/>
-
-                        <!-- 3. Base Glass Fill & Rim -->
-                        <Border x:Name="TabBorder" CornerRadius="14"
-                                Background="Transparent" BorderBrush="Transparent" BorderThickness="1"
+                        <!-- 2. Base Glass Fill & Rim (seamless normal state) -->
+                        <Border x:Name="TabBorder" CornerRadius="{DynamicResource RadiusMedium}"
+                                Background="Transparent" BorderBrush="{StaticResource GlassBorderInvisible}" BorderThickness="1"
                                 SnapsToDevicePixels="True" WindowChrome.IsHitTestVisibleInChrome="True"/>
 
-                        <!-- 4. Concentric Inset Specular Bevel -->
-                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="13"
-                                BorderThickness="1" BorderBrush="{DynamicResource LiquidGlassBevelHighlight}"
+                        <!-- 3. Soft Inset Specular Top Highlight -->
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="{DynamicResource RadiusMedium}"
+                                BorderThickness="0,1,0,0" BorderBrush="{StaticResource GlassSpecularHighlight}"
                                 IsHitTestVisible="False" Opacity="0"
                                 WindowChrome.IsHitTestVisibleInChrome="False"/>
 
-                        <!-- 5. 45° Specular Reflection Sheen -->
-                        <Border x:Name="SpecularSheen" Margin="1" CornerRadius="13"
-                                Background="{DynamicResource LiquidGlassSheenDiagonal}"
-                                IsHitTestVisible="False" Opacity="0"
-                                WindowChrome.IsHitTestVisibleInChrome="False"/>
-
-                        <!-- 6. Content -->
+                        <!-- 4. Content -->
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Margin="{TemplateBinding Padding}"
                                           WindowChrome.IsHitTestVisibleInChrome="True"/>
                     </Grid>
                     <ControlTemplate.Triggers>
-                        <!-- Hover: Optical Lift & Sheen Reflection -->
+                        <!-- Hover: Soft Optical Lift & Reflection (Rule 7 & Rule 23) -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
-                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.6"/>
-                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.75"/>
+                            <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
+                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.6"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Direction="270"
-                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.4"/>
+                                    <DropShadowEffect BlurRadius="12" ShadowDepth="1.5" Direction="270"
+                                                      Color="#000000" Opacity="0.25"/>
                                 </Setter.Value>
                             </Setter>
                             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
-                                        <TranslateTransform X="0" Y="-1"/>
+                                        <ScaleTransform ScaleX="1.01" ScaleY="1.01"/>
+                                        <TranslateTransform X="0" Y="-0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
 
-                        <!-- Checked: Brilliant 3D Chromatic Liquid Glass Pill (2211.zip) -->
+                        <!-- Checked: Soft Ambient Accent Illumination from within the glass (Rule 7) -->
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassAccentSoft}"/>
-                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource LiquidGlassLensChromaticBorder}"/>
-                            <Setter TargetName="InnerBevel" Property="BorderBrush" Value="{StaticResource MacOsLiquidGlassBevel}"/>
-                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.95"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
+                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{StaticResource GlassBorderDefault}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.8"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="16" ShadowDepth="1.5" Direction="270"
-                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.9"/>
+                                    <DropShadowEffect BlurRadius="16" ShadowDepth="1" Direction="270"
+                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.45"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
@@ -142,12 +123,11 @@
                             <Setter Property="RenderTransform">
                                 <Setter.Value>
                                     <TransformGroup>
-                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96"/>
+                                        <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
                                         <TranslateTransform X="0" Y="0.5"/>
                                     </TransformGroup>
                                 </Setter.Value>
                             </Setter>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.2"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -157,12 +137,12 @@
 
     <Style x:Key="GlassNavTab" TargetType="RadioButton" BasedOn="{StaticResource FuturisticNavTab}"/>
 
-    <!-- ================= SIDEBAR NAVIGATION ================= -->
+    <!-- ================= SIDEBAR NAVIGATION (Rule 8) ================= -->
     <Style x:Key="SidebarNavItem" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderInvisible}"/>
         <Setter Property="Padding" Value="8,6"/>
         <Setter Property="Margin" Value="0,1"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -170,7 +150,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="NavRoot"
-                            CornerRadius="{DynamicResource RadiusNormal}"
+                            CornerRadius="{DynamicResource RadiusMedium}"
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
@@ -179,9 +159,10 @@
                         <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!-- Soft subtle illumination on hover without aggressive outlines -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="NavRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
-                            <Setter TargetName="NavRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
+                            <Setter TargetName="NavRoot" Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="NavRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
@@ -192,13 +173,13 @@
         </Setter>
     </Style>
 
-    <!-- Sidebar Elevated Drive Card -->
+    <!-- Sidebar Elevated Drive Card (Soft continuous elevation, no hard box outline) -->
     <Style x:Key="SidebarDriveCard" TargetType="Border">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorderSubtle}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="CornerRadius" Value="{DynamicResource RadiusNormal}"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RadiusMedium}"/>
         <Setter Property="Padding" Value="10,8"/>
         <Setter Property="Margin" Value="0,3"/>
         <Setter Property="SnapsToDevicePixels" Value="True"/>
@@ -209,11 +190,11 @@
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource GlassBorderDefault}"/>
                 <Setter Property="Effect">
                     <Setter.Value>
-                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="270"
-                                          Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.4"/>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="2" Direction="270"
+                                          Color="#000000" Opacity="0.35"/>
                     </Setter.Value>
                 </Setter>
             </Trigger>
