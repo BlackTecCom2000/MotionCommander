@@ -4,119 +4,135 @@
         Title="Инспектор системных драйверов и устройств — Motion Commander"
         Height="720" Width="1080" MinWidth="900" MinHeight="550"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource WindowBackgroundBrush}"
-        Foreground="{DynamicResource PrimaryTextBrush}">
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
 
-    <Grid Margin="18">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" CornerRadius="12" GlassFrameThickness="0" ResizeBorderThickness="7"/>
+    </WindowChrome.WindowChrome>
 
-        <!-- Шапка -->
-        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
-            <DockPanel>
-                <Border Width="38" Height="38" CornerRadius="19" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
-                    <TextBlock Text="🧩" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Border>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Анализ и диагностика драйверов оборудования Windows" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Text="Проверка состояния PnP устройств, NVMe/SATA контроллеров, видеокарт, шин и выявление ошибок" FontSize="11" Style="{StaticResource MutedText}"/>
-                </StackPanel>
-            </DockPanel>
-        </Border>
+    <Border Style="{StaticResource GlassWindowRoot}">
+        <DockPanel>
+            <!-- ШАПКА -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="34" Height="34" CornerRadius="10" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                                BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                            <TextBlock Text="🧩" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Анализ и диагностика драйверов оборудования Windows" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Проверка состояния PnP устройств, NVMe/SATA контроллеров, видеокарт, шин и выявление ошибок" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+                </Grid>
+            </Border>
 
-        <!-- Панель управления и фильтры -->
-        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
-            <Grid>
+            <!-- НИЖНИЙ СТАТУС -->
+            <Border DockPanel.Dock="Bottom" Padding="18,12" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0">
+                <DockPanel>
+                    <ProgressBar x:Name="ScanProgress" DockPanel.Dock="Right" Width="180" Height="6" IsIndeterminate="True" Visibility="Collapsed" BorderThickness="0" Background="{DynamicResource LiquidGlassInputBackgroundBrush}" Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock x:Name="StatusText" Text="Загрузка списка оборудования..." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </DockPanel>
+            </Border>
+
+            <!-- ТЕЛО -->
+            <Grid Margin="18,14">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                        <Button Style="{StaticResource CyberToolButton}" Content="🛠 Диспетчер устройств Windows" Margin="0,0,8,0" Padding="12,6" Click="OpenDeviceManager_Click"/>
-                        <Button Style="{StaticResource CyberToolButton}" Content="📋 Экспорт отчёта" Margin="0,0,8,0" Padding="12,6" Click="ExportReport_Click"/>
-                        <Button x:Name="RefreshBtn" Style="{StaticResource CyberButton}" Content="🔄 Сканировать драйверы" Padding="14,6" Click="RefreshDrivers_Click"/>
-                    </StackPanel>
-
+                <!-- Панель управления и фильтры -->
+                <Border Grid.Row="0" Style="{StaticResource GlassSectionCard}" Margin="0,0,0,12">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Поиск:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Margin="0,0,10,0"/>
-                        <TextBox x:Name="SearchBox" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
-                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Padding="8,6" VerticalAlignment="Center"
-                                 TextChanged="SearchBox_TextChanged"/>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                <Button Style="{StaticResource Win11Button}" Content="🛠 Диспетчер устройств" Margin="0,0,8,0" Padding="12,6" Click="OpenDeviceManager_Click"/>
+                                <Button Style="{StaticResource Win11Button}" Content="📋 Экспорт отчёта" Margin="0,0,8,0" Padding="12,6" Click="ExportReport_Click"/>
+                                <Button x:Name="RefreshBtn" Style="{StaticResource AccentButton}" Content="🔄 Сканировать драйверы" Padding="14,6" Click="RefreshDrivers_Click"/>
+                            </StackPanel>
+
+                            <Grid Margin="0,0,14,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Поиск:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                <TextBox x:Name="SearchBox" Grid.Column="1" Style="{StaticResource GlassTextBox}"
+                                         Padding="8,4" VerticalAlignment="Center"
+                                         TextChanged="SearchBox_TextChanged"/>
+                            </Grid>
+                        </DockPanel>
+
+                        <!-- Фильтры категорий -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal">
+                            <RadioButton x:Name="FilterAllRadio" Content="Все устройства" IsChecked="True" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterStorageRadio" Content="💾 Накопители и NVMe/SATA" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterGpuRadio" Content="🎮 Видеокарты (GPU)" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterNetworkRadio" Content="🌐 Сетевые карты" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterSystemRadio" Content="⚙ Системные шины" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterIssuesRadio" Content="⚠️ С ошибками / Предупреждениями" Foreground="#FF5252" FontWeight="Bold" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                        </StackPanel>
                     </Grid>
-                </DockPanel>
+                </Border>
 
-                <!-- Фильтры категорий -->
-                <StackPanel Grid.Row="1" Orientation="Horizontal">
-                    <RadioButton x:Name="FilterAllRadio" Content="Все устройства" IsChecked="True" Margin="0,0,12,0" Checked="FilterRadio_Checked"/>
-                    <RadioButton x:Name="FilterStorageRadio" Content="💾 Накопители и NVMe/SATA" Margin="0,0,12,0" Checked="FilterRadio_Checked"/>
-                    <RadioButton x:Name="FilterGpuRadio" Content="🎮 Видеокарты (GPU)" Margin="0,0,12,0" Checked="FilterRadio_Checked"/>
-                    <RadioButton x:Name="FilterNetworkRadio" Content="🌐 Сетевые карты" Margin="0,0,12,0" Checked="FilterRadio_Checked"/>
-                    <RadioButton x:Name="FilterSystemRadio" Content="⚙ Системные шины" Margin="0,0,12,0" Checked="FilterRadio_Checked"/>
-                    <RadioButton x:Name="FilterIssuesRadio" Content="⚠️ С ошибками / Предупреждениями" Foreground="#FF5252" FontWeight="Bold" Margin="0,0,12,0" Checked="FilterRadio_Checked"/>
-                </StackPanel>
+                <!-- Таблица устройств и драйверов -->
+                <Border Grid.Row="1" Style="{StaticResource GlassSectionCard}" Margin="0" Padding="4">
+                    <ListView x:Name="DriversListView" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimaryBrush}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Статус" Width="90">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding StatusBadgeBrush}" CornerRadius="6" Padding="6,2" HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusBadgeText}" FontSize="10" FontWeight="Bold" Foreground="{Binding StatusBadgeForeground}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Устройство / Драйвер" Width="330">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding CategoryIcon}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding HardwareId}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Категория" Width="140" DisplayMemberBinding="{Binding CategoryName}"/>
+                                <GridViewColumn Header="Производитель" Width="170" DisplayMemberBinding="{Binding Manufacturer}"/>
+                                <GridViewColumn Header="Служба драйвера" Width="130" DisplayMemberBinding="{Binding ServiceName}"/>
+                                <GridViewColumn Header="Состояние / Код" Width="190">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ErrorDescription}" Foreground="{Binding ErrorTextBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Border>
             </Grid>
-        </Border>
-
-        <!-- Таблица устройств и драйверов -->
-        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="10">
-            <ListView x:Name="DriversListView" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource PrimaryTextBrush}">
-                <ListView.View>
-                    <GridView>
-                        <GridViewColumn Header="Статус" Width="85">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Border Background="{Binding StatusBadgeBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center">
-                                        <TextBlock Text="{Binding StatusBadgeText}" FontSize="10" FontWeight="Bold" Foreground="{Binding StatusBadgeForeground}"/>
-                                    </Border>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-
-                        <GridViewColumn Header="Устройство / Драйвер" Width="320">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding CategoryIcon}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding HardwareId}" FontSize="10" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-
-                        <GridViewColumn Header="Категория" Width="140" DisplayMemberBinding="{Binding CategoryName}"/>
-                        <GridViewColumn Header="Производитель" Width="170" DisplayMemberBinding="{Binding Manufacturer}"/>
-                        <GridViewColumn Header="Служба драйвера" Width="130" DisplayMemberBinding="{Binding ServiceName}"/>
-                        <GridViewColumn Header="Состояние / Код" Width="180">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding ErrorDescription}" Foreground="{Binding ErrorTextBrush}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-                    </GridView>
-                </ListView.View>
-            </ListView>
-        </Border>
-
-        <!-- Нижний статус -->
-        <Border Grid.Row="3" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,10,0,0">
-            <DockPanel>
-                <ProgressBar x:Name="ScanProgress" DockPanel.Dock="Right" Width="180" Height="8" IsIndeterminate="True" Visibility="Collapsed" BorderThickness="0" Background="{DynamicResource ProgressTrackBrush}" Foreground="{DynamicResource AccentBrush}"/>
-                <TextBlock x:Name="StatusText" Text="Загрузка списка оборудования..." FontSize="11" Style="{StaticResource MutedText}"/>
-            </DockPanel>
-        </Border>
-    </Grid>
+        </DockPanel>
+    </Border>
 </Window>

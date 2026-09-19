@@ -10,62 +10,61 @@
         AllowsTransparency="True"
         Background="Transparent">
 
-    <Border x:Name="RootBorder" Background="{DynamicResource WindowBackgroundBrush}"
-            BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
-            CornerRadius="14">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="28" ShadowDepth="6" Direction="270"
-                              Color="{DynamicResource GlowAccentColor}" Opacity="0.35"/>
-        </Border.Effect>
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" CornerRadius="12" GlassFrameThickness="0" ResizeBorderThickness="6"/>
+    </WindowChrome.WindowChrome>
 
-        <DockPanel Margin="18">
+    <Border x:Name="RootBorder" Style="{StaticResource GlassWindowRoot}">
+        <DockPanel>
             <!-- ШАПКА -->
-            <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="26" Height="26" CornerRadius="13" Background="{DynamicResource AccentBrush}" Margin="0,0,8,0">
-                        <TextBlock Text="🗜" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <TextBlock Text="Создание архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
-                </StackPanel>
-                <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
-            </Grid>
+            <Border DockPanel.Dock="Top" Style="{StaticResource GlassDialogTitleBar}" Padding="16,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="28" Height="28" CornerRadius="8" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                                BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,10,0">
+                            <TextBlock Text="🗜" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Создание архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+                </Grid>
+            </Border>
 
             <!-- КНОПКИ ВНИЗУ -->
-            <Border DockPanel.Dock="Bottom" Margin="0,14,0,0">
+            <Border DockPanel.Dock="Bottom" Padding="18,14" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Style="{StaticResource MutedText}"/>
+                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <Button x:Name="CancelBtn" Grid.Column="1" Style="{StaticResource Win11Button}" Content="Отмена" MinWidth="90" Height="34" Margin="0,0,8,0" Click="Close_Click"/>
-                    <Button x:Name="StartBtn" Grid.Column="2" Style="{StaticResource CyberButton}" Content="⚡ Сжать архив" MinWidth="130" Height="34" Click="StartCompress_Click"/>
+                    <Button x:Name="StartBtn" Grid.Column="2" Style="{StaticResource AccentButton}" Content="⚡ Сжать архив" MinWidth="130" Height="34" Click="StartCompress_Click"/>
                 </Grid>
             </Border>
 
             <!-- ОСНОВНОЕ ТЕЛО -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
                 <StackPanel>
                     <!-- Имя и путь архива -->
-                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                    <Border Style="{StaticResource GlassSectionCard}">
                         <StackPanel>
-                            <TextBlock Text="Имя и путь к архиву" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Имя и путь к архиву" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                             <DockPanel>
                                 <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Обзор…" Margin="6,0,0,0" Padding="12,4" Click="Browse_Click"/>
                                 <TextBox x:Name="ArchivePathBox" Height="32" VerticalContentAlignment="Center" Padding="8,0"
-                                         Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}"
-                                         BorderBrush="{DynamicResource SubtleBorderBrush}"/>
+                                         Style="{StaticResource GlassTextBox}"/>
                             </DockPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- Формат и Сжатие -->
-                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                    <Border Style="{StaticResource GlassSectionCard}">
                         <StackPanel>
                             <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
@@ -73,7 +72,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Margin="0,0,6,0">
-                                    <TextBlock Text="Формат архива" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Формат архива" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                     <ComboBox x:Name="FormatCombo" Height="32" SelectedIndex="0">
                                         <ComboBoxItem Content=".ZIP (Универсальный)"/>
                                         <ComboBoxItem Content=".7Z (Максимальное сжатие)"/>
@@ -83,7 +82,7 @@
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                                    <TextBlock Text="Метод компрессии" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Метод компрессии" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                     <ComboBox x:Name="LevelCombo" Height="32" SelectedIndex="2">
                                         <ComboBoxItem Content="Без сжатия (Store)"/>
                                         <ComboBoxItem Content="Быстрое (Fast)"/>
@@ -95,24 +94,23 @@
                             </Grid>
 
                             <!-- Слайдер уровня сжатия -->
-                            <TextBlock Text="Уровень сжатия (Скорость ↔ Плотность)" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Уровень сжатия (Скорость ↔ Плотность)" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                             <Slider x:Name="LevelSlider" Minimum="0" Maximum="4" Value="2" TickFrequency="1" IsSnapToTickEnabled="True"
                                     ValueChanged="LevelSlider_ValueChanged"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Безопасность / Пароль -->
-                    <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                    <Border Style="{StaticResource GlassSectionCard}">
                         <StackPanel>
-                            <TextBlock Text="Шифрование и Защита паролем" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Шифрование и Защита паролем" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <PasswordBox x:Name="PasswordInput" Height="32" VerticalContentAlignment="Center" Padding="8,0"
-                                             Background="{DynamicResource InputBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}"
-                                             BorderBrush="{DynamicResource SubtleBorderBrush}"/>
+                                             Style="{StaticResource GlassPasswordBox}"/>
                                 <CheckBox x:Name="EncryptHeadersCheck" Grid.Column="1" Content="Шифровать имена файлов (7Z)"
                                           VerticalAlignment="Center" Margin="12,0,0,0" IsChecked="True"/>
                             </Grid>
@@ -120,7 +118,7 @@
                     </Border>
 
                     <!-- ВИЗУАЛИЗАТОР СЖАТИЯ (Появляется при процессе) -->
-                    <Border x:Name="VisualCard" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,6" Visibility="Collapsed">
+                    <Border x:Name="VisualCard" Style="{StaticResource GlassSectionCard}" Visibility="Collapsed">
                         <StackPanel>
                             <ctrl:CompressionVisualizer x:Name="CompVis" Height="140"/>
                             <Grid Margin="0,8,0,0">
@@ -128,7 +126,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="CompFileText" FontSize="11" FontWeight="SemiBold" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="CompFileText" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
                                 <TextBlock x:Name="CompRatioText" Grid.Column="1" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                             </Grid>
                             <ProgressBar x:Name="CompProgress" Height="6" Margin="0,6,0,0" Minimum="0" Maximum="100"/>

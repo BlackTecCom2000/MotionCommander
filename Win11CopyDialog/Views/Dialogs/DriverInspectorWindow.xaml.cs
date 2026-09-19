@@ -79,6 +79,12 @@ public partial class DriverInspectorWindow : Window
         Loaded += async (_, _) => await LoadDriversAsync();
     }
 
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        Close();
+    }
+
     private async void RefreshDrivers_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();

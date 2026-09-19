@@ -164,8 +164,13 @@
     </Style>
     <Style x:Key="MacOSGlassContainer" TargetType="Border" BasedOn="{StaticResource GlassContainer}"/>
 
-    <!-- Backward-Compatible Aliases for Card -->
+    <!-- Backward-Compatible Aliases for Card and Materials -->
     <Style x:Key="Card" TargetType="Border" BasedOn="{StaticResource LiquidGlassCard}"/>
     <Style x:Key="GlassCard" TargetType="Border" BasedOn="{StaticResource LiquidGlassCard}"/>
+
+    <!-- Token Aliases (mapping legacy names to LiquidGlass standards) -->
+    <SolidColorBrush x:Key="LiquidGlassProgressTrackBrush" Color="#28168CFF"/>
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#6008111F"/>
+    <SolidColorBrush x:Key="SubtleBorderBrush" Color="#2E78BEFF"/>
 
 </ResourceDictionary>

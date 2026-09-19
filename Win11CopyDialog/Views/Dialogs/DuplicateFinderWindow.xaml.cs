@@ -57,6 +57,12 @@ public partial class DuplicateFinderWindow : Window
         UpdateSelectionCount();
     }
 
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        Close();
+    }
+
     private void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();

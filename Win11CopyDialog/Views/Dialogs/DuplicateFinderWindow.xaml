@@ -4,128 +4,144 @@
         Title="Поиск и очистка дубликатов файлов — Motion Commander"
         Height="700" Width="1050" MinWidth="850" MinHeight="550"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource WindowBackgroundBrush}"
-        Foreground="{DynamicResource PrimaryTextBrush}">
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
 
-    <Grid Margin="18">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" CornerRadius="12" GlassFrameThickness="0" ResizeBorderThickness="7"/>
+    </WindowChrome.WindowChrome>
 
-        <!-- Шапка -->
-        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
-            <DockPanel>
-                <Border Width="38" Height="38" CornerRadius="19" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
-                    <TextBlock Text="🔍" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Border>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Поиск и безопасная очистка дубликатов файлов" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock Text="3-уровневый алгоритм (Размер → Пре-хэш 4 КБ → Полный SHA-256) для мгновенного нахождения копий" FontSize="11" Style="{StaticResource MutedText}"/>
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
-        <!-- Настройки поиска -->
-        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <Grid Grid.Row="0" Margin="0,0,0,10">
+    <Border Style="{StaticResource GlassWindowRoot}">
+        <DockPanel>
+            <!-- ШАПКА -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Папка поиска:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Margin="0,0,10,0"/>
-                    <TextBox x:Name="SearchFolderBox" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
-                             Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Padding="8,6" VerticalAlignment="Center"/>
-                    <Button Grid.Column="2" Style="{StaticResource CyberToolButton}" Content="📂 Обзор..." Margin="8,0,0,0" Padding="12,6" Click="BrowseFolder_Click"/>
-                    <Button x:Name="StartSearchBtn" Grid.Column="3" Style="{StaticResource CyberButton}" Content="⚡ Искать дубликаты" Margin="8,0,0,0" Padding="16,6" Click="StartSearch_Click"/>
-                </Grid>
-
-                <DockPanel Grid.Row="1">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Минимальный размер файла:" FontSize="11" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="MinSizeCombo" Width="130" SelectedIndex="1">
-                            <ComboBoxItem Content="Любой размер"/>
-                            <ComboBoxItem Content="> 1 МБ"/>
-                            <ComboBoxItem Content="> 10 МБ"/>
-                            <ComboBoxItem Content="> 100 МБ"/>
-                            <ComboBoxItem Content="> 1 ГБ"/>
-                        </ComboBox>
+                        <Border Width="34" Height="34" CornerRadius="10" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                                BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                            <TextBlock Text="🔍" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Поиск и безопасная очистка дубликатов файлов" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="3-уровневый алгоритм (Размер → Пре-хэш 4 КБ → Полный SHA-256) для мгновенного нахождения копий" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
                     </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+                </Grid>
+            </Border>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Style="{StaticResource CyberToolButton}" Content="☑ Отметить все копии (оставить 1)" Margin="0,0,8,0" Click="SelectAllDuplicates_Click"/>
-                        <Button Style="{StaticResource CyberToolButton}" Content="☐ Снять выбор" Margin="0,0,8,0" Click="DeselectAll_Click"/>
-                        <Button x:Name="DeleteSelectedBtn" Style="{StaticResource CyberButton}" Content="🗑 Удалить выбранные (0)" Padding="14,4" Click="DeleteSelected_Click"/>
-                    </StackPanel>
+            <!-- НИЖНИЙ СТАТУС-БАР -->
+            <Border DockPanel.Dock="Bottom" Padding="18,12" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0">
+                <DockPanel>
+                    <ProgressBar x:Name="SearchProgress" DockPanel.Dock="Right" Width="180" Height="6" IsIndeterminate="True" Visibility="Collapsed" BorderThickness="0" Background="{DynamicResource LiquidGlassInputBackgroundBrush}" Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock x:Name="StatusText" Text="Готово к поиску. Выберите папку для проверки." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </DockPanel>
+            </Border>
+
+            <!-- ТЕЛО -->
+            <Grid Margin="18,14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Панель настроек поиска -->
+                <Border Grid.Row="0" Style="{StaticResource GlassSectionCard}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Папка поиска:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                            <TextBox x:Name="SearchFolderBox" Grid.Column="1" Style="{StaticResource GlassTextBox}"
+                                     Padding="8,4" VerticalAlignment="Center"/>
+                            <Button Grid.Column="2" Style="{StaticResource Win11Button}" Content="📂 Обзор..." Margin="8,0,0,0" Padding="12,5" Click="BrowseFolder_Click"/>
+                            <Button x:Name="StartSearchBtn" Grid.Column="3" Style="{StaticResource AccentButton}" Content="⚡ Искать дубликаты" Margin="8,0,0,0" Padding="16,5" Click="StartSearch_Click"/>
+                        </Grid>
+
+                        <DockPanel Grid.Row="1">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Минимальный размер файла:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="MinSizeCombo" Width="130" SelectedIndex="1">
+                                    <ComboBoxItem Content="Любой размер"/>
+                                    <ComboBoxItem Content="> 1 МБ"/>
+                                    <ComboBoxItem Content="> 10 МБ"/>
+                                    <ComboBoxItem Content="> 100 МБ"/>
+                                    <ComboBoxItem Content="> 1 ГБ"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Style="{StaticResource Win11Button}" Content="☑ Отметить все копии (оставить 1)" Margin="0,0,8,0" Click="SelectAllDuplicates_Click"/>
+                                <Button Style="{StaticResource Win11Button}" Content="☐ Снять выбор" Margin="0,0,8,0" Click="DeselectAll_Click"/>
+                                <Button x:Name="DeleteSelectedBtn" Style="{StaticResource AccentButton}" Content="🗑 Удалить выбранные (0)" Padding="14,4" Click="DeleteSelected_Click"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Список найденных дубликатов -->
+                <Border Grid.Row="1" Style="{StaticResource GlassSectionCard}" Margin="0" Padding="4">
+                    <ListView x:Name="DuplicatesListView" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimaryBrush}">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Width="40">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Checked="CheckChanged" Unchecked="CheckChanged"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Группа" Width="70">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource LiquidGlassActiveHighlight}" BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" CornerRadius="6" Padding="6,1" HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding GroupIndex}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Имя файла" Width="260">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📄" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Размер" Width="100">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FormattedSize}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Дата изменения" Width="140" DisplayMemberBinding="{Binding DateModifiedFormatted}"/>
+                                <GridViewColumn Header="Каталог расположения" Width="400" DisplayMemberBinding="{Binding DirectoryPath}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Border>
             </Grid>
-        </Border>
-
-        <!-- Список найденных дубликатов -->
-        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="10">
-            <ListView x:Name="DuplicatesListView" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource PrimaryTextBrush}">
-                <ListView.View>
-                    <GridView>
-                        <GridViewColumn Width="40">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Checked="CheckChanged" Unchecked="CheckChanged"/>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-
-                        <GridViewColumn Header="Группа" Width="70">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="4" Padding="4,1" HorizontalAlignment="Center">
-                                        <TextBlock Text="{Binding GroupIndex}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                                    </Border>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-
-                        <GridViewColumn Header="Имя файла" Width="260">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📄" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-
-                        <GridViewColumn Header="Размер" Width="100">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding FormattedSize}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-
-                        <GridViewColumn Header="Дата изменения" Width="140" DisplayMemberBinding="{Binding DateModifiedFormatted}"/>
-                        <GridViewColumn Header="Каталог расположения" Width="400" DisplayMemberBinding="{Binding DirectoryPath}"/>
-                    </GridView>
-                </ListView.View>
-            </ListView>
-        </Border>
-
-        <!-- Статус-бар -->
-        <Border Grid.Row="3" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,10,0,0">
-            <DockPanel>
-                <ProgressBar x:Name="SearchProgress" DockPanel.Dock="Right" Width="180" Height="8" IsIndeterminate="True" Visibility="Collapsed" BorderThickness="0" Background="{DynamicResource ProgressTrackBrush}" Foreground="{DynamicResource AccentBrush}"/>
-                <TextBlock x:Name="StatusText" Text="Готово к поиску. Выберите папку для проверки." FontSize="11" Style="{StaticResource MutedText}"/>
-            </DockPanel>
-        </Border>
-    </Grid>
+        </DockPanel>
+    </Border>
 </Window>

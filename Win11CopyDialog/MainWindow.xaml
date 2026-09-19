@@ -243,9 +243,17 @@
                 <RowDefinition Height="Auto" /> <!-- Footer -->
             </Grid.RowDefinitions>
 
+
+            <!-- ══ STARFIELD BACKDROP (ports the React/CSS starfield card component) ══
+                 Three animated star layers scrolling from Y=0 → -2000px in 50/100/150s cycles.
+                 Deep space radial gradient: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)
+                 Renders below the liquid-glass chromatic glows so they overlay on top. -->
+            <ctrl:StarfieldControl Grid.RowSpan="4" IsHitTestVisible="False"/>
+
             <!-- Fluid Optical Backdrop Layer (Ambient Cyan & Violet Luminous Glows under frosted glass - 2211.zip) -->
             <Canvas Grid.RowSpan="4" IsHitTestVisible="False" ClipToBounds="True">
                 <!-- Top-Left Cyan Luminous Aura -->
+
                 <Ellipse Width="460" Height="460" Canvas.Left="-100" Canvas.Top="-100" Opacity="0.14">
                     <Ellipse.Fill>
                         <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">

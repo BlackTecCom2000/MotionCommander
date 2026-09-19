@@ -70,6 +70,12 @@ public partial class WizTreeAnalyzerWindow : Window
         TargetFolderBox.Text = string.IsNullOrEmpty(initialPath) ? "C:\\" : initialPath;
     }
 
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        Close();
+    }
+
     private void BrowseFolder_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
