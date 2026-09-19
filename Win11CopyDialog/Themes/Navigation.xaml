@@ -45,8 +45,8 @@
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontFamily" Value="{DynamicResource FontFamilySystem}"/>
         <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-        <Setter Property="Padding" Value="14,6"/>
-        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Margin" Value="1.5,0"/>
         <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
         <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
         <Setter Property="RenderTransform">

@@ -12,11 +12,11 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontSize" Value="10.5"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Padding" Value="6,5"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
@@ -83,15 +83,17 @@
         <!-- 2. ПОДВКЛАДКИ УПРАВЛЕНИЯ -->
         <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
                 BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,10">
-            <UniformGrid Columns="7">
-                <RadioButton x:Name="SubTabHealthRadio" GroupName="StorageSubGroup" Content="🩺 Обзор и Health" Style="{StaticResource StorageSubTab}" IsChecked="True" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                <RadioButton x:Name="SubTabPartitionsRadio" GroupName="StorageSubGroup" Content="🗂 Partition Manager" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                <RadioButton x:Name="SubTabBenchmarkRadio" GroupName="StorageSubGroup" Content="🏎 Бенчмарк скорости" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                <RadioButton x:Name="SubTabOptimizerRadio" GroupName="StorageSubGroup" Content="⚡ Оптимизация и TRIM" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                <RadioButton x:Name="SubTabCleanupRadio" GroupName="StorageSubGroup" Content="🧹 Анализ пространства" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                <RadioButton x:Name="SubTabSafetyRadio" GroupName="StorageSubGroup" Content="🛡 Безопасность и Wipe" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                <RadioButton x:Name="SubTabMigrationRadio" GroupName="StorageSubGroup" Content="🔄 Клонирование ОС" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-            </UniformGrid>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly">
+                <UniformGrid Columns="7" MinWidth="750">
+                    <RadioButton x:Name="SubTabHealthRadio" GroupName="StorageSubGroup" Content="🩺 Обзор и Health" Style="{StaticResource StorageSubTab}" IsChecked="True" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                    <RadioButton x:Name="SubTabPartitionsRadio" GroupName="StorageSubGroup" Content="🗂 Partition Manager" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                    <RadioButton x:Name="SubTabBenchmarkRadio" GroupName="StorageSubGroup" Content="🏎 Бенчмарк скорости" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                    <RadioButton x:Name="SubTabOptimizerRadio" GroupName="StorageSubGroup" Content="⚡ Оптимизация и TRIM" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                    <RadioButton x:Name="SubTabCleanupRadio" GroupName="StorageSubGroup" Content="🧹 Анализ пространства" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                    <RadioButton x:Name="SubTabSafetyRadio" GroupName="StorageSubGroup" Content="🛡 Безопасность и Wipe" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                    <RadioButton x:Name="SubTabMigrationRadio" GroupName="StorageSubGroup" Content="🔄 Клонирование ОС" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
+                </UniformGrid>
+            </ScrollViewer>
         </Border>
 
         <!-- 3. РАБОЧАЯ ОБЛАСТЬ -->

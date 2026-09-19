@@ -264,7 +264,7 @@
                         </Border>
                         <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
                         <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.5 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.6 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
                         </Border>
                         <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="6,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource TitleForegroundBrush}" Width="11" Height="11" Stretch="Uniform"/>
@@ -356,102 +356,107 @@
             <!-- ОСНОВНОЙ КОНТЕНТ (5 ВКЛАДОК) -->
                 <!-- ================= 1. ФАЙЛЫ И АРХИВЫ ================= -->
             <!-- TOOLBAR -->
-            <StackPanel Grid.Row="1">
-<!-- Панель команд (Floating Glass Ribbon Dock) -->
-                        <Border Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
-                                BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
-                            <DockPanel>
-                                <!-- Правая часть: Скрытые файлы и Обновить (всегда прижаты вправо) -->
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <CheckBox x:Name="ShowHiddenCheck" Content="Скрытые файлы" Foreground="{DynamicResource PrimaryTextBrush}"
-                                              FontSize="11.5" FontWeight="Medium" Cursor="Hand" VerticalAlignment="Center" Margin="0,0,12,0" Click="ShowHidden_Click"/>
-                                    <Button Style="{StaticResource CyberNavCircleButton}" ToolTip="Обновить список (F5)" Click="Refresh_Click">
-                                        <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource PrimaryTextBrush}" Width="12" Height="12" Stretch="Uniform"/>
-                                    </Button>
-                                </StackPanel>
+            <StackPanel x:Name="FileBrowserToolbarPanel" Grid.Row="1">
+                <!-- Панель команд (Floating Glass Ribbon Dock) -->
+                <Border Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
+                        BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
+                    <DockPanel LastChildFill="True">
+                        <!-- Правая часть: Скрытые файлы и Обновить (всегда прижаты вправо и гарантированно видимы) -->
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <CheckBox x:Name="ShowHiddenCheck" Content="Скрытые" Foreground="{DynamicResource PrimaryTextBrush}"
+                                      FontSize="11" FontWeight="Medium" Cursor="Hand" VerticalAlignment="Center" Margin="0,0,8,0" Click="ShowHidden_Click"
+                                      ToolTip="Показывать скрытые файлы и папки"/>
+                            <Button Style="{StaticResource CyberNavCircleButton}" ToolTip="Обновить список (F5)" Click="Refresh_Click">
+                                <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource PrimaryTextBrush}" Width="12" Height="12" Stretch="Uniform"/>
+                            </Button>
+                        </StackPanel>
 
-                                <!-- Основные действия с архивами и файлами -->
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button x:Name="CreateArchiveBtn" Style="{StaticResource RibbonPrimaryActionButton}"
-                                            Click="CreateArchive_Click" ToolTip="Создать новый архив из выбранных файлов">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Archive}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
-                                            <TextBlock Text="Создать архив" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button x:Name="ExtractArchiveBtn" Style="{StaticResource RibbonActionButton}"
-                                            Click="ExtractArchive_Click" ToolTip="Распаковать архив в папку">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Extract}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
-                                            <TextBlock Text="Распаковать" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button x:Name="TestArchiveBtn" Style="{StaticResource RibbonActionButton}"
-                                            Click="TestArchive_Click" ToolTip="Проверить целостность архива">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Shield}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
-                                            <TextBlock Text="Проверить" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
+                        <!-- Основные действия с файлами и архивами (горизонтальный скроллинг без наложения) -->
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                      Focusable="False" PanningMode="HorizontalOnly">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="CreateArchiveBtn" Style="{StaticResource RibbonPrimaryActionButton}"
+                                        Click="CreateArchive_Click" ToolTip="Создать новый архив из выбранных файлов">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Archive}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Архив" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="ExtractArchiveBtn" Style="{StaticResource RibbonActionButton}"
+                                        Click="ExtractArchive_Click" ToolTip="Распаковать архив в папку">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Extract}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Распаковать" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="TestArchiveBtn" Style="{StaticResource RibbonActionButton}"
+                                        Click="TestArchive_Click" ToolTip="Проверить целостность архива">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Shield}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Тест" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
 
-                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="6,0,8,0"/>
+                                <Rectangle Width="1" Height="18" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="5,0,6,0"/>
 
-                                    <Button Style="{StaticResource RibbonActionButton}" Click="CopyItem_Click" ToolTip="Копировать в буфер обмена (Ctrl+C)">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Копировать" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Style="{StaticResource RibbonActionButton}" Click="CutItem_Click" ToolTip="Вырезать в буфер обмена (Ctrl+X)">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Вырезать" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Style="{StaticResource RibbonActionButton}" Click="PasteItem_Click" ToolTip="Вставить из буфера обмена (Ctrl+V)">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Вставить" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Style="{StaticResource RibbonActionButton}" Click="DeleteItem_Click" ToolTip="Удалить выбранные элементы (Del)">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Delete}" Fill="#EF4444" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Удалить" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Style="{StaticResource RibbonActionButton}" Click="NewFolder_Click" ToolTip="Создать новую папку (Ctrl+Shift+N)">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_NewFolder}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Папка" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Button Style="{StaticResource RibbonActionButton}" Click="ShowHashes_Click" ToolTip="Вычисление контрольных сумм MD5, SHA-256">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                            <TextBlock Text="Хэши" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="6,0,8,0"/>
-                                    <Button x:Name="OpenFileManagerBtn" Style="{StaticResource RibbonPrimaryActionButton}" Click="OpenFileManager_Click" ToolTip="Открыть автономный файловый менеджер (Motion UI)">
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
-                                            <TextBlock Text="Файловый менеджер" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
-                            </DockPanel>
-                        </Border>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="CopyItem_Click" ToolTip="Копировать в буфер обмена (Ctrl+C)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Копия" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="CutItem_Click" ToolTip="Вырезать в буфер обмена (Ctrl+X)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Вырезать" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="PasteItem_Click" ToolTip="Вставить из буфера обмена (Ctrl+V)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Вставить" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="DeleteItem_Click" ToolTip="Удалить выбранные элементы (Del)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Delete}" Fill="#EF4444" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Удалить" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="NewFolder_Click" ToolTip="Создать новую папку (Ctrl+Shift+N)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_NewFolder}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Папка" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="ShowHashes_Click" ToolTip="Вычисление контрольных сумм MD5, SHA-256">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Хэши" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
 
-                        
-<!-- Строка пути и Поиск -->
-                        <Border Background="{DynamicResource LiquidGlassMaterialLevel1Brush}" Padding="12,6" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="240"/>
-                                </Grid.ColumnDefinitions>
+                                <Rectangle Width="1" Height="18" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="5,0,6,0"/>
+
+                                <Button x:Name="OpenFileManagerBtn" Style="{StaticResource RibbonPrimaryActionButton}" Click="OpenFileManager_Click" ToolTip="Открыть автономный файловый менеджер (Motion UI)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Файловый менеджер" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <!-- Строка пути и Поиск -->
+                <Border Background="{DynamicResource LiquidGlassMaterialLevel1Brush}" Padding="10,5" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="200" MinWidth="120" MaxWidth="260"/>
+                        </Grid.ColumnDefinitions>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
                                     <Button x:Name="BackBtn" Style="{StaticResource CyberNavCircleButton}" ToolTip="Назад" Click="Back_Click">
                                         <Path Data="{StaticResource Icon_ChevronLeft}" Fill="{DynamicResource PrimaryTextBrush}" Width="10" Height="10" Stretch="Uniform"/>
@@ -513,11 +518,11 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*" MinWidth="350"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="300" MinWidth="200" MaxWidth="500"/>
+                    <ColumnDefinition Width="220" MinWidth="160" MaxWidth="320"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- SIDEBAR -->
-                <Border Grid.Column="0" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}">
+                <Border x:Name="SidebarBorder" Grid.Column="0" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}">
                     <DockPanel LastChildFill="True">
 <!-- Левая панель навигации: Быстрый доступ и Накопители -->
                             <ScrollViewer VerticalScrollBarVisibility="Auto" Background="Transparent">
@@ -692,13 +697,13 @@
                     </DockPanel>
                 </Border>
                 
-                <GridSplitter Grid.Column="1" Width="1" HorizontalAlignment="Center" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+                <GridSplitter x:Name="LeftSplitter" Grid.Column="1" Width="1" HorizontalAlignment="Center" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
 
                 <!-- WORKSPACE -->
-                <Grid Grid.Column="2" Margin="10">
+                <Grid x:Name="FilesViewContainer" Grid.Column="2" Margin="10">
                     <Grid x:Name="FilesView" Visibility="Visible">
 <!-- Правая панель: Файловый браузер -->
-                            <ListView x:Name="FileBrowserList" Grid.Column="2" BorderThickness="0" Background="Transparent"
+                            <ListView x:Name="FileBrowserList" BorderThickness="0" Background="Transparent"
                                       AllowDrop="True" Drop="FileBrowserList_Drop" MouseDoubleClick="FileBrowserList_DoubleClick"
                                       SelectionChanged="FileBrowserList_SelectionChanged" KeyDown="FileBrowserList_KeyDown"
                                       PreviewMouseRightButtonDown="FileBrowserList_PreviewMouseRightButtonDown"
@@ -706,7 +711,7 @@
 
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="Имя" Width="300">
+                                        <GridViewColumn Header="Имя" Width="240">
                                             <GridViewColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
@@ -716,19 +721,46 @@
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
-                                        <GridViewColumn Header="Размер" Width="95" DisplayMemberBinding="{Binding SizeFormatted}"/>
-                                        <GridViewColumn Header="Сжатый" Width="90" DisplayMemberBinding="{Binding PackedSizeFormatted}"/>
-                                        <GridViewColumn Header="Сжатие" Width="75" DisplayMemberBinding="{Binding CompressionRatioFormatted}"/>
-                                        <GridViewColumn Header="Изменён" Width="135" DisplayMemberBinding="{Binding DateModifiedFormatted}"/>
-                                        <GridViewColumn Header="Атрибуты" Width="80" DisplayMemberBinding="{Binding AttributesFormatted}"/>
-                                        <GridViewColumn Header="CRC32" Width="90" DisplayMemberBinding="{Binding CrcHex}"/>
+                                        <GridViewColumn Header="Размер" Width="85" DisplayMemberBinding="{Binding SizeFormatted}"/>
+                                        <GridViewColumn Header="Сжатый" Width="85" DisplayMemberBinding="{Binding PackedSizeFormatted}"/>
+                                        <GridViewColumn Header="Сжатие" Width="70" DisplayMemberBinding="{Binding CompressionRatioFormatted}"/>
+                                        <GridViewColumn Header="Изменён" Width="125" DisplayMemberBinding="{Binding DateModifiedFormatted}"/>
+                                        <GridViewColumn Header="Атрибуты" Width="75" DisplayMemberBinding="{Binding AttributesFormatted}"/>
+                                        <GridViewColumn Header="CRC32" Width="80" DisplayMemberBinding="{Binding CrcHex}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
                         
                     </Grid>
+                </Grid>
+
+                <GridSplitter x:Name="RightSplitter" Grid.Column="3" Width="1" HorizontalAlignment="Center" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+
+                <!-- INSPECTOR -->
+                <Border x:Name="InspectorBorder" Grid.Column="4" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="14">
+                            <TextBlock Text="СВОЙСТВА" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
+                            <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock x:Name="InspectorItemName" Text="Выберите элемент" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="InspectorItemType" Text="Файлы и папки" FontSize="10.5" Style="{StaticResource MutedText}" Margin="0,2,0,6"/>
+                                    <Separator Margin="0,4,0,6" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+                                    <TextBlock x:Name="InspectorItemSize" Text="Размер: —" FontSize="10.5" Style="{StaticResource MutedText}"/>
+                                    <TextBlock x:Name="InspectorItemDate" Text="Изменён: —" FontSize="10.5" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="InspectorItemPath" Text="Путь: —" FontSize="9.5" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="MOTION AI" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,8" Visibility="{Binding Path=AiVisibility, Source={x:Static models:ThemeManager.Instance}}"/>
+                            <Border Style="{StaticResource Card}" Padding="12" Visibility="{Binding Path=AiVisibility, Source={x:Static models:ThemeManager.Instance}}">
+                                <TextBlock Text="AI-аналитика готова" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" Style="{StaticResource MutedText}"/>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
 <!-- ================= 2. ДВИЖОК ПЕРЕДАЧ (MOTION TRANSFER ENGINE) ================= -->
-                <Grid x:Name="TransferView" Visibility="Collapsed" Margin="18">
+                <Grid x:Name="TransferView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed" Margin="18">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel MaxWidth="880" HorizontalAlignment="Center">
                             <!-- Селектор источника и назначения передачи данных -->
@@ -863,12 +895,12 @@
                 </Grid>
 
                 <!-- ================= 2.5 STORAGE CONTROL CENTER ================= -->
-                <Grid x:Name="StorageView" Visibility="Collapsed">
+                <Grid x:Name="StorageView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed">
                     <storage:StorageControlCenterView x:Name="StorageCenterControl"/>
                 </Grid>
 
                 <!-- ================= 3. ИНСТРУМЕНТЫ ================= -->
-                <Grid x:Name="ToolsView" Visibility="Collapsed" Margin="18">
+                <Grid x:Name="ToolsView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed" Margin="18">
                     <ScrollViewer x:Name="ToolsScrollViewer" VerticalScrollBarVisibility="Auto">
                         <StackPanel MaxWidth="800" HorizontalAlignment="Center">
                             <!-- Download Manager -->
@@ -972,7 +1004,7 @@
                 </Grid>
 
                 <!-- ================= 4. UNINSTALLER VIEW ================= -->
-                <Grid x:Name="UninstallerViewContainer" Visibility="Collapsed">
+                <Grid x:Name="UninstallerViewContainer" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed">
                     <DockPanel>
                         <!-- Back button panel -->
                         <Border DockPanel.Dock="Top" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,0,0,1" Padding="18,10">
@@ -986,7 +1018,7 @@
                 </Grid>
 
                 <!-- ================= 4.5 DOWNLOAD MANAGER VIEW ================= -->
-                <Grid x:Name="DownloadManagerViewContainer" Visibility="Collapsed">
+                <Grid x:Name="DownloadManagerViewContainer" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed">
                     <DockPanel>
                         <!-- Back button panel -->
                         <Border DockPanel.Dock="Top" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,0,0,1" Padding="18,10">
@@ -1000,7 +1032,7 @@
                 </Grid>
 
                 <!-- ================= 5. ДИАГНОСТИКА И БЕНЧМАРК ================= -->
-                <Grid x:Name="DiagnosticsView" Visibility="Collapsed" Margin="18">
+                <Grid x:Name="DiagnosticsView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed" Margin="18">
                     <ScrollViewer x:Name="DiagnosticsScrollViewer" VerticalScrollBarVisibility="Auto">
                         <StackPanel MaxWidth="760" HorizontalAlignment="Center">
                             <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
@@ -1116,26 +1148,6 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
-            
-                <!-- end of workspace grid, no closing tag needed because other_views_part doesn't close the parent grid? wait. -->
-
-                </Grid>
-                
-                <GridSplitter Grid.Column="3" Width="1" HorizontalAlignment="Center" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
-
-                <!-- INSPECTOR -->
-                <Border Grid.Column="4" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}">
-                    <StackPanel Margin="16">
-                        <TextBlock Text="СВОЙСТВА" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
-                        <Border Style="{StaticResource Card}" Height="150" Margin="0,0,0,10">
-                            <TextBlock Text="Выберите файл для просмотра" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MutedText}"/>
-                        </Border>
-                        <TextBlock Text="MOTION AI" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10" Visibility="{Binding Path=AiVisibility, Source={x:Static models:ThemeManager.Instance}}"/>
-                        <Border Style="{StaticResource Card}" Height="100" Visibility="{Binding Path=AiVisibility, Source={x:Static models:ThemeManager.Instance}}">
-                            <TextBlock Text="Анализ недоступен" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource MutedText}"/>
-                        </Border>
-                    </StackPanel>
-                </Border>
             </Grid>
 
             <!-- FOOTER -->

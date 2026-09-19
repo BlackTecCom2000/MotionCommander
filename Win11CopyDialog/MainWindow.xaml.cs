@@ -609,6 +609,32 @@ public partial class MainWindow : Window
         {
             long sz = selected.Where(s => !s.IsDirectory).Sum(s => s.Length);
             StatusFilesText.Text = $"Выбрано: {selected.Count} элементов ({Formatters.Bytes(sz)})";
+
+            if (selected.Count == 1)
+            {
+                var first = selected[0];
+                if (InspectorItemName != null) InspectorItemName.Text = first.Name;
+                if (InspectorItemType != null) InspectorItemType.Text = first.IsDirectory ? "Папка с файлами" : (first.IsArchive ? "Архивный контейнер" : "Файл данных");
+                if (InspectorItemSize != null) InspectorItemSize.Text = first.IsDirectory ? "Папка" : $"Размер: {first.SizeFormatted}";
+                if (InspectorItemDate != null) InspectorItemDate.Text = $"Изменён: {first.DateModifiedFormatted}";
+                if (InspectorItemPath != null) InspectorItemPath.Text = $"Путь: {first.FullPath}";
+            }
+            else
+            {
+                if (InspectorItemName != null) InspectorItemName.Text = $"Выбрано: {selected.Count} объектов";
+                if (InspectorItemType != null) InspectorItemType.Text = "Группа элементов";
+                if (InspectorItemSize != null) InspectorItemSize.Text = $"Суммарно: {Formatters.Bytes(sz)}";
+                if (InspectorItemDate != null) InspectorItemDate.Text = "";
+                if (InspectorItemPath != null) InspectorItemPath.Text = "";
+            }
+        }
+        else
+        {
+            if (InspectorItemName != null) InspectorItemName.Text = "Выберите элемент";
+            if (InspectorItemType != null) InspectorItemType.Text = "Файлы и папки";
+            if (InspectorItemSize != null) InspectorItemSize.Text = "Размер: —";
+            if (InspectorItemDate != null) InspectorItemDate.Text = "Изменён: —";
+            if (InspectorItemPath != null) InspectorItemPath.Text = "Путь: —";
         }
     }
 
@@ -1211,7 +1237,15 @@ public partial class MainWindow : Window
         else if (TabDiagnosticsRadio.IsChecked == true) activeView = DiagnosticsView;
         else if (TabToolsRadio.IsChecked == true) activeView = ToolsView;
 
-        FilesView.Visibility = activeView == FilesView ? Visibility.Visible : Visibility.Collapsed;
+        bool isFiles = (activeView == FilesView);
+        if (FileBrowserToolbarPanel != null) FileBrowserToolbarPanel.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
+        if (SidebarBorder != null) SidebarBorder.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
+        if (LeftSplitter != null) LeftSplitter.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
+        if (RightSplitter != null) RightSplitter.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
+        if (InspectorBorder != null) InspectorBorder.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
+        if (FilesViewContainer != null) FilesViewContainer.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
+
+        FilesView.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
         TransferView.Visibility = activeView == TransferView ? Visibility.Visible : Visibility.Collapsed;
         StorageView.Visibility = activeView == StorageView ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsView.Visibility = activeView == DiagnosticsView ? Visibility.Visible : Visibility.Collapsed;
