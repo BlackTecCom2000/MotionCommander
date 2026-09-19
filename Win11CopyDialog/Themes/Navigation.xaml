@@ -50,38 +50,104 @@
         <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
         <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
         <Setter Property="RenderTransform">
-            <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+            <Setter.Value>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                    <TranslateTransform X="0" Y="0"/>
+                </TransformGroup>
+            </Setter.Value>
         </Setter>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Border x:Name="TabBorder" CornerRadius="{DynamicResource RadiusLarge}"
-                            Background="Transparent" BorderBrush="Transparent" BorderThickness="1"
-                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"
-                            WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Grid WindowChrome.IsHitTestVisibleInChrome="True" SnapsToDevicePixels="True">
+                        <!-- 1. Ambient Drop Shadow / Glow Host -->
+                        <Border x:Name="ShadowHost" CornerRadius="14" Background="Transparent"
+                                WindowChrome.IsHitTestVisibleInChrome="True">
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="ShadowFx" BlurRadius="6" ShadowDepth="1.5" Direction="270"
+                                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.2"/>
+                            </Border.Effect>
+                        </Border>
+
+                        <!-- 2. Dark Depth Core Refraction -->
+                        <Border x:Name="DepthCore" Margin="1" CornerRadius="13"
+                                Background="#10000000" IsHitTestVisible="False"
+                                WindowChrome.IsHitTestVisibleInChrome="False"/>
+
+                        <!-- 3. Base Glass Fill & Rim -->
+                        <Border x:Name="TabBorder" CornerRadius="14"
+                                Background="Transparent" BorderBrush="Transparent" BorderThickness="1"
+                                SnapsToDevicePixels="True" WindowChrome.IsHitTestVisibleInChrome="True"/>
+
+                        <!-- 4. Concentric Inset Specular Bevel -->
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="13"
+                                BorderThickness="1" BorderBrush="{DynamicResource LiquidGlassBevelHighlight}"
+                                IsHitTestVisible="False" Opacity="0"
+                                WindowChrome.IsHitTestVisibleInChrome="False"/>
+
+                        <!-- 5. 45° Specular Reflection Sheen -->
+                        <Border x:Name="SpecularSheen" Margin="1" CornerRadius="13"
+                                Background="{DynamicResource LiquidGlassSheenDiagonal}"
+                                IsHitTestVisible="False" Opacity="0"
+                                WindowChrome.IsHitTestVisibleInChrome="False"/>
+
+                        <!-- 6. Content -->
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"
                                           WindowChrome.IsHitTestVisibleInChrome="True"/>
-                    </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
+                        <!-- Hover: Optical Lift & Sheen Reflection -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                        </Trigger>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassAccentSoft}"/>
-                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                            <Setter TargetName="TabBorder" Property="Effect">
+                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
+                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.6"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.75"/>
+                            <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="12" ShadowDepth="0"
-                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.6"/>
+                                    <DropShadowEffect BlurRadius="8" ShadowDepth="2" Direction="270"
+                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.4"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <TransformGroup>
+                                        <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                                        <TranslateTransform X="0" Y="-1"/>
+                                    </TransformGroup>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
+
+                        <!-- Checked: Brilliant 3D Cyan Liquid Glass Pill -->
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassAccentSoft}"/>
+                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="InnerBevel" Property="BorderBrush" Value="{DynamicResource LiquidGlassAccentBevel}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.95"/>
+                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="ShadowHost" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="14" ShadowDepth="1" Direction="270"
+                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.85"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+
+                        <!-- Pressed -->
                         <Trigger Property="IsPressed" Value="True">
                             <Setter Property="RenderTransform">
-                                <Setter.Value><ScaleTransform ScaleX="0.96" ScaleY="0.96"/></Setter.Value>
+                                <Setter.Value>
+                                    <TransformGroup>
+                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96"/>
+                                        <TranslateTransform X="0" Y="0.5"/>
+                                    </TransformGroup>
+                                </Setter.Value>
                             </Setter>
+                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.2"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
