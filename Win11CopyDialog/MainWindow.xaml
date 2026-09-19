@@ -255,7 +255,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Брендовый заголовок -->
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,16,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,16,0" WindowChrome.IsHitTestVisibleInChrome="True">
                         <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentBrush}" Margin="0,0,10,0">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="12" ShadowDepth="1" Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
@@ -264,47 +264,89 @@
                         </Border>
                         <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
                         <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.1 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.2 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
                         </Border>
-                        <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" Content="⟳" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="4,0,0,0" Padding="6,3" VerticalAlignment="Center"/>
+                        <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="6,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                            <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource TitleForegroundBrush}" Width="11" Height="11" Stretch="Uniform"/>
+                        </Button>
                     </StackPanel>
 
-                    <!-- НАВИГАЦИЯ (Центр шапки) -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,0">
-                        <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}" Content="Файлы" GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}" Content="Передача" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}" Content="Накопители" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}" Content="Диагностика" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                        <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}" Content="Утилиты" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    </StackPanel>
+                    <!-- Вкладки верхнего уровня (Футуристический Liquid Glass док) -->
+                    <Border Grid.Column="1" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}" CornerRadius="16"
+                            Padding="3" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                        <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                            <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}"
+                                         GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Icon_NavFiles}" Width="13" Height="13" Stretch="Uniform"
+                                          Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="Файлы" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}"
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Icon_NavSpeed}" Width="13" Height="13" Stretch="Uniform"
+                                          Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="Скорость" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}"
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Icon_NavStorage}" Width="13" Height="13" Stretch="Uniform"
+                                          Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="Накопители" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}"
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Icon_NavDiagnostics}" Width="13" Height="13" Stretch="Uniform"
+                                          Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="Диагностика" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}"
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Icon_NavTools}" Width="13" Height="13" Stretch="Uniform"
+                                          Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="Утилиты" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Быстрые переключатели: Окно настроек и тема -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                         <Button x:Name="OpenSettingsWindowBtn" Style="{StaticResource CaptionButton}"
-                                ToolTip="Настройки и Опции" Click="OpenSettingsWindow_Click" Margin="0,0,4,0">
+                                ToolTip="Настройки и Опции" Click="OpenSettingsWindow_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_NavSettings}" Fill="{DynamicResource TitleForegroundBrush}" Width="13" Height="13" Stretch="Uniform"/>
                         </Button>
                         <Button x:Name="QuickThemeBtn" Style="{StaticResource CaptionButton}"
-                                ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0">
+                                ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13" Foreground="{DynamicResource TitleForegroundBrush}"/>
                         </Button>
                     </StackPanel>
 
                     <!-- Кнопки управления окном -->
-                    <StackPanel Grid.Column="3" Orientation="Horizontal">
-                        <Button x:Name="AvailableUpdateBtn" Style="{StaticResource CaptionButton}" ToolTip="Доступно обновление!" Click="AvailableUpdateBtn_Click" Visibility="Collapsed" Margin="0,0,4,0">
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button x:Name="AvailableUpdateBtn" Style="{StaticResource CaptionButton}" ToolTip="Доступно обновление!" Click="AvailableUpdateBtn_Click" Visibility="Collapsed" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="🚀" FontSize="11" Margin="0,0,2,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="Обновить" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FontSize="11" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-                        <Button Style="{StaticResource CaptionButton}" ToolTip="Свернуть" Click="Min_Click">
+                        <Button Style="{StaticResource CaptionButton}" ToolTip="Свернуть" Click="Min_Click" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_Minimize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="2" Stretch="Fill"/>
                         </Button>
-                        <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" ToolTip="Развернуть" Click="Max_Click">
+                        <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" ToolTip="Развернуть" Click="Max_Click" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_Maximize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
                         </Button>
-                        <Button Style="{StaticResource CaptionCloseButton}" ToolTip="Закрыть" Click="Close_Click">
+                        <Button Style="{StaticResource CaptionCloseButton}" ToolTip="Закрыть" Click="Close_Click" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_Close}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
                         </Button>
                     </StackPanel>

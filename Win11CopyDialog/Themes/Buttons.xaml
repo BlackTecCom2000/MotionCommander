@@ -173,11 +173,14 @@
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6" Margin="1" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6" Margin="1" SnapsToDevicePixels="True"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          WindowChrome.IsHitTestVisibleInChrome="True"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -193,11 +196,14 @@
     </Style>
 
     <Style x:Key="CaptionCloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+        <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6" Margin="1" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6" Margin="1" SnapsToDevicePixels="True"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          WindowChrome.IsHitTestVisibleInChrome="True"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -214,6 +220,149 @@
         </Setter>
     </Style>
 
+    <!-- Фирменная кнопка панели команд (RibbonActionButton) -->
+    <Style x:Key="RibbonActionButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilySystem}"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+        <Setter Property="RenderTransform">
+            <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
+                            </Setter>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Акцентная кнопка панели команд (RibbonPrimaryActionButton) -->
+    <Style x:Key="RibbonPrimaryActionButton" TargetType="Button" BasedOn="{StaticResource RibbonActionButton}">
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassAccentSoft}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="8" ShadowDepth="1"
+                                              Color="{DynamicResource GlowAccentColor}" Opacity="0.35"/>
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassAccentGlow}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
+                            <Setter TargetName="ButtonRoot" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="12" ShadowDepth="1"
+                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.6"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
+                            </Setter>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassAccentGlow}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Круглая кнопка навигации / действий (CyberNavCircleButton) -->
+    <Style x:Key="CyberNavCircleButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+        <Setter Property="RenderTransform">
+            <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="16"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value><ScaleTransform ScaleX="0.93" ScaleY="0.93"/></Setter.Value>
+                            </Setter>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.35"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ================= BACKWARD COMPATIBILITY ALIASES ================= -->
     <Style x:Key="Win11Button" TargetType="Button" BasedOn="{StaticResource GlassButton}"/>
     <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
@@ -222,11 +371,5 @@
     <Style x:Key="CyberPrimaryButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
     <Style x:Key="CyberDangerButton" TargetType="Button" BasedOn="{StaticResource GlassDangerButton}"/>
     <Style x:Key="CyberToolButton" TargetType="Button" BasedOn="{StaticResource GlassButton}"/>
-    <Style x:Key="RibbonActionButton" TargetType="Button" BasedOn="{StaticResource GlassButton}"/>
-    <Style x:Key="RibbonPrimaryActionButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
-    <Style x:Key="CyberNavCircleButton" TargetType="Button" BasedOn="{StaticResource GlassIconButton}">
-        <Setter Property="Width" Value="30"/>
-        <Setter Property="Height" Value="30"/>
-    </Style>
 
 </ResourceDictionary>
