@@ -60,9 +60,9 @@
 
                         <DockPanel Grid.Row="0" Margin="0,0,0,10">
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                                <Button Style="{StaticResource Win11Button}" Content="🛠 Диспетчер устройств" Margin="0,0,8,0" Padding="12,6" Click="OpenDeviceManager_Click"/>
-                                <Button Style="{StaticResource Win11Button}" Content="📋 Экспорт отчёта" Margin="0,0,8,0" Padding="12,6" Click="ExportReport_Click"/>
-                                <Button x:Name="RefreshBtn" Style="{StaticResource AccentButton}" Content="🔄 Сканировать драйверы" Padding="14,6" Click="RefreshDrivers_Click"/>
+                                <Button Style="{StaticResource GlassButton}" Content="🛠 Диспетчер устройств" Margin="0,0,8,0" Padding="14,0" Height="34" Click="OpenDeviceManager_Click"/>
+                                <Button Style="{StaticResource GlassButton}" Content="📋 Экспорт отчёта" Margin="0,0,8,0" Padding="14,0" Height="34" Click="ExportReport_Click"/>
+                                <Button x:Name="RefreshBtn" Style="{StaticResource GlassPrimaryButton}" Content="🔄 Сканировать драйверы" Padding="16,0" Height="34" Click="RefreshDrivers_Click"/>
                             </StackPanel>
 
                             <Grid Margin="0,0,14,0">

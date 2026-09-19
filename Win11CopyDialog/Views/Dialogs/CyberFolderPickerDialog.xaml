@@ -293,8 +293,8 @@
 
                     <!-- Кнопки действий -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Style="{StaticResource Win11Button}" Content="Отмена" MinWidth="90" Height="36" Margin="0,0,8,0" Click="Close_Click"/>
-                        <Button x:Name="ConfirmSelectBtn" Style="{StaticResource AccentButton}" Content="⚡ Выбрать эту папку" MinWidth="170" Height="36" Click="ConfirmSelect_Click"/>
+                        <Button Style="{StaticResource GlassButton}" Content="Отмена" MinWidth="95" Height="36" Margin="0,0,10,0" Click="Close_Click"/>
+                        <Button x:Name="ConfirmSelectBtn" Style="{StaticResource GlassPrimaryButton}" Content="⚡ Выбрать эту папку" MinWidth="175" Height="36" Click="ConfirmSelect_Click"/>
                     </StackPanel>
                 </Grid>
             </Border>

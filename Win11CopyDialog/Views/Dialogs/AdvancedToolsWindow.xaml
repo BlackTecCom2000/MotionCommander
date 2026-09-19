@@ -2,39 +2,48 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Продвинутые инструменты — Motion Commander"
-        Width="640" Height="620"
+        Width="680" Height="650" MinWidth="580" MinHeight="520"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        ResizeMode="CanResizeWithGrip"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent">
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" CornerRadius="12" GlassFrameThickness="0" ResizeBorderThickness="6"/>
+        <WindowChrome CaptionHeight="0" CornerRadius="16" GlassFrameThickness="0" ResizeBorderThickness="7"/>
     </WindowChrome.WindowChrome>
 
     <Border x:Name="RootBorder" Style="{StaticResource GlassWindowRoot}">
-        <DockPanel>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- 0: Шапка -->
+                <RowDefinition Height="*"/>    <!-- 1: Вкладки инструментов -->
+                <RowDefinition Height="Auto"/> <!-- 2: Нижний бар -->
+            </Grid.RowDefinitions>
+
             <!-- ШАПКА -->
-            <Border DockPanel.Dock="Top" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
+            <Border Grid.Row="0" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="28" Height="28" CornerRadius="8" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                        <Border Width="30" Height="30" CornerRadius="9" Background="{DynamicResource LiquidGlassActiveHighlight}"
                                 BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,10,0">
                             <TextBlock Text="🛠" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Инструменты файлов и целостности" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Инструменты файлов и целостности" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Хэш-суммы, бинарное сравнение и глубокий анализ размера" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
                     </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
                 </Grid>
             </Border>
 
             <!-- ТАБЫ ИНСТРУМЕНТОВ -->
-            <TabControl Background="Transparent" BorderThickness="0" Margin="18,14">
+            <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Margin="18,10,18,6">
                 <!-- 1. ХЭШ-СУММЫ -->
                 <TabItem Header="  # Контрольные суммы (Хэши)  ">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
@@ -43,7 +52,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Выберите файл для вычисления хэшей" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                                     <DockPanel>
-                                        <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Выбрать файл…" Margin="6,0,0,0" Padding="12,4" Click="SelectHashFile_Click"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Выбрать файл…" Margin="8,0,0,0" Padding="14,0" Height="32" Click="SelectHashFile_Click"/>
                                         <TextBox x:Name="HashFilePathBox" Height="32" VerticalContentAlignment="Center" Padding="8,0" IsReadOnly="True"
                                                  Style="{StaticResource GlassTextBox}"/>
                                     </DockPanel>
@@ -57,28 +66,28 @@
                                     <!-- CRC32 -->
                                     <TextBlock Text="CRC32" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <DockPanel Margin="0,2,0,8">
-                                        <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Копировать" Padding="8,2" Margin="6,0,0,0" Click="CopyCrc_Click"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Копировать" Padding="10,0" Height="28" Margin="6,0,0,0" Click="CopyCrc_Click"/>
                                         <TextBox x:Name="CrcBox" IsReadOnly="True" Height="28" VerticalContentAlignment="Center" Padding="6,0" FontFamily="Consolas" Style="{StaticResource GlassTextBox}"/>
                                     </DockPanel>
 
                                     <!-- MD5 -->
                                     <TextBlock Text="MD5" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <DockPanel Margin="0,2,0,8">
-                                        <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Копировать" Padding="8,2" Margin="6,0,0,0" Click="CopyMd5_Click"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Копировать" Padding="10,0" Height="28" Margin="6,0,0,0" Click="CopyMd5_Click"/>
                                         <TextBox x:Name="Md5Box" IsReadOnly="True" Height="28" VerticalContentAlignment="Center" Padding="6,0" FontFamily="Consolas" Style="{StaticResource GlassTextBox}"/>
                                     </DockPanel>
 
                                     <!-- SHA-256 -->
                                     <TextBlock Text="SHA-256" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <DockPanel Margin="0,2,0,8">
-                                        <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Копировать" Padding="8,2" Margin="6,0,0,0" Click="CopySha256_Click"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Копировать" Padding="10,0" Height="28" Margin="6,0,0,0" Click="CopySha256_Click"/>
                                         <TextBox x:Name="Sha256Box" IsReadOnly="True" Height="28" VerticalContentAlignment="Center" Padding="6,0" FontFamily="Consolas" Style="{StaticResource GlassTextBox}"/>
                                     </DockPanel>
 
                                     <!-- SHA-512 -->
                                     <TextBlock Text="SHA-512" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                     <DockPanel Margin="0,2,0,8">
-                                        <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Копировать" Padding="8,2" Margin="6,0,0,0" Click="CopySha512_Click"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Копировать" Padding="10,0" Height="28" Margin="6,0,0,0" Click="CopySha512_Click"/>
                                         <TextBox x:Name="Sha512Box" IsReadOnly="True" Height="28" VerticalContentAlignment="Center" Padding="6,0" FontFamily="Consolas" Style="{StaticResource GlassTextBox}"/>
                                     </DockPanel>
                                 </StackPanel>
@@ -100,62 +109,80 @@
 
                 <!-- 2. СРАВНЕНИЕ ФАЙЛОВ -->
                 <TabItem Header="  ⇄ Бинарное сравнение файлов  ">
-                    <StackPanel Margin="0,10,0,0">
-                        <Border Style="{StaticResource GlassSectionCard}" Margin="0,0,0,10">
-                            <StackPanel>
-                                <TextBlock Text="Первый файл" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Выбрать…" Margin="6,0,0,0" Padding="12,3" Click="SelectFile1_Click"/>
-                                    <TextBox x:Name="File1Box" Height="30" VerticalContentAlignment="Center" Padding="6,0" IsReadOnly="True" Style="{StaticResource GlassTextBox}"/>
-                                </DockPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                        <StackPanel>
+                            <Border Style="{StaticResource GlassSectionCard}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Первый файл" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                    <DockPanel Margin="0,0,0,8">
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Выбрать…" Margin="8,0,0,0" Padding="14,0" Height="32" Click="SelectFile1_Click"/>
+                                        <TextBox x:Name="File1Box" Height="32" VerticalContentAlignment="Center" Padding="8,0" IsReadOnly="True" Style="{StaticResource GlassTextBox}"/>
+                                    </DockPanel>
 
-                                <TextBlock Text="Второй файл" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <DockPanel>
-                                    <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Выбрать…" Margin="6,0,0,0" Padding="12,3" Click="SelectFile2_Click"/>
-                                    <TextBox x:Name="File2Box" Height="30" VerticalContentAlignment="Center" Padding="6,0" IsReadOnly="True" Style="{StaticResource GlassTextBox}"/>
-                                </DockPanel>
+                                    <TextBlock Text="Второй файл" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Выбрать…" Margin="8,0,0,0" Padding="14,0" Height="32" Click="SelectFile2_Click"/>
+                                        <TextBox x:Name="File2Box" Height="32" VerticalContentAlignment="Center" Padding="8,0" IsReadOnly="True" Style="{StaticResource GlassTextBox}"/>
+                                    </DockPanel>
 
-                                <Button x:Name="CompareBtn" Style="{StaticResource AccentButton}" Content="⚡ Сравнить побайтово" Height="34" Margin="0,12,0,0" Click="CompareFiles_Click"/>
-                                <ProgressBar x:Name="CompareProgress" Height="6" Margin="0,8,0,0" Visibility="Collapsed"
-                                             Background="{DynamicResource LiquidGlassInputBackgroundBrush}" Foreground="{DynamicResource AccentBrush}"/>
-                            </StackPanel>
-                        </Border>
+                                    <Button x:Name="CompareBtn" Style="{StaticResource GlassPrimaryButton}" Content="⚡ Сравнить побайтово" Height="36" Margin="0,14,0,0" Click="CompareFiles_Click"/>
+                                    <ProgressBar x:Name="CompareProgress" Height="6" Margin="0,8,0,0" Visibility="Collapsed"
+                                                 Background="{DynamicResource LiquidGlassInputBackgroundBrush}" Foreground="{DynamicResource AccentBrush}"/>
+                                </StackPanel>
+                            </Border>
 
-                        <Border Style="{StaticResource GlassSectionCard}">
-                            <StackPanel>
-                                <TextBlock Text="Результат сравнения" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <TextBlock x:Name="CompareResultText" Text="Выберите два файла для побайтовой верификации." FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                            <Border Style="{StaticResource GlassSectionCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Результат сравнения" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="CompareResultText" Text="Выберите два файла для побайтовой верификации." FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <!-- 3. АНАЛИЗ ПАПКИ -->
                 <TabItem Header="  📊 Анализ размера папки  ">
-                    <StackPanel Margin="0,10,0,0">
-                        <Border Style="{StaticResource GlassSectionCard}" Margin="0,0,0,10">
-                            <StackPanel>
-                                <TextBlock Text="Выберите папку для глубокого сканирования" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Обзор…" Margin="6,0,0,0" Padding="12,3" Click="SelectFolderAnalyze_Click"/>
-                                    <TextBox x:Name="AnalyzeFolderBox" Height="30" VerticalContentAlignment="Center" Padding="6,0" IsReadOnly="True" Style="{StaticResource GlassTextBox}"/>
-                                </DockPanel>
-                                <Button x:Name="StartAnalyzeBtn" Style="{StaticResource AccentButton}" Content="🔍 Сканировать размер" Height="34" Click="StartAnalyze_Click"/>
-                                <ProgressBar x:Name="AnalyzeProgress" Height="6" Margin="0,8,0,0" IsIndeterminate="True" Visibility="Collapsed"
-                                             Background="{DynamicResource LiquidGlassInputBackgroundBrush}" Foreground="{DynamicResource AccentBrush}"/>
-                            </StackPanel>
-                        </Border>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                        <StackPanel>
+                            <Border Style="{StaticResource GlassSectionCard}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Выберите папку для глубокого сканирования" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                    <DockPanel Margin="0,0,0,8">
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Обзор…" Margin="8,0,0,0" Padding="14,0" Height="32" Click="SelectFolderAnalyze_Click"/>
+                                        <TextBox x:Name="AnalyzeFolderBox" Height="32" VerticalContentAlignment="Center" Padding="8,0" IsReadOnly="True" Style="{StaticResource GlassTextBox}"/>
+                                    </DockPanel>
+                                    <Button x:Name="StartAnalyzeBtn" Style="{StaticResource GlassPrimaryButton}" Content="🔍 Сканировать размер" Height="36" Click="StartAnalyze_Click"/>
+                                    <ProgressBar x:Name="AnalyzeProgress" Height="6" Margin="0,8,0,0" IsIndeterminate="True" Visibility="Collapsed"
+                                                 Background="{DynamicResource LiquidGlassInputBackgroundBrush}" Foreground="{DynamicResource AccentBrush}"/>
+                                </StackPanel>
+                            </Border>
 
-                        <Border Style="{StaticResource GlassSectionCard}">
-                            <StackPanel>
-                                <TextBlock Text="Итоги сканирования" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                <TextBlock x:Name="AnalyzeResultText" Text="Выберите папку и нажмите «Сканировать размер»." FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock x:Name="AnalyzeDetailText" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                            <Border Style="{StaticResource GlassSectionCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Итоги сканирования" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="AnalyzeResultText" Text="Выберите папку и нажмите «Сканировать размер»." FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock x:Name="AnalyzeDetailText" Text="" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
             </TabControl>
-        </DockPanel>
+
+            <!-- ПРИКРЕПЛЕННЫЙ НИЖНИЙ БАР ДЕЙСТВИЙ (ВСЕГДА НА ВИДУ) -->
+            <Border Grid.Row="2" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
+                    BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0"
+                    Padding="18,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Хэши и анализ вычисляются нативно без блокировки потока UI." VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <Button Grid.Column="1" Style="{StaticResource GlassButton}" Content="Закрыть" MinWidth="100" Height="36" Click="Close_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
     </Border>
 </Window>

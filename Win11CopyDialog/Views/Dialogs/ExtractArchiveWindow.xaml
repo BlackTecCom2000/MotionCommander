@@ -3,60 +3,53 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
         Title="Распаковка архива — Motion Commander"
-        Width="580" Height="560"
+        Width="600" Height="580" MinWidth="540" MinHeight="500"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        ResizeMode="CanResizeWithGrip"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent">
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" CornerRadius="12" GlassFrameThickness="0" ResizeBorderThickness="6"/>
+        <WindowChrome CaptionHeight="0" CornerRadius="16" GlassFrameThickness="0" ResizeBorderThickness="7"/>
     </WindowChrome.WindowChrome>
 
     <Border x:Name="RootBorder" Style="{StaticResource GlassWindowRoot}">
-        <DockPanel>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- 0: Шапка -->
+                <RowDefinition Height="*"/>    <!-- 1: Прокручиваемое содержимое -->
+                <RowDefinition Height="Auto"/> <!-- 2: Всегда видимый нижний бар действий -->
+            </Grid.RowDefinitions>
+
             <!-- ШАПКА -->
-            <Border DockPanel.Dock="Top" Style="{StaticResource GlassDialogTitleBar}" Padding="16,12">
+            <Border Grid.Row="0" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="28" Height="28" CornerRadius="8" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                        <Border Width="30" Height="30" CornerRadius="9" Background="{DynamicResource LiquidGlassActiveHighlight}"
                                 BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,10,0">
                             <TextBlock Text="📦" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Распаковка архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Распаковка архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Извлечение содержимого архива с валидацией целостности" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
                     </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
                 </Grid>
             </Border>
 
-            <!-- КНОПКИ ВНИЗУ -->
-            <Border DockPanel.Dock="Bottom" Padding="18,14" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <Button x:Name="TestBtn" Grid.Column="1" Style="{StaticResource Win11Button}" Content="🛡 Тест архива" MinWidth="110" Height="34" Margin="0,0,8,0" Click="TestArchive_Click"/>
-                    <Button x:Name="CancelBtn" Grid.Column="2" Style="{StaticResource Win11Button}" Content="Отмена" MinWidth="80" Height="34" Margin="0,0,8,0" Click="Close_Click"/>
-                    <Button x:Name="ExtractBtn" Grid.Column="3" Style="{StaticResource AccentButton}" Content="⚡ Извлечь файлы" MinWidth="140" Height="34" Click="StartExtract_Click"/>
-                </Grid>
-            </Border>
-
-            <!-- ОСНОВНОЕ ТЕЛО -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
+            <!-- ОСНОВНОЕ ТЕЛО С ПРОКРУТКОЙ -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="18,14">
                 <StackPanel>
                     <!-- Исходный архив -->
                     <Border Style="{StaticResource GlassSectionCard}">
                         <StackPanel>
-                            <TextBlock Text="Архив" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Исходный архив" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                             <TextBlock x:Name="ArchiveNameText" Text="archive.zip" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Border>
@@ -66,7 +59,7 @@
                         <StackPanel>
                             <TextBlock Text="Папка назначения для распаковки" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                             <DockPanel>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource Win11Button}" Content="Обзор…" Margin="6,0,0,0" Padding="12,4" Click="Browse_Click"/>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource GlassButton}" Content="Обзор…" Margin="8,0,0,0" Padding="14,0" Height="32" Click="Browse_Click"/>
                                 <TextBox x:Name="DestFolderBox" Height="32" VerticalContentAlignment="Center" Padding="8,0"
                                          Style="{StaticResource GlassTextBox}"/>
                             </DockPanel>
@@ -94,6 +87,24 @@
                     </Border>
                 </StackPanel>
             </ScrollViewer>
-        </DockPanel>
+
+            <!-- ПРИКРЕПЛЕННЫЙ НИЖНИЙ БАР ДЕЙСТВИЙ (ВСЕГДА НА ВИДУ) -->
+            <Border Grid.Row="2" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
+                    BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0"
+                    Padding="18,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,10,0"/>
+                    <Button x:Name="TestBtn" Grid.Column="1" Style="{StaticResource GlassButton}" Content="🛡 Тест архива" MinWidth="110" Height="36" Margin="0,0,8,0" Click="TestArchive_Click"/>
+                    <Button x:Name="CancelBtn" Grid.Column="2" Style="{StaticResource GlassButton}" Content="Отмена" MinWidth="85" Height="36" Margin="0,0,8,0" Click="Close_Click"/>
+                    <Button x:Name="ExtractBtn" Grid.Column="3" Style="{StaticResource GlassPrimaryButton}" Content="⚡ Извлечь файлы" MinWidth="145" Height="36" Click="StartExtract_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
     </Border>
 </Window>

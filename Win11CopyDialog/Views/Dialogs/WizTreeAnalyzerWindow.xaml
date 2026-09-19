@@ -63,8 +63,8 @@
                         <TextBlock Text="Путь сканирования:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
                         <TextBox x:Name="TargetFolderBox" Grid.Column="1" Style="{StaticResource GlassTextBox}"
                                  Padding="8,4" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" Style="{StaticResource Win11Button}" Content="📂 Обзор..." Margin="8,0,0,0" Padding="12,5" Click="BrowseFolder_Click"/>
-                        <Button x:Name="ScanBtn" Grid.Column="3" Style="{StaticResource AccentButton}" Content="⚡ Начать сканирование" Margin="8,0,0,0" Padding="16,5" Click="StartScan_Click"/>
+                        <Button Grid.Column="2" Style="{StaticResource GlassButton}" Content="📂 Обзор..." Margin="8,0,0,0" Padding="14,0" Height="34" Click="BrowseFolder_Click"/>
+                        <Button x:Name="ScanBtn" Grid.Column="3" Style="{StaticResource GlassPrimaryButton}" Content="⚡ Начать сканирование" Margin="8,0,0,0" Padding="16,0" Height="34" Click="StartScan_Click"/>
                     </Grid>
                 </Border>
 

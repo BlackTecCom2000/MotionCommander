@@ -68,8 +68,8 @@
                             <TextBlock Text="Папка поиска:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
                             <TextBox x:Name="SearchFolderBox" Grid.Column="1" Style="{StaticResource GlassTextBox}"
                                      Padding="8,4" VerticalAlignment="Center"/>
-                            <Button Grid.Column="2" Style="{StaticResource Win11Button}" Content="📂 Обзор..." Margin="8,0,0,0" Padding="12,5" Click="BrowseFolder_Click"/>
-                            <Button x:Name="StartSearchBtn" Grid.Column="3" Style="{StaticResource AccentButton}" Content="⚡ Искать дубликаты" Margin="8,0,0,0" Padding="16,5" Click="StartSearch_Click"/>
+                            <Button Grid.Column="2" Style="{StaticResource GlassButton}" Content="📂 Обзор..." Margin="8,0,0,0" Padding="14,0" Height="34" Click="BrowseFolder_Click"/>
+                            <Button x:Name="StartSearchBtn" Grid.Column="3" Style="{StaticResource GlassPrimaryButton}" Content="⚡ Искать дубликаты" Margin="8,0,0,0" Padding="16,0" Height="34" Click="StartSearch_Click"/>
                         </Grid>
 
                         <DockPanel Grid.Row="1">
@@ -85,9 +85,9 @@
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Style="{StaticResource Win11Button}" Content="☑ Отметить все копии (оставить 1)" Margin="0,0,8,0" Click="SelectAllDuplicates_Click"/>
-                                <Button Style="{StaticResource Win11Button}" Content="☐ Снять выбор" Margin="0,0,8,0" Click="DeselectAll_Click"/>
-                                <Button x:Name="DeleteSelectedBtn" Style="{StaticResource AccentButton}" Content="🗑 Удалить выбранные (0)" Padding="14,4" Click="DeleteSelected_Click"/>
+                                <Button Style="{StaticResource GlassButton}" Content="☑ Отметить все копии (оставить 1)" Margin="0,0,8,0" Padding="12,0" Height="32" Click="SelectAllDuplicates_Click"/>
+                                <Button Style="{StaticResource GlassButton}" Content="☐ Снять выбор" Margin="0,0,8,0" Padding="12,0" Height="32" Click="DeselectAll_Click"/>
+                                <Button x:Name="DeleteSelectedBtn" Style="{StaticResource GlassPrimaryButton}" Content="🗑 Удалить выбранные (0)" Padding="14,0" Height="32" Click="DeleteSelected_Click"/>
                             </StackPanel>
                         </DockPanel>
                     </Grid>

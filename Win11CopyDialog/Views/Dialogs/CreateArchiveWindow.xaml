@@ -3,53 +3,48 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
         Title="Создание архива — Motion Commander"
-        Width="580" Height="640"
+        Width="600" Height="660" MinWidth="540" MinHeight="560"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
+        ResizeMode="CanResizeWithGrip"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent">
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" CornerRadius="12" GlassFrameThickness="0" ResizeBorderThickness="6"/>
+        <WindowChrome CaptionHeight="0" CornerRadius="16" GlassFrameThickness="0" ResizeBorderThickness="7"/>
     </WindowChrome.WindowChrome>
 
     <Border x:Name="RootBorder" Style="{StaticResource GlassWindowRoot}">
-        <DockPanel>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- 0: Шапка -->
+                <RowDefinition Height="*"/>    <!-- 1: Прокручиваемое содержимое -->
+                <RowDefinition Height="Auto"/> <!-- 2: Всегда видимый нижний бар действий -->
+            </Grid.RowDefinitions>
+
             <!-- ШАПКА -->
-            <Border DockPanel.Dock="Top" Style="{StaticResource GlassDialogTitleBar}" Padding="16,12">
+            <Border Grid.Row="0" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="28" Height="28" CornerRadius="8" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                        <Border Width="30" Height="30" CornerRadius="9" Background="{DynamicResource LiquidGlassActiveHighlight}"
                                 BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,10,0">
                             <TextBlock Text="🗜" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Создание архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Создание архива" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Сжатие файлов с контролем коэффициента и шифрованием" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
                     </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
                 </Grid>
             </Border>
 
-            <!-- КНОПКИ ВНИЗУ -->
-            <Border DockPanel.Dock="Bottom" Padding="18,14" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <Button x:Name="CancelBtn" Grid.Column="1" Style="{StaticResource Win11Button}" Content="Отмена" MinWidth="90" Height="34" Margin="0,0,8,0" Click="Close_Click"/>
-                    <Button x:Name="StartBtn" Grid.Column="2" Style="{StaticResource AccentButton}" Content="⚡ Сжать архив" MinWidth="130" Height="34" Click="StartCompress_Click"/>
-                </Grid>
-            </Border>
-
-            <!-- ОСНОВНОЕ ТЕЛО -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
+            <!-- ОСНОВНОЕ ТЕЛО С ПРОКРУТКОЙ -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="18,14">
                 <StackPanel>
                     <!-- Имя и путь архива -->
                     <Border Style="{StaticResource GlassSectionCard}">
@@ -134,6 +129,22 @@
                     </Border>
                 </StackPanel>
             </ScrollViewer>
-        </DockPanel>
+
+            <!-- ПРИКРЕПЛЕННЫЙ НИЖНИЙ БАР ДЕЙСТВИЙ (ВСЕГДА ВИДЕН И НЕ ОБРЕЗАЕТСЯ) -->
+            <Border Grid.Row="2" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
+                    BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0"
+                    Padding="18,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusText" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" Margin="0,0,12,0"/>
+                    <Button x:Name="CancelBtn" Grid.Column="1" Style="{StaticResource GlassButton}" Content="Отмена" MinWidth="95" Height="36" Margin="0,0,10,0" Click="Close_Click"/>
+                    <Button x:Name="StartBtn" Grid.Column="2" Style="{StaticResource GlassPrimaryButton}" Content="⚡ Сжать архив" MinWidth="140" Height="36" Click="StartCompress_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
     </Border>
 </Window>
