@@ -246,9 +246,16 @@ public partial class App : Application
             var main = new MainWindow(null, 5);
             main.Show();
         }
-        else if (e.Args.Contains("--filemanager"))
+        else if (e.Args.Contains("--filemanager") || e.Args.Contains("--test-filemanager"))
         {
-            new FileManagerWindow().Show();
+            var fm = new FileManagerWindow();
+            fm.Show();
+            if (e.Args.Contains("--test-filemanager"))
+            {
+                var t = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                t.Tick += (_, _) => { t.Stop(); Shutdown(0); };
+                t.Start();
+            }
         }
         else if (e.Args.Contains("--motion-demo"))
         {

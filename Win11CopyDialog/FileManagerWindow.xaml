@@ -1,4 +1,4 @@
-﻿<Window x:Class="Win11CopyDialog.FileManagerWindow"
+<Window x:Class="Win11CopyDialog.FileManagerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
@@ -107,23 +107,7 @@
                 </Border>
 
                 <!-- Splitter -->
-                <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"
-                              Background="Transparent" DragIncrement="1" Cursor="SizeWE">
-                    <GridSplitter.Template>
-                        <ControlTemplate TargetType="GridSplitter">
-                            <Border x:Name="SplitBorder" Background="Transparent" Cursor="SizeWE">
-                                <Rectangle Width="1" Fill="{DynamicResource LiquidGlassBorder}"
-                                           HorizontalAlignment="Center" Visibility="Hidden"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="SplitBorder" Property="Background"
-                                            Value="{DynamicResource ControlHoverBackgroundBrush}"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </GridSplitter.Template>
-                </GridSplitter>
+                <GridSplitter Grid.Column="1" Style="{StaticResource LiquidGlassSplitter}" DragIncrement="1"/>
 
                 <!-- Right Pane: File List -->
                 <Grid Grid.Column="2">
