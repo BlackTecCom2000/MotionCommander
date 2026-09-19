@@ -7,36 +7,47 @@
 
     <!-- 45-degree Specular Reflection Sheen (mimics .box:after diagonal glare) -->
     <LinearGradientBrush x:Key="LiquidGlassSheenDiagonal" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#55FFFFFF" Offset="0.0"/>
-        <GradientStop Color="#18FFFFFF" Offset="0.18"/>
+        <GradientStop Color="#60FFFFFF" Offset="0.0"/>
+        <GradientStop Color="#20FFFFFF" Offset="0.18"/>
         <GradientStop Color="Transparent" Offset="0.35"/>
         <GradientStop Color="Transparent" Offset="0.68"/>
-        <GradientStop Color="#10FFFFFF" Offset="0.85"/>
-        <GradientStop Color="#38FFFFFF" Offset="1.0"/>
+        <GradientStop Color="#12FFFFFF" Offset="0.85"/>
+        <GradientStop Color="#40FFFFFF" Offset="1.0"/>
     </LinearGradientBrush>
+
+    <!-- macOS Inset Specular Bevel (inset 2px 2px 0px -2px) -->
+    <LinearGradientBrush x:Key="MacOsLiquidGlassBevel" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#D5FFFFFF" Offset="0.0"/>
+        <GradientStop Color="#45FFFFFF" Offset="0.25"/>
+        <GradientStop Color="#10FFFFFF" Offset="0.7"/>
+        <GradientStop Color="#60FFFFFF" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <!-- macOS Inset Perimeter Glow (inset 0 0 3px 1px) -->
+    <SolidColorBrush x:Key="MacOsGlassPerimeterGlow" Color="#55FFFFFF"/>
 
     <!-- Inset Specular Bevel Highlight (mimics multi-tier inset box-shadow) -->
     <LinearGradientBrush x:Key="LiquidGlassBevelHighlight" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#75FFFFFF" Offset="0.0"/>
-        <GradientStop Color="#22FFFFFF" Offset="0.28"/>
-        <GradientStop Color="#06FFFFFF" Offset="0.75"/>
-        <GradientStop Color="#28FFFFFF" Offset="1.0"/>
+        <GradientStop Color="#85FFFFFF" Offset="0.0"/>
+        <GradientStop Color="#25FFFFFF" Offset="0.28"/>
+        <GradientStop Color="#08FFFFFF" Offset="0.75"/>
+        <GradientStop Color="#30FFFFFF" Offset="1.0"/>
     </LinearGradientBrush>
 
     <!-- Accent Inset Specular Bevel Highlight (Cyan Glow) -->
     <LinearGradientBrush x:Key="LiquidGlassAccentBevel" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#C0FFFFFF" Offset="0.0"/>
-        <GradientStop Color="#5500D4FF" Offset="0.3"/>
-        <GradientStop Color="#1500D4FF" Offset="0.7"/>
-        <GradientStop Color="#6000D4FF" Offset="1.0"/>
+        <GradientStop Color="#E0FFFFFF" Offset="0.0"/>
+        <GradientStop Color="#6000D4FF" Offset="0.3"/>
+        <GradientStop Color="#2000D4FF" Offset="0.7"/>
+        <GradientStop Color="#7000D4FF" Offset="1.0"/>
     </LinearGradientBrush>
 
     <!-- Danger Inset Specular Bevel Highlight (Ruby Glow) -->
     <LinearGradientBrush x:Key="LiquidGlassDangerBevel" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#D0FFA0B0" Offset="0.0"/>
-        <GradientStop Color="#50FF4567" Offset="0.3"/>
-        <GradientStop Color="#15FF4567" Offset="0.7"/>
-        <GradientStop Color="#60FF4567" Offset="1.0"/>
+        <GradientStop Color="#E0FFA0B0" Offset="0.0"/>
+        <GradientStop Color="#60FF4567" Offset="0.3"/>
+        <GradientStop Color="#20FF4567" Offset="0.7"/>
+        <GradientStop Color="#70FF4567" Offset="1.0"/>
     </LinearGradientBrush>
 
 
@@ -68,7 +79,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid SnapsToDevicePixels="True">
-                        <!-- Ambient Depth Drop Shadow -->
+                        <!-- 1. Ambient Depth Drop Shadow -->
                         <Border x:Name="ShadowHost"
                                 CornerRadius="{DynamicResource RadiusNormal}"
                                 Background="Transparent">
@@ -78,14 +89,14 @@
                             </Border.Effect>
                         </Border>
 
-                        <!-- Dark Depth Core Refraction (:before equivalent) -->
+                        <!-- 2. Dark Depth Core Refraction (:before) -->
                         <Border x:Name="DepthCore"
                                 Margin="1"
                                 CornerRadius="{DynamicResource RadiusNormal}"
                                 Background="#12000000"
                                 IsHitTestVisible="False"/>
 
-                        <!-- Base Glass Body & Outer Rim Double Border -->
+                        <!-- 3. Base Glass Body & Outer Rim Double Border -->
                         <Border x:Name="ButtonRoot"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
@@ -93,16 +104,25 @@
                                 CornerRadius="{DynamicResource RadiusNormal}"
                                 SnapsToDevicePixels="True"/>
 
-                        <!-- Concentric Inset Specular Bevel Border (inset highlights) -->
-                        <Border x:Name="InnerBevel"
+                        <!-- 4. macOS Perimeter Inner Glow Ring (inset 0 0 3px 1px) -->
+                        <Border x:Name="PerimeterGlow"
                                 Margin="1"
                                 CornerRadius="{DynamicResource RadiusNormal}"
                                 BorderThickness="1"
-                                BorderBrush="{StaticResource LiquidGlassBevelHighlight}"
+                                BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
+                                IsHitTestVisible="False"
+                                Opacity="0.7"/>
+
+                        <!-- 5. Concentric Inset Specular Bevel Border (inset 2px 2px) -->
+                        <Border x:Name="InnerBevel"
+                                Margin="1"
+                                CornerRadius="{DynamicResource RadiusNormal}"
+                                BorderThickness="1.5,1.5,0.5,0.5"
+                                BorderBrush="{StaticResource MacOsLiquidGlassBevel}"
                                 IsHitTestVisible="False"
                                 Opacity="0.85"/>
 
-                        <!-- 45° Specular Reflection Sheen (:after equivalent) -->
+                        <!-- 6. 45° Specular Reflection Sheen (:after) -->
                         <Border x:Name="SpecularSheen"
                                 Margin="1"
                                 CornerRadius="{DynamicResource RadiusNormal}"
@@ -110,7 +130,7 @@
                                 IsHitTestVisible="False"
                                 Opacity="0.35"/>
 
-                        <!-- Content Presenter -->
+                        <!-- 7. Content Presenter -->
                         <ContentPresenter x:Name="ContentSite"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
@@ -124,6 +144,7 @@
                             <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
                             <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
                             <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
+                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="0.95"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="12" ShadowDepth="4" Direction="270"
@@ -209,11 +230,20 @@
                                 CornerRadius="{DynamicResource RadiusNormal}"
                                 SnapsToDevicePixels="True"/>
 
+                        <!-- Perimeter Glow -->
+                        <Border x:Name="PerimeterGlow"
+                                Margin="1"
+                                CornerRadius="{DynamicResource RadiusNormal}"
+                                BorderThickness="1"
+                                BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
+                                IsHitTestVisible="False"
+                                Opacity="0.75"/>
+
                         <!-- Accent Specular Inset Bevel -->
                         <Border x:Name="InnerBevel"
                                 Margin="1"
                                 CornerRadius="{DynamicResource RadiusNormal}"
-                                BorderThickness="1"
+                                BorderThickness="1.5,1.5,0.5,0.5"
                                 BorderBrush="{StaticResource LiquidGlassAccentBevel}"
                                 IsHitTestVisible="False"
                                 Opacity="0.9"/>
@@ -240,6 +270,7 @@
                             <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource AccentPressedBrush}"/>
                             <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.9"/>
                             <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
+                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="0.95"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="18" ShadowDepth="3" Direction="270"
@@ -322,8 +353,10 @@
                         <Border x:Name="ButtonRoot" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="{DynamicResource RadiusNormal}" SnapsToDevicePixels="True"/>
+                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="{DynamicResource RadiusNormal}"
+                                BorderThickness="1" BorderBrush="#50FFA0B0" IsHitTestVisible="False" Opacity="0.75"/>
                         <Border x:Name="InnerBevel" Margin="1" CornerRadius="{DynamicResource RadiusNormal}"
-                                BorderThickness="1" BorderBrush="{StaticResource LiquidGlassDangerBevel}"
+                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource LiquidGlassDangerBevel}"
                                 IsHitTestVisible="False" Opacity="0.85"/>
                         <Border x:Name="SpecularSheen" Margin="1" CornerRadius="{DynamicResource RadiusNormal}"
                                 Background="{StaticResource LiquidGlassSheenDiagonal}" IsHitTestVisible="False" Opacity="0.35"/>
@@ -335,6 +368,7 @@
                             <Setter TargetName="ButtonRoot" Property="Background" Value="#50FF4567"/>
                             <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="#B0FF4567"/>
                             <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="16" ShadowDepth="3" Direction="270"
@@ -407,9 +441,12 @@
                         <Border x:Name="ButtonRoot" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="{DynamicResource RadiusNormal}" SnapsToDevicePixels="True"/>
+                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="{DynamicResource RadiusNormal}"
+                                BorderThickness="1" BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
+                                IsHitTestVisible="False" Opacity="0.7"/>
                         <Border x:Name="InnerBevel" Margin="1" CornerRadius="{DynamicResource RadiusNormal}"
-                                BorderThickness="1" BorderBrush="{StaticResource LiquidGlassBevelHighlight}"
-                                IsHitTestVisible="False" Opacity="0.75"/>
+                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource MacOsLiquidGlassBevel}"
+                                IsHitTestVisible="False" Opacity="0.8"/>
                         <Border x:Name="SpecularSheen" Margin="1" CornerRadius="{DynamicResource RadiusNormal}"
                                 Background="{StaticResource LiquidGlassSheenDiagonal}" IsHitTestVisible="False" Opacity="0.3"/>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -418,7 +455,8 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
                             <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.8"/>
+                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="270"
@@ -483,7 +521,7 @@
                                 BorderThickness="1" BorderBrush="Transparent" SnapsToDevicePixels="True"
                                 WindowChrome.IsHitTestVisibleInChrome="True"/>
                         <Border x:Name="Bevel" Margin="2" CornerRadius="5" BorderThickness="1"
-                                BorderBrush="{StaticResource LiquidGlassBevelHighlight}" Opacity="0"
+                                BorderBrush="{StaticResource MacOsLiquidGlassBevel}" Opacity="0"
                                 IsHitTestVisible="False" WindowChrome.IsHitTestVisibleInChrome="False"/>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           WindowChrome.IsHitTestVisibleInChrome="True"/>
@@ -492,7 +530,7 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
                             <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
-                            <Setter TargetName="Bevel" Property="Opacity" Value="0.8"/>
+                            <Setter TargetName="Bevel" Property="Opacity" Value="0.85"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Root" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
@@ -592,17 +630,22 @@
                                 CornerRadius="8"
                                 SnapsToDevicePixels="True"/>
 
-                        <!-- 4. Concentric Inset Specular Bevel Highlight -->
-                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="7"
-                                BorderThickness="1" BorderBrush="{StaticResource LiquidGlassBevelHighlight}"
-                                IsHitTestVisible="False" Opacity="0.8"/>
+                        <!-- 4. macOS Perimeter Inner Glow (inset 0 0 3px 1px) -->
+                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="7"
+                                BorderThickness="1" BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
+                                IsHitTestVisible="False" Opacity="0.75"/>
 
-                        <!-- 5. 45° Specular Reflection Sheen (:after) -->
+                        <!-- 5. macOS Concentric Inset Specular Bevel (inset 2px 2px 0px -2px) -->
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="7"
+                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource MacOsLiquidGlassBevel}"
+                                IsHitTestVisible="False" Opacity="0.85"/>
+
+                        <!-- 6. 45° Specular Reflection Sheen (:after) -->
                         <Border x:Name="SpecularSheen" Margin="1" CornerRadius="7"
                                 Background="{StaticResource LiquidGlassSheenDiagonal}"
                                 IsHitTestVisible="False" Opacity="0.32"/>
 
-                        <!-- 6. Content Presenter -->
+                        <!-- 7. Content Presenter -->
                         <ContentPresenter x:Name="ContentSite"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
@@ -616,6 +659,7 @@
                             <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
                             <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
                             <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
+                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="0.95"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="11" ShadowDepth="3.5" Direction="270"
@@ -697,9 +741,14 @@
                                 CornerRadius="8"
                                 SnapsToDevicePixels="True"/>
 
+                        <!-- Perimeter Inner Glow -->
+                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="7"
+                                BorderThickness="1" BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
+                                IsHitTestVisible="False" Opacity="0.8"/>
+
                         <!-- Concentric Accent Specular Inset Bevel -->
                         <Border x:Name="InnerBevel" Margin="1" CornerRadius="7"
-                                BorderThickness="1" BorderBrush="{StaticResource LiquidGlassAccentBevel}"
+                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource LiquidGlassAccentBevel}"
                                 IsHitTestVisible="False" Opacity="0.9"/>
 
                         <!-- 45° Specular Sheen -->
@@ -721,6 +770,7 @@
                             <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
                             <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.9"/>
                             <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
+                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="0.95"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect BlurRadius="16" ShadowDepth="3.5" Direction="270"
@@ -770,17 +820,17 @@
 
 
     <!-- ================================================================= -->
-    <!--       8. CIRCULAR 3D LIQUID GLASS BUTTON (REFRESH, NAV, BACK)     -->
+    <!--       8. CIRCULAR 3D LIQUID GLASS BUTTON (macOS .glassBtn)        -->
     <!-- ================================================================= -->
 
-    <!-- Круглая 3D кнопка навигации / действий (CyberNavCircleButton) -->
+    <!-- Круглая 3D кнопка навигации / действий (CyberNavCircleButton / glassBtn) -->
     <Style x:Key="CyberNavCircleButton" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Width" Value="32"/>
         <Setter Property="Height" Value="32"/>
         <Setter Property="Margin" Value="0,0,4,0"/>
         <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
-        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource MacOsLiquidGlassBevel}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
         <Setter Property="RenderTransform">
@@ -795,7 +845,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid SnapsToDevicePixels="True">
-                        <!-- Circular Ambient Shadow -->
+                        <!-- 1. Circular Ambient Shadow -->
                         <Border x:Name="ShadowHost" CornerRadius="16" Background="Transparent">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="7" ShadowDepth="2" Direction="270"
@@ -803,11 +853,11 @@
                             </Border.Effect>
                         </Border>
 
-                        <!-- Circular Dark Core Refraction -->
+                        <!-- 2. Circular Dark Core Refraction -->
                         <Border x:Name="DepthCore" Margin="1" CornerRadius="15"
                                 Background="#10000000" IsHitTestVisible="False"/>
 
-                        <!-- Circular Base Glass Body -->
+                        <!-- 3. Circular Base Glass Body (10% translucent glass fill) -->
                         <Border x:Name="ButtonRoot"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
@@ -815,12 +865,17 @@
                                 CornerRadius="16"
                                 SnapsToDevicePixels="True"/>
 
-                        <!-- Circular Concentric Inset Specular Bevel Highlight -->
-                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="15"
-                                BorderThickness="1" BorderBrush="{StaticResource LiquidGlassBevelHighlight}"
+                        <!-- 4. macOS Perimeter Inner Glow (inset 0 0 3px 1px) -->
+                        <Border x:Name="PerimeterGlow" Margin="1" CornerRadius="15"
+                                BorderThickness="1" BorderBrush="{StaticResource MacOsGlassPerimeterGlow}"
                                 IsHitTestVisible="False" Opacity="0.8"/>
 
-                        <!-- 45° Circular Specular Sheen -->
+                        <!-- 5. macOS Concentric Razor Specular Inset Bevel (inset 2px 2px 0px -2px) -->
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="15"
+                                BorderThickness="1.5,1.5,0.5,0.5" BorderBrush="{StaticResource MacOsLiquidGlassBevel}"
+                                IsHitTestVisible="False" Opacity="0.85"/>
+
+                        <!-- 6. 45° Circular Specular Sheen -->
                         <Border x:Name="SpecularSheen" Margin="1" CornerRadius="15"
                                 Background="{StaticResource LiquidGlassSheenDiagonal}"
                                 IsHitTestVisible="False" Opacity="0.35"/>
@@ -832,13 +887,13 @@
                         <!-- Hover: Scale up disc & flare sheen -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
-                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
-                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
+                            <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.9"/>
                             <Setter TargetName="InnerBevel" Property="Opacity" Value="1.0"/>
+                            <Setter TargetName="PerimeterGlow" Property="Opacity" Value="1.0"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="10" ShadowDepth="3" Direction="270"
-                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.5"/>
+                                    <DropShadowEffect BlurRadius="12" ShadowDepth="3" Direction="270"
+                                                      Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.55"/>
                                 </Setter.Value>
                             </Setter>
                             <Setter Property="RenderTransform">
@@ -893,5 +948,9 @@
     <Style x:Key="CyberPrimaryButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
     <Style x:Key="CyberDangerButton" TargetType="Button" BasedOn="{StaticResource GlassDangerButton}"/>
     <Style x:Key="CyberToolButton" TargetType="Button" BasedOn="{StaticResource GlassButton}"/>
+
+    <!-- macOS Liquid Glass Direct Aliases (.glassBtn) -->
+    <Style x:Key="GlassBtn" TargetType="Button" BasedOn="{StaticResource CyberNavCircleButton}"/>
+    <Style x:Key="MacOSGlassButton" TargetType="Button" BasedOn="{StaticResource CyberNavCircleButton}"/>
 
 </ResourceDictionary>

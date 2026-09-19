@@ -264,7 +264,7 @@
                         </Border>
                         <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
                         <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.3 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.4 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
                         </Border>
                         <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="6,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource TitleForegroundBrush}" Width="11" Height="11" Stretch="Uniform"/>

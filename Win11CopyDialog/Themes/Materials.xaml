@@ -82,6 +82,16 @@
 
     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#B2081222"/>
 
+    <!-- ================= macOS LIQUID GLASS SYSTEM TOKENS ================= -->
+    <SolidColorBrush x:Key="MacOsGlassCoreBrush" Color="#18FFFFFF"/>
+    <SolidColorBrush x:Key="MacOsGlassPerimeterGlow" Color="#50FFFFFF"/>
+    <LinearGradientBrush x:Key="MacOsLiquidGlassBevel" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#CCFFFFFF" Offset="0.0"/>
+        <GradientStop Color="#45FFFFFF" Offset="0.25"/>
+        <GradientStop Color="#10FFFFFF" Offset="0.7"/>
+        <GradientStop Color="#55FFFFFF" Offset="1.0"/>
+    </LinearGradientBrush>
+
     <!-- General Elevated Glass Card Style -->
     <Style x:Key="LiquidGlassCard" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel3Brush}"/>
@@ -96,6 +106,22 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- macOS Liquid Glass Container (.glassContainer equivalent) -->
+    <Style x:Key="GlassContainer" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel2Brush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource MacOsLiquidGlassBevel}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="16"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect BlurRadius="16" ShadowDepth="3" Direction="270"
+                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.4"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="MacOSGlassContainer" TargetType="Border" BasedOn="{StaticResource GlassContainer}"/>
 
     <!-- Backward-Compatible Aliases for Card -->
     <Style x:Key="Card" TargetType="Border" BasedOn="{StaticResource LiquidGlassCard}"/>
