@@ -15,6 +15,219 @@
         WindowStartupLocation="CenterScreen"
         TextOptions.TextFormattingMode="Display">
 
+    <Window.Resources>
+        <!-- 1. Single File Context Menu -->
+        <ContextMenu x:Key="FileContextMenu">
+            <MenuItem Header="Открыть" InputGestureText="Enter" Click="ContextOpen_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_OpenFolder}" Fill="{DynamicResource AccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Сжать в архив…" Click="ContextCompress_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Archive}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem x:Name="FileExtractMenuItem" Header="Распаковать архив…" Click="ContextExtract_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Extract}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Хэш-суммы (CRC32, SHA-256)" Click="ContextHashes_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Копировать" InputGestureText="Ctrl+C" Click="CopyItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Вырезать" InputGestureText="Ctrl+X" Click="CutItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem x:Name="FilePasteMenuItem" Header="Вставить" InputGestureText="Ctrl+V" Click="PasteItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Копировать в папку…" Click="CopyToFolder_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Transfer}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Переместить в папку…" Click="MoveToFolder_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Move}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Дублировать" InputGestureText="Ctrl+D" Click="ContextDuplicate_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Duplicate}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Переименовать" InputGestureText="F2" Click="ContextRename_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Rename}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Удалить" InputGestureText="Del" Tag="Danger" Click="DeleteItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Delete}" Fill="{DynamicResource ContextMenuDanger}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Свойства" InputGestureText="Alt+Enter" Click="ContextProperties_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Properties}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+
+        <!-- 2. Single Folder Context Menu -->
+        <ContextMenu x:Key="FolderContextMenu">
+            <MenuItem Header="Открыть" InputGestureText="Enter" Click="ContextOpen_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Открыть в терминале" Click="ContextTerminal_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Terminal}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Сжать папку в архив…" Click="ContextCompress_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Archive}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Копировать" InputGestureText="Ctrl+C" Click="CopyItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Вырезать" InputGestureText="Ctrl+X" Click="CutItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem x:Name="FolderPasteMenuItem" Header="Вставить" InputGestureText="Ctrl+V" Click="PasteItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Копировать в папку…" Click="CopyToFolder_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Transfer}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Переместить в папку…" Click="MoveToFolder_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Move}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Переименовать" InputGestureText="F2" Click="ContextRename_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Rename}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Удалить" InputGestureText="Del" Tag="Danger" Click="DeleteItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Delete}" Fill="{DynamicResource ContextMenuDanger}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Свойства" InputGestureText="Alt+Enter" Click="ContextProperties_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Properties}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+
+        <!-- 3. Multiple Selection Context Menu -->
+        <ContextMenu x:Key="MultiSelectionContextMenu">
+            <MenuItem Header="Сжать выбранное в архив…" Click="ContextCompress_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Archive}" Fill="{DynamicResource AccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem x:Name="MultiExtractMenuItem" Header="Распаковать выбранные архивы…" Click="ContextExtract_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Extract}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Хэш-суммы выбранных файлов" Click="ContextHashes_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Копировать" InputGestureText="Ctrl+C" Click="CopyItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Вырезать" InputGestureText="Ctrl+X" Click="CutItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Копировать в папку…" Click="CopyToFolder_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Transfer}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="Переместить в папку…" Click="MoveToFolder_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Move}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Удалить выбранные" InputGestureText="Del" Tag="Danger" Click="DeleteItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Delete}" Fill="{DynamicResource ContextMenuDanger}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+
+        <!-- 4. Background (Empty Area) Context Menu -->
+        <ContextMenu x:Key="BackgroundContextMenu">
+            <MenuItem x:Name="BgNewFolderMenuItem" Header="Создать папку" InputGestureText="Ctrl+Shift+N" Click="NewFolder_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_NewFolder}" Fill="{DynamicResource AccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem x:Name="BgPasteMenuItem" Header="Вставить" InputGestureText="Ctrl+V" Click="PasteItem_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Выделить всё" InputGestureText="Ctrl+A" Click="SelectAll_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_SelectAll}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem x:Name="BgTerminalMenuItem" Header="Открыть в терминале" Click="BackgroundTerminal_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Terminal}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+            <Separator/>
+            <MenuItem Header="Обновить" InputGestureText="F5" Click="Refresh_Click">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+    </Window.Resources>
+
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="12,12,12,12"
                       GlassFrameThickness="-1" UseAeroCaptionButtons="False"/>
@@ -282,9 +495,21 @@
                                                 <Button Style="{StaticResource SidebarNavItem}" Click="QuickAccess_Click">
                                                     <Button.ContextMenu>
                                                         <ContextMenu>
-                                                            <MenuItem Header="📂 Открыть" Click="QuickAccessContextOpen_Click"/>
-                                                            <MenuItem Header="⚡ Открыть в терминале" Click="QuickAccessContextTerminal_Click"/>
-                                                            <MenuItem Header="📋 Копировать путь" Click="QuickAccessContextCopyPath_Click"/>
+                                                            <MenuItem Header="Открыть" Click="QuickAccessContextOpen_Click">
+                                                                <MenuItem.Icon>
+                                                                    <Path Data="{StaticResource Icon_OpenFolder}" Fill="{DynamicResource AccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem Header="Открыть в терминале" Click="QuickAccessContextTerminal_Click">
+                                                                <MenuItem.Icon>
+                                                                    <Path Data="{StaticResource Icon_Terminal}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem Header="Копировать путь" Click="QuickAccessContextCopyPath_Click">
+                                                                <MenuItem.Icon>
+                                                                    <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
                                                         </ContextMenu>
                                                     </Button.ContextMenu>
                                                     <DockPanel LastChildFill="True">
@@ -336,11 +561,27 @@
                                                 <Border Style="{StaticResource SidebarDriveCard}" MouseLeftButtonUp="Drive_Click">
                                                     <Border.ContextMenu>
                                                         <ContextMenu>
-                                                            <MenuItem Header="📂 Открыть диск" Click="DriveContextOpen_Click"/>
-                                                            <MenuItem Header="📊 Анализ диска (WizTree)" Click="DriveContextWizTree_Click"/>
-                                                            <MenuItem Header="⚡ Тест скорости накопителя" Click="DriveContextSpeed_Click"/>
+                                                            <MenuItem Header="Открыть диск" Click="DriveContextOpen_Click">
+                                                                <MenuItem.Icon>
+                                                                    <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="14" Height="14" Stretch="Uniform"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem Header="Анализ диска (WizTree)" Click="DriveContextWizTree_Click">
+                                                                <MenuItem.Icon>
+                                                                    <Path Data="{StaticResource Icon_NavDiagnostics}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
+                                                            <MenuItem Header="Тест скорости накопителя" Click="DriveContextSpeed_Click">
+                                                                <MenuItem.Icon>
+                                                                    <Path Data="{StaticResource Icon_NavSpeed}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
                                                             <Separator/>
-                                                            <MenuItem Header="ℹ️ Свойства диска" Click="DriveContextProperties_Click"/>
+                                                            <MenuItem Header="Свойства диска" Click="DriveContextProperties_Click">
+                                                                <MenuItem.Icon>
+                                                                    <Path Data="{StaticResource Icon_Properties}" Fill="{DynamicResource ContextMenuForeground}" Width="14" Height="14" Stretch="Uniform"/>
+                                                                </MenuItem.Icon>
+                                                            </MenuItem>
                                                         </ContextMenu>
                                                     </Border.ContextMenu>
                                                     <StackPanel>
@@ -414,27 +655,8 @@
                             <ListView x:Name="FileBrowserList" Grid.Column="2" BorderThickness="0" Background="Transparent"
                                       AllowDrop="True" Drop="FileBrowserList_Drop" MouseDoubleClick="FileBrowserList_DoubleClick"
                                       SelectionChanged="FileBrowserList_SelectionChanged" KeyDown="FileBrowserList_KeyDown"
-                                      PreviewMouseRightButtonDown="FileBrowserList_PreviewMouseRightButtonDown">
-
-                                <ListView.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Открыть" Click="ContextOpen_Click"/>
-                                        <MenuItem Header="🗜 Сжать в архив…" Click="ContextCompress_Click"/>
-                                        <MenuItem Header="📦 Распаковать…" Click="ContextExtract_Click"/>
-                                        <MenuItem Header="# Хэш-суммы (CRC32, SHA-256)" Click="ContextHashes_Click"/>
-                                        <Separator/>
-                                        <MenuItem Header="Копировать" Click="CopyItem_Click"/>
-                                        <MenuItem Header="Вырезать" Click="CutItem_Click"/>
-                                        <MenuItem Header="Вставить" Click="PasteItem_Click"/>
-                                        <MenuItem Header="🚀 Копировать в папку…" Click="CopyToFolder_Click"/>
-                                        <MenuItem Header="📦 Переместить в папку…" Click="MoveToFolder_Click"/>
-                                        <MenuItem Header="Дублировать" Click="ContextDuplicate_Click"/>
-                                        <MenuItem Header="Переименовать" Click="ContextRename_Click"/>
-                                        <MenuItem Header="Удалить" Click="DeleteItem_Click"/>
-                                        <Separator/>
-                                        <MenuItem Header="Свойства" Click="ContextProperties_Click"/>
-                                    </ContextMenu>
-                                </ListView.ContextMenu>
+                                      PreviewMouseRightButtonDown="FileBrowserList_PreviewMouseRightButtonDown"
+                                      ContextMenuOpening="FileBrowserList_ContextMenuOpening">
 
                                 <ListView.View>
                                     <GridView>

@@ -1005,6 +1005,111 @@ public partial class MainWindow : Window
                 FileBrowserList.SelectedItem = fsItem;
             }
         }
+        else
+        {
+            FileBrowserList.SelectedItems.Clear();
+        }
+    }
+
+    private void FileBrowserList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        var selected = FileBrowserList.SelectedItems.Cast<FileSystemItem>().ToList();
+        ContextMenu menu;
+
+        if (selected.Count == 0)
+        {
+            menu = (ContextMenu)FindResource("BackgroundContextMenu");
+
+            if (FindMenuItemByName(menu, "BgNewFolderMenuItem") is MenuItem newFolderItem)
+                newFolderItem.IsEnabled = !_isInsideArchive;
+
+            if (FindMenuItemByName(menu, "BgPasteMenuItem") is MenuItem pasteItem)
+                pasteItem.IsEnabled = !_isInsideArchive && _clipboardPaths.Count > 0;
+
+            if (FindMenuItemByName(menu, "BgTerminalMenuItem") is MenuItem termItem)
+                termItem.IsEnabled = !_isInsideArchive && Directory.Exists(_currentPath);
+        }
+        else if (selected.Count == 1)
+        {
+            var item = selected[0];
+            if (item.IsDirectory)
+            {
+                menu = (ContextMenu)FindResource("FolderContextMenu");
+
+                if (FindMenuItemByName(menu, "FolderPasteMenuItem") is MenuItem pasteItem)
+                    pasteItem.IsEnabled = !_isInsideArchive && _clipboardPaths.Count > 0;
+            }
+            else
+            {
+                menu = (ContextMenu)FindResource("FileContextMenu");
+
+                if (FindMenuItemByName(menu, "FileExtractMenuItem") is MenuItem extractItem)
+                    extractItem.IsEnabled = item.IsArchive;
+
+                if (FindMenuItemByName(menu, "FilePasteMenuItem") is MenuItem pasteItem)
+                    pasteItem.IsEnabled = !_isInsideArchive && _clipboardPaths.Count > 0;
+            }
+        }
+        else
+        {
+            menu = (ContextMenu)FindResource("MultiSelectionContextMenu");
+
+            if (FindMenuItemByName(menu, "MultiExtractMenuItem") is MenuItem extractItem)
+                extractItem.IsEnabled = selected.Any(i => i.IsArchive);
+        }
+
+        FileBrowserList.ContextMenu = menu;
+    }
+
+    private static MenuItem? FindMenuItemByName(ContextMenu menu, string name)
+    {
+        foreach (var item in menu.Items)
+        {
+            if (item is MenuItem mi && mi.Name == name)
+                return mi;
+        }
+        return null;
+    }
+
+    private void ContextTerminal_Click(object sender, RoutedEventArgs e)
+    {
+        if (FileBrowserList.SelectedItem is FileSystemItem item && item.IsDirectory && Directory.Exists(item.FullPath))
+        {
+            HapticAudio.PlayClick();
+            OpenTerminal(item.FullPath);
+        }
+    }
+
+    private void BackgroundTerminal_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isInsideArchive && Directory.Exists(_currentPath))
+        {
+            HapticAudio.PlayClick();
+            OpenTerminal(_currentPath);
+        }
+    }
+
+    private void SelectAll_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        FileBrowserList.SelectAll();
+    }
+
+    private void OpenTerminal(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                WorkingDirectory = path,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось запустить терминал: {ex.Message}", "Терминал", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async void FileBrowserList_Drop(object sender, DragEventArgs e)

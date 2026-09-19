@@ -197,6 +197,37 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Set("GraphGridBrush", new SolidColorBrush(graphGrid));
         Set("GraphFillBrush", new SolidColorBrush(graphFill));
 
+        // Context Menu Tokens
+        Color contextBg = Theme == AppTheme.MotionGlass 
+            ? Color.FromArgb(0xF2, 0x0B, 0x14, 0x24) 
+            : (dark ? Color.FromArgb(0xF8, 0x1E, 0x23, 0x30) : Color.FromArgb(0xF8, 0xFA, 0xFA, 0xFC));
+        Color contextBorder = Theme == AppTheme.MotionGlass
+            ? Color.FromArgb(0x40, 0x78, 0xBE, 0xFF)
+            : (dark ? Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x30, 0x00, 0x00, 0x00));
+        Color contextHover = Theme == AppTheme.MotionGlass
+            ? Color.FromArgb(0x28, 0x16, 0x8C, 0xFF)
+            : (dark ? Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x10, 0x00, 0x00, 0x00));
+        Color contextPressed = Theme == AppTheme.MotionGlass
+            ? Color.FromArgb(0x45, 0x16, 0x8C, 0xFF)
+            : (dark ? Color.FromArgb(0x35, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x20, 0x00, 0x00, 0x00));
+        Color contextDisabled = dark ? Color.FromArgb(0x55, 0x94, 0xA3, 0xB8) : Color.FromArgb(0x55, 0x60, 0x5E, 0x5C);
+        Color contextDanger = Color.FromRgb(0xFF, 0x45, 0x67);
+        Color contextDangerHover = Color.FromArgb(0x2E, 0xFF, 0x45, 0x67);
+        Color contextDivider = dark ? Color.FromArgb(0x1C, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x15, 0x00, 0x00, 0x00);
+        Color contextShadow = dark ? Color.FromArgb(0x90, 0x00, 0x00, 0x00) : Color.FromArgb(0x35, 0x00, 0x00, 0x00);
+
+        Set("ContextMenuBackground", new SolidColorBrush(contextBg));
+        Set("ContextMenuBorder", new SolidColorBrush(contextBorder));
+        Set("ContextMenuForeground", new SolidColorBrush(primary));
+        Set("ContextMenuSecondaryForeground", new SolidColorBrush(secondary));
+        Set("ContextMenuHover", new SolidColorBrush(contextHover));
+        Set("ContextMenuPressed", new SolidColorBrush(contextPressed));
+        Set("ContextMenuDisabled", new SolidColorBrush(contextDisabled));
+        Set("ContextMenuDanger", new SolidColorBrush(contextDanger));
+        Set("ContextMenuDangerHover", new SolidColorBrush(contextDangerHover));
+        Set("ContextMenuDivider", new SolidColorBrush(contextDivider));
+        Set("ContextMenuShadowColor", contextShadow);
+
         OnChanged(nameof(IsDark));
         OnChanged(nameof(Backdrop));
         OnChanged(nameof(AccentColor));

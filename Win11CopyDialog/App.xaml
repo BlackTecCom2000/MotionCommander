@@ -4,7 +4,12 @@
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              xmlns:helpers="clr-namespace:Win11CopyDialog.Helpers">
     <Application.Resources>
-        <!-- ================= DESIGN TOKENS (Fluent 2) ================= -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles/ContextMenu.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ================= DESIGN TOKENS (Fluent 2) ================= -->
         <!-- Spacing System (4px base) -->
         <Thickness x:Key="Spacing4">4</Thickness>
         <Thickness x:Key="Spacing8">8</Thickness>
@@ -60,6 +65,19 @@
         <SolidColorBrush x:Key="AccentPressedBrush" Color="#005A9E"/>
         <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#600D111A"/>
         <SolidColorBrush x:Key="AccentForegroundBrush" Color="White"/>
+
+        <!-- Context Menu Semantic Tokens (Default Fallback) -->
+        <SolidColorBrush x:Key="ContextMenuBackground" Color="#F20B1424"/>
+        <SolidColorBrush x:Key="ContextMenuBorder" Color="#4078BEFF"/>
+        <SolidColorBrush x:Key="ContextMenuForeground" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="ContextMenuSecondaryForeground" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="ContextMenuHover" Color="#28168CFF"/>
+        <SolidColorBrush x:Key="ContextMenuPressed" Color="#45168CFF"/>
+        <SolidColorBrush x:Key="ContextMenuDisabled" Color="#5594A3B8"/>
+        <SolidColorBrush x:Key="ContextMenuDanger" Color="#FF4567"/>
+        <SolidColorBrush x:Key="ContextMenuDangerHover" Color="#2EFF4567"/>
+        <SolidColorBrush x:Key="ContextMenuDivider" Color="#20FFFFFF"/>
+        <Color x:Key="ContextMenuShadowColor">#80000000</Color>
         <Color x:Key="GlowAccentColor">#400078D4</Color>
         <SolidColorBrush x:Key="GlowAccentBrush" Color="#400078D4"/>
         <SolidColorBrush x:Key="ProgressTrackBrush" Color="#E6E6E6"/>
@@ -164,6 +182,12 @@
         <StreamGeometry x:Key="Icon_IOPipeline">M 4,4 H 20 V 8 H 4 Z M 17,6 H 18 M 4,10 H 20 V 14 H 4 Z M 17,12 H 18 M 8,17 L 12,21 L 16,17 M 12,14 V 20</StreamGeometry>
         <StreamGeometry x:Key="Icon_ConfigEditor">M 5,3 H 19 V 21 H 5 Z M 8,7 H 16 M 8,10 H 14 M 8,13 H 16 M 8,16 H 12</StreamGeometry>
         <StreamGeometry x:Key="Icon_Backdrop">M 3,3 H 21 V 21 H 3 Z M 3,3 L 21,21 M 7,3 V 21 M 11,3 V 21 M 15,3 V 21 M 19,3 V 21 M 3,7 H 21 M 3,11 H 21 M 3,15 H 21 M 3,19 H 21</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Rename">M 3,17.25 V 21 H 6.75 L 17.81,9.94 L 14.06,6.19 L 3,17.25 Z M 20.71,7.04 C 21.1,6.65 21.1,6.02 20.71,5.63 L 18.37,3.29 C 17.98,2.9 17.35,2.9 16.96,3.29 L 15.13,5.12 L 18.88,8.87 L 20.71,7.04 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Duplicate">M 16,1 H 4 C 2.9,1 2,1.9 2,3 V 17 H 4 V 3 H 16 V 1 Z M 19,5 H 8 C 6.9,5 6,5.9 6,7 V 21 C 6,22.1 6.9,23 8,23 H 19 C 20.1,23 21,22.1 21,21 V 7 C 21,5.9 20.1,5 19,5 Z M 19,21 H 8 V 7 H 19 V 21 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Properties">M 12,2 A 10,10 0 1 0 22,12 A 10,10 0 0 0 12,2 Z M 13,17 H 11 V 11 H 13 Z M 13,9 H 11 V 7 H 13 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_Terminal">M 20,4 H 4 C 2.89,4 2,4.89 2,6 V 18 C 2,19.1 2.9,20 4,20 H 20 C 21.1,20 22,19.1 22,18 V 6 C 22,4.89 21.1,4 20,4 Z M 20,18 H 4 V 8 H 20 V 18 Z M 6,10 L 9,13 L 6,16 L 7.41,17.41 L 11.83,13 L 7.41,8.59 L 6,10 Z M 12,15 H 18 V 17 H 12 V 15 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_SelectAll">M 3,5 H 5 V 3 C 3.9,3 3,3.9 3,5 Z M 3,13 H 5 V 11 H 3 Z M 7,21 H 9 V 19 H 7 Z M 3,9 H 5 V 7 H 3 Z M 13,3 H 11 V 5 H 13 Z M 19,3 V 5 H 21 C 21,3.9 20.1,3 19,3 Z M 5,21 V 19 H 3 C 3,20.1 3.9,21 5,21 Z M 3,17 H 5 V 15 H 3 Z M 9,3 H 7 V 5 H 9 Z M 11,21 H 13 V 19 H 11 Z M 19,13 H 21 V 11 H 19 Z M 19,21 C 20.1,21 21,20.1 21,19 H 19 Z M 19,9 H 21 V 7 H 19 Z M 19,17 H 21 V 15 H 19 Z M 15,21 H 17 V 19 H 15 Z M 15,5 H 17 V 3 H 15 Z M 7,17 H 17 V 7 H 7 Z</StreamGeometry>
+        <StreamGeometry x:Key="Icon_OpenFolder">M 19,20 H 4 C 2.9,20 2,19.1 2,18 L 2.01,6 C 2.01,4.9 2.9,4 4,4 H 10 L 12,6 H 20 C 21.1,6 22,6.9 22,8 V 18 C 22,19.1 21.1,20 20,20 Z M 4,8 V 18 H 20 V 8 H 4 Z</StreamGeometry>
 
         <!-- Футуристическая навигационная пилюля (Futuristic Nav Tab) -->
         <Style x:Key="FuturisticNavTab" TargetType="RadioButton">
@@ -1169,5 +1193,6 @@
             <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
             <Setter Property="helpers:SmoothScroll.IsEnabled" Value="True"/>
         </Style>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
