@@ -85,6 +85,36 @@ public partial class App : Application
         // Применить тему до показа окон, чтобы Mica/тёмный режим встали сразу
         ThemeManager.Instance.Apply();
 
+        if (e.Args.Contains("--replace-explorer"))
+        {
+            bool ok = Modules.WindowsShellIntegration.ShellIntegrationService.SetExplorerReplacement(true, out string err);
+            if (ok)
+            {
+                MessageBox.Show("Motion Commander успешно назначен основным проводником Windows по умолчанию!", "Интеграция Shell", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show($"Ошибка назначения проводника: {err}", "Ошибка Shell", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            Shutdown(ok ? 0 : 1);
+            return;
+        }
+
+        if (e.Args.Contains("--restore-explorer"))
+        {
+            bool ok = Modules.WindowsShellIntegration.ShellIntegrationService.SetExplorerReplacement(false, out string err);
+            if (ok)
+            {
+                MessageBox.Show("Стандартный Windows Explorer успешно возвращен по умолчанию!", "Восстановление Shell", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show($"Ошибка восстановления проводника: {err}", "Ошибка Shell", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            Shutdown(ok ? 0 : 1);
+            return;
+        }
+
         // --selftest: конструктор + классика + motion, прогнать 5 с, закрыться (exit 0).
         // Любая ошибка XAML/движка уронит процесс — это и есть проверка.
         if (e.Args.Contains("--selftest"))

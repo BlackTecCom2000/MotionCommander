@@ -42,9 +42,118 @@ public partial class SettingsWindow : Window
         InitThemes();
         InitAccents();
         InitHaptics();
+        InitShellIntegration();
         LoadConfigToEditor();
 
         _initializing = false;
+    }
+
+    private void InitShellIntegration()
+    {
+        UpdateExplorerStatus();
+        UpdateContextMenuStatus();
+    }
+
+    private void UpdateExplorerStatus()
+    {
+        bool isReplaced = Modules.WindowsShellIntegration.ShellIntegrationService.IsExplorerReplaced();
+        if (isReplaced)
+        {
+            ExplorerStatusBadgeText.Text = "⚡ Motion Commander (По умолчанию)";
+            ExplorerStatusBadgeText.Foreground = (Brush)FindResource("AccentBrush");
+            ToggleExplorerBtn.Content = "✔ Motion Commander активен";
+            ToggleExplorerBtn.IsEnabled = false;
+            RestoreExplorerBtn.IsEnabled = true;
+        }
+        else
+        {
+            ExplorerStatusBadgeText.Text = "Стандартный Windows Explorer";
+            ExplorerStatusBadgeText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+            ToggleExplorerBtn.Content = "⚡ Сделать Motion Commander проводником по умолчанию";
+            ToggleExplorerBtn.IsEnabled = true;
+            RestoreExplorerBtn.IsEnabled = false;
+        }
+    }
+
+    private void UpdateContextMenuStatus()
+    {
+        bool isIntegrated = Modules.WindowsShellIntegration.ShellIntegrationService.IsIntegrated();
+        if (isIntegrated)
+        {
+            ContextMenuStatusBadgeText.Text = "✔ Интегрировано в Windows";
+            ContextMenuStatusBadgeText.Foreground = (Brush)FindResource("AccentBrush");
+            ToggleContextMenuBtn.IsEnabled = false;
+            RemoveContextMenuBtn.IsEnabled = true;
+        }
+        else
+        {
+            ContextMenuStatusBadgeText.Text = "Не интегрировано";
+            ContextMenuStatusBadgeText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+            ToggleContextMenuBtn.IsEnabled = true;
+            RemoveContextMenuBtn.IsEnabled = false;
+        }
+    }
+
+    private void ToggleExplorerReplacement_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (Modules.WindowsShellIntegration.ShellIntegrationService.SetExplorerReplacement(true, out string error))
+        {
+            UpdateExplorerStatus();
+            StatusMessage.Text = "Motion Commander назначен основным файловым менеджером Windows.";
+            MessageBox.Show("Motion Commander успешно назначен проводником по умолчанию!\n\nТеперь открытие папок и дисков будет происходить в Motion Commander.",
+                "Замена Проводника", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            StatusMessage.Text = $"Ошибка назначения проводника: {error}";
+            MessageBox.Show($"Не удалось изменить ассоциации проводника:\n{error}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void RestoreExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (Modules.WindowsShellIntegration.ShellIntegrationService.SetExplorerReplacement(false, out string error))
+        {
+            UpdateExplorerStatus();
+            StatusMessage.Text = "Стандартный Windows Explorer успешно возвращен по умолчанию.";
+            MessageBox.Show("Стандартный Проводник Windows успешно восстановлен по умолчанию!",
+                "Возврат Проводника", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            StatusMessage.Text = $"Ошибка восстановления: {error}";
+            MessageBox.Show($"Не удалось восстановить стандартный проводник:\n{error}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ToggleContextMenu_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (Modules.WindowsShellIntegration.ShellIntegrationService.SetIntegration(true, out string error))
+        {
+            UpdateContextMenuStatus();
+            StatusMessage.Text = "Пункты контекстного меню успешно добавлены.";
+        }
+        else
+        {
+            MessageBox.Show($"Ошибка интеграции контекстного меню:\n{error}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void RemoveContextMenu_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (Modules.WindowsShellIntegration.ShellIntegrationService.SetIntegration(false, out string error))
+        {
+            UpdateContextMenuStatus();
+            StatusMessage.Text = "Пункты контекстного меню успешно удалены.";
+        }
+        else
+        {
+            MessageBox.Show($"Ошибка удаления из контекстного меню:\n{error}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void InitThemes()

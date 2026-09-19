@@ -75,6 +75,8 @@ public partial class MainWindow : Window
         // Запуск 30 FPS телеметрии графика скорости
         InitSpeedGraph();
 
+        RefreshToolsExplorerStatus();
+
         string currentVer = UpdateService.GetCurrentVersion();
         if (AppVersionHeaderBadgeText != null) AppVersionHeaderBadgeText.Text = $"v{currentVer} All-in-One";
 
@@ -1332,6 +1334,7 @@ public partial class MainWindow : Window
         HapticAudio.PlayClick();
         var dlg = new SettingsWindow { Owner = this };
         dlg.ShowDialog();
+        RefreshToolsExplorerStatus();
     }
 
     // ---------- ДВИЖОК ПЕРЕДАЧ (TAB 2) ----------
@@ -1789,6 +1792,58 @@ public partial class MainWindow : Window
     {
         HapticAudio.PlayClick();
         new AdvancedToolsWindow(_currentPath) { Owner = this }.ShowDialog();
+    }
+
+    private void RefreshToolsExplorerStatus()
+    {
+        if (ToolsExplorerBadgeText == null) return;
+        bool isReplaced = Modules.WindowsShellIntegration.ShellIntegrationService.IsExplorerReplaced();
+        if (isReplaced)
+        {
+            ToolsExplorerBadgeText.Text = "⚡ Motion Commander (Активен)";
+            ToolsExplorerBadgeText.Foreground = (Brush)FindResource("AccentBrush");
+            ToolsToggleExplorerBtn.Content = "✔ По умолчанию";
+            ToolsToggleExplorerBtn.IsEnabled = false;
+            ToolsRestoreExplorerBtn.IsEnabled = true;
+        }
+        else
+        {
+            ToolsExplorerBadgeText.Text = "Стандартный Windows Explorer";
+            ToolsExplorerBadgeText.Foreground = (Brush)FindResource("SecondaryTextBrush");
+            ToolsToggleExplorerBtn.Content = "⚡ Сделать основным";
+            ToolsToggleExplorerBtn.IsEnabled = true;
+            ToolsRestoreExplorerBtn.IsEnabled = false;
+        }
+    }
+
+    private void ToolsToggleExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (Modules.WindowsShellIntegration.ShellIntegrationService.SetExplorerReplacement(true, out string error))
+        {
+            RefreshToolsExplorerStatus();
+            MessageBox.Show("Motion Commander успешно назначен проводником по умолчанию!\n\nТеперь открытие папок и дисков будет перенаправляться в Motion Commander.",
+                "Замена Проводника", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show($"Не удалось изменить ассоциации проводника:\n{error}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ToolsRestoreExplorer_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (Modules.WindowsShellIntegration.ShellIntegrationService.SetExplorerReplacement(false, out string error))
+        {
+            RefreshToolsExplorerStatus();
+            MessageBox.Show("Стандартный Проводник Windows успешно восстановлен по умолчанию!",
+                "Возврат Проводника", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show($"Не удалось восстановить стандартный проводник:\n{error}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void QuickTheme_Click(object sender, RoutedEventArgs e)

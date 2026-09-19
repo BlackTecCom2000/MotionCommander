@@ -949,6 +949,26 @@
                 <Grid x:Name="ToolsView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed" Margin="18">
                     <ScrollViewer x:Name="ToolsScrollViewer" VerticalScrollBarVisibility="Auto">
                         <StackPanel MaxWidth="800" HorizontalAlignment="Center">
+                            <!-- Windows Explorer Replacement Card -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="12" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="🗂" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border x:Name="ToolsExplorerBadge" CornerRadius="8" Padding="10,3" Margin="0,0,10,0" VerticalAlignment="Center" Background="{DynamicResource ChipBackgroundBrush}">
+                                            <TextBlock x:Name="ToolsExplorerBadgeText" Text="Стандартный Windows Explorer" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                        </Border>
+                                        <Button x:Name="ToolsToggleExplorerBtn" Style="{StaticResource CyberButton}" Content="⚡ Сделать основным" Padding="14,6" Click="ToolsToggleExplorer_Click"/>
+                                        <Button x:Name="ToolsRestoreExplorerBtn" Style="{StaticResource CyberToolButton}" Content="↺ Вернуть проводник" Margin="8,0,0,0" Padding="12,6" Click="ToolsRestoreExplorer_Click"/>
+                                    </StackPanel>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Замена стандартного Проводника Windows" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Перехват открытия папок и локальных дисков в Motion Commander с возможностью мгновенного отката" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
                             <!-- Download Manager -->
                             <Border Style="{StaticResource Card}" Padding="18" Margin="0,0,0,14">
                                 <DockPanel>

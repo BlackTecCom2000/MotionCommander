@@ -152,6 +152,57 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- Интеграция с Windows и замена Проводника -->
+            <TabItem Header="🔗 Интеграция Windows" FontSize="12" Padding="14,8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                    <StackPanel>
+                        <!-- Замена стандартного Проводника -->
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Border x:Name="ExplorerStatusBadge" DockPanel.Dock="Right" CornerRadius="8" Padding="10,3" VerticalAlignment="Center" Background="{DynamicResource ChipBackgroundBrush}">
+                                        <TextBlock x:Name="ExplorerStatusBadgeText" Text="Стандартный Windows Explorer" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Замена стандартного Проводника Windows" FontWeight="Bold" FontSize="13" Margin="0,0,0,2"/>
+                                        <TextBlock Text="Открывать Motion Commander при переходе в любые папки и диски" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <TextBlock Text="Перенаправляет системные вызовы открытия папок и локальных дисков в Motion Commander вместо медленного Windows Explorer. Панель задач и меню «Пуск» остаются стабильными и продолжают работать в штатном режиме." FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                                <DockPanel>
+                                    <Button x:Name="ToggleExplorerBtn" Style="{StaticResource CyberButton}" Content="⚡ Сделать Motion Commander проводником по умолчанию" Padding="14,6" Click="ToggleExplorerReplacement_Click"/>
+                                    <Button x:Name="RestoreExplorerBtn" Style="{StaticResource CyberToolButton}" Content="↺ Вернуть стандартный Проводник Windows" Margin="10,0,0,0" Padding="14,6" Click="RestoreExplorer_Click"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Контекстное меню Windows -->
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Border x:Name="ContextMenuStatusBadge" DockPanel.Dock="Right" CornerRadius="8" Padding="10,3" VerticalAlignment="Center" Background="{DynamicResource ChipBackgroundBrush}">
+                                        <TextBlock x:Name="ContextMenuStatusBadgeText" Text="Не интегрировано" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Пункты в контекстном меню файлов и папок" FontWeight="Bold" FontSize="13" Margin="0,0,0,2"/>
+                                        <TextBlock Text="Быстрый доступ к сжатию и открытию через меню правой кнопки мыши" FontSize="11" Style="{StaticResource MutedText}"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <TextBlock Text="Добавляет команды «Открыть в Motion Commander» и «Сжать в архив...» в стандартное меню Windows для мгновенной работы с файлами без запуска сторонних программ." FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                                <DockPanel>
+                                    <Button x:Name="ToggleContextMenuBtn" Style="{StaticResource CyberButton}" Content="➕ Добавить пункты в контекстное меню" Padding="14,6" Click="ToggleContextMenu_Click"/>
+                                    <Button x:Name="RemoveContextMenuBtn" Style="{StaticResource CyberToolButton}" Content="🗑 Удалить из контекстного меню" Margin="10,0,0,0" Padding="14,6" Click="RemoveContextMenu_Click"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <!-- Интерактивный редактор конфигурации -->
             <TabItem Header="📝 Редактор конфигурации" FontSize="12" Padding="14,8">
                 <Grid Margin="0,10,0,0">
