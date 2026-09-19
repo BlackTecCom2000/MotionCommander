@@ -269,6 +269,38 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Set("LiquidGlassInputHoverBackgroundBrush", new SolidColorBrush(hover));
         Set("LiquidGlassInputFocusedBorderBrush", new SolidColorBrush(accent));
 
+        // 2211.zip Chromatic Lens Dispersion Border (Simulates RGB Channel Separation)
+        if (Theme == AppTheme.MotionGlass)
+        {
+            var chromatic = new LinearGradientBrush(
+                new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(0x60, 0x00, 0xE5, 0xFF), 0.0),  // Cyan Rim
+                    new GradientStop(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF), 0.12), // Specular Peak
+                    new GradientStop(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF), 0.30),
+                    new GradientStop(Color.FromArgb(0x15, 0x78, 0xBE, 0xFF), 0.65),
+                    new GradientStop(Color.FromArgb(0x55, 0xB3, 0x66, 0xFF), 0.88), // Violet Rim
+                    new GradientStop(Color.FromArgb(0x45, 0xF4, 0x3F, 0x5E), 1.0),  // Magenta Edge
+                },
+                new Point(0, 0),
+                new Point(1, 1)
+            );
+            Set("LiquidGlassLensChromaticBorder", chromatic);
+
+            var multiBevel = new LinearGradientBrush(
+                new GradientStopCollection
+                {
+                    new GradientStop(Color.FromArgb(0x85, 0xFF, 0xFF, 0xFF), 0.0),
+                    new GradientStop(Color.FromArgb(0x25, 0xFF, 0xFF, 0xFF), 0.18),
+                    new GradientStop(Color.FromArgb(0x06, 0xFF, 0xFF, 0xFF), 0.60),
+                    new GradientStop(Color.FromArgb(0x30, accent.R, accent.G, accent.B), 1.0),
+                },
+                new Point(0, 0),
+                new Point(0, 1)
+            );
+            Set("LiquidGlassMultiBevelBrush", multiBevel);
+        }
+
         Set("TextPrimaryBrush", new SolidColorBrush(primary));
         Set("TextSecondaryBrush", new SolidColorBrush(secondary));
         Set("TextTertiaryBrush", new SolidColorBrush(textTertiary));

@@ -242,6 +242,40 @@
                 <RowDefinition Height="*" /> <!-- Main Area -->
                 <RowDefinition Height="Auto" /> <!-- Footer -->
             </Grid.RowDefinitions>
+
+            <!-- Fluid Optical Backdrop Layer (Ambient Cyan & Violet Luminous Glows under frosted glass - 2211.zip) -->
+            <Canvas Grid.RowSpan="4" IsHitTestVisible="False" ClipToBounds="True">
+                <!-- Top-Left Cyan Luminous Aura -->
+                <Ellipse Width="460" Height="460" Canvas.Left="-100" Canvas.Top="-100" Opacity="0.14">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                            <GradientStop Color="#00E5FF" Offset="0.0"/>
+                            <GradientStop Color="#0078D4" Offset="0.45"/>
+                            <GradientStop Color="Transparent" Offset="1.0"/>
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <!-- Center-Right Violet / Magenta Chromatic Glow -->
+                <Ellipse Width="550" Height="550" Canvas.Right="-150" Canvas.Top="100" Opacity="0.10">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                            <GradientStop Color="#B366FF" Offset="0.0"/>
+                            <GradientStop Color="#F43F5E" Offset="0.4"/>
+                            <GradientStop Color="Transparent" Offset="1.0"/>
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <!-- Bottom-Left Deep Sapphire Glow -->
+                <Ellipse Width="480" Height="480" Canvas.Left="120" Canvas.Bottom="-140" Opacity="0.08">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                            <GradientStop Color="#3B82F6" Offset="0.0"/>
+                            <GradientStop Color="#1D4ED8" Offset="0.5"/>
+                            <GradientStop Color="Transparent" Offset="1.0"/>
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+            </Canvas>
             <!-- ШАПКА ОКНА (Header with Navigation Tabs) -->
             <Border Grid.Row="0" Height="56" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}"
                     BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1"
@@ -264,18 +298,22 @@
                         </Border>
                         <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
                         <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.6 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.7 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
                         </Border>
                         <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="6,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource TitleForegroundBrush}" Width="11" Height="11" Stretch="Uniform"/>
                         </Button>
                     </StackPanel>
 
-                    <!-- Вкладки верхнего уровня (Футуристический Liquid Glass док) -->
-                    <Border Grid.Column="1" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}" CornerRadius="16"
-                            Padding="3" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1"
+                    <!-- Вкладки верхнего уровня (Футуристический Liquid Glass док с хроматической окантовкой 2211.zip) -->
+                    <Border Grid.Column="1" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}" CornerRadius="18"
+                            Padding="3" BorderBrush="{StaticResource LiquidGlassLensChromaticBorder}" BorderThickness="1"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="16" ShadowDepth="2" Direction="270"
+                                              Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.4"/>
+                        </Border.Effect>
                         <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
                             <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}"
                                          GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">

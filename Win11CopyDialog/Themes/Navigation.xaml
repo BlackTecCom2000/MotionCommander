@@ -121,18 +121,18 @@
                             </Setter>
                         </Trigger>
 
-                        <!-- Checked: Brilliant 3D Cyan Liquid Glass Pill -->
+                        <!-- Checked: Brilliant 3D Chromatic Liquid Glass Pill (2211.zip) -->
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassAccentSoft}"/>
-                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            <Setter TargetName="InnerBevel" Property="BorderBrush" Value="{DynamicResource LiquidGlassAccentBevel}"/>
+                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource LiquidGlassLensChromaticBorder}"/>
+                            <Setter TargetName="InnerBevel" Property="BorderBrush" Value="{StaticResource MacOsLiquidGlassBevel}"/>
                             <Setter TargetName="InnerBevel" Property="Opacity" Value="0.95"/>
                             <Setter TargetName="SpecularSheen" Property="Opacity" Value="0.85"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
                             <Setter TargetName="ShadowHost" Property="Effect">
                                 <Setter.Value>
-                                    <DropShadowEffect BlurRadius="14" ShadowDepth="1" Direction="270"
-                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.85"/>
+                                    <DropShadowEffect BlurRadius="16" ShadowDepth="1.5" Direction="270"
+                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.9"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>

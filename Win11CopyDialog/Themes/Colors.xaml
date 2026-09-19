@@ -52,4 +52,15 @@
     <Color x:Key="Color_ShadowAmbient">#80000000</Color>
     <Color x:Key="Color_ShadowElevated">#A0000000</Color>
 
+    <!-- Chromatic Dispersion & Lens Specular Palette (Reference 2211.zip) -->
+    <Color x:Key="Color_ChromaticRed">#FF3B6B</Color>
+    <Color x:Key="Color_ChromaticGreen">#10E599</Color>
+    <Color x:Key="Color_ChromaticBlue">#3B82F6</Color>
+    <Color x:Key="Color_ChromaticCyan">#00E5FF</Color>
+    <Color x:Key="Color_ChromaticViolet">#B366FF</Color>
+    <Color x:Key="Color_ChromaticMagenta">#F43F5E</Color>
+    <Color x:Key="Color_LensHighlightPristine">#59FFFFFF</Color> <!-- 35% crisp white -->
+    <Color x:Key="Color_LensHighlightDiffuse">#26FFFFFF</Color>  <!-- 15% diffuse glow -->
+    <Color x:Key="Color_LensRefractDark">#0D11111A</Color>       <!-- Refraction shadow 5% -->
+
 </ResourceDictionary>

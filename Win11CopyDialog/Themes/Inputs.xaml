@@ -116,11 +116,11 @@
                             <Setter TargetName="border" Property="Background" Value="{DynamicResource LiquidGlassInputHoverBackgroundBrush}"/>
                         </Trigger>
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource LiquidGlassInputFocusedBorderBrush}"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource LiquidGlassLensChromaticBorder}"/>
                             <Setter TargetName="border" Property="Effect">
                                 <Setter.Value>
                                     <DropShadowEffect Color="{DynamicResource AccentGlowColor}"
-                                                      BlurRadius="8" ShadowDepth="0" Opacity="0.45"/>
+                                                      BlurRadius="10" ShadowDepth="0" Opacity="0.55"/>
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
