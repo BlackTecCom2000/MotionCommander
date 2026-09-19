@@ -228,6 +228,61 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Set("ContextMenuDivider", new SolidColorBrush(contextDivider));
         Set("ContextMenuShadowColor", contextShadow);
 
+        // ================= Liquid Glass System Tokens =================
+        Color lgLevel0 = window;
+        Color lgLevel1 = dark ? C("#0A0F1A", (byte)(Theme == AppTheme.MotionGlass ? 0xCC : 0xF0)) : C("#F0F3F8", 0xFA);
+        Color lgLevel2 = dark ? C("#0D1524", (byte)(Theme == AppTheme.MotionGlass ? 0xB8 : 0xF0)) : C("#FFFFFF", 0xF0);
+        Color lgLevel3 = card;
+        Color lgLevel4 = dark ? C("#16233B", (byte)(Theme == AppTheme.MotionGlass ? 0xD0 : 0xF5)) : C("#FFFFFF", 0xFA);
+        Color lgLevel5 = dark ? C("#1C2C4A", (byte)(Theme == AppTheme.MotionGlass ? 0xEA : 0xFF)) : C("#FFFFFF", 0xFF);
+        Color lgLevel6 = dark ? C("#223659", (byte)(Theme == AppTheme.MotionGlass ? 0xF5 : 0xFF)) : C("#FFFFFF", 0xFF);
+
+        Color lgBorder1 = subtleBorder;
+        Color lgBorder2 = glassBorder;
+        Color lgBorder3 = border;
+        Color lgBorder4 = dark ? Color.FromArgb(0x45, 0x78, 0xBE, 0xFF) : Color.FromArgb(0x35, 0x00, 0x00, 0x00);
+        Color lgBorder5 = dark ? Color.FromArgb(0x60, 0x78, 0xBE, 0xFF) : Color.FromArgb(0x50, 0x00, 0x00, 0x00);
+
+        Color textTertiary = dark ? C("#64748B") : C("#94A3B8");
+        Color textDisabled = dark ? C("#475569") : C("#CBD5E1");
+
+        Set("LiquidGlassMaterialLevel0Brush", new SolidColorBrush(lgLevel0));
+        Set("LiquidGlassMaterialLevel1Brush", new SolidColorBrush(lgLevel1));
+        Set("LiquidGlassMaterialLevel2Brush", new SolidColorBrush(lgLevel2));
+        Set("LiquidGlassMaterialLevel3Brush", new SolidColorBrush(lgLevel3));
+        Set("LiquidGlassMaterialLevel4Brush", new SolidColorBrush(lgLevel4));
+        Set("LiquidGlassMaterialLevel5Brush", new SolidColorBrush(lgLevel5));
+        Set("LiquidGlassMaterialLevel6Brush", new SolidColorBrush(lgLevel6));
+
+        Set("LiquidGlassBorderLevel1Brush", new SolidColorBrush(lgBorder1));
+        Set("LiquidGlassBorderLevel2Brush", new SolidColorBrush(lgBorder2));
+        Set("LiquidGlassBorderLevel3Brush", new SolidColorBrush(lgBorder3));
+        Set("LiquidGlassBorderLevel4Brush", new SolidColorBrush(lgBorder4));
+        Set("LiquidGlassBorderLevel5Brush", new SolidColorBrush(lgBorder5));
+        Set("LiquidGlassSubtleBorderBrush", new SolidColorBrush(lgBorder1));
+        Set("LiquidGlassHoverBorderBrush", new SolidColorBrush(accent));
+
+        Set("LiquidGlassCardBorderBrush", new SolidColorBrush(lgBorder3));
+        Set("LiquidGlassCardBackgroundBrush", new SolidColorBrush(lgLevel3));
+        Set("LiquidGlassInputBackgroundBrush", new SolidColorBrush(inputBg));
+        Set("LiquidGlassInputBorderBrush", new SolidColorBrush(lgBorder2));
+        Set("LiquidGlassInputHoverBackgroundBrush", new SolidColorBrush(hover));
+        Set("LiquidGlassInputFocusedBorderBrush", new SolidColorBrush(accent));
+
+        Set("TextPrimaryBrush", new SolidColorBrush(primary));
+        Set("TextSecondaryBrush", new SolidColorBrush(secondary));
+        Set("TextTertiaryBrush", new SolidColorBrush(textTertiary));
+        Set("TextDisabledBrush", new SolidColorBrush(textDisabled));
+
+        Set("AccentMutedBrush", new SolidColorBrush(Color.FromArgb(0x35, accent.R, accent.G, accent.B)));
+        Set("AccentGlowColor", glowAccent);
+        Set("AccentGlowBrush", new SolidColorBrush(glowAccent));
+        Set("ControlHoverBackgroundBrush", new SolidColorBrush(hover));
+        Set("ControlActiveBackgroundBrush", new SolidColorBrush(listRowSelected));
+        Set("SelectionBrush", new SolidColorBrush(Color.FromArgb(0x4D, accent.R, accent.G, accent.B)));
+        Set("ScrollbarThumbBrush", new SolidColorBrush(scrollThumb));
+        Set("ScrollbarThumbHoverBrush", new SolidColorBrush(scrollThumbHover));
+
         OnChanged(nameof(IsDark));
         OnChanged(nameof(Backdrop));
         OnChanged(nameof(AccentColor));

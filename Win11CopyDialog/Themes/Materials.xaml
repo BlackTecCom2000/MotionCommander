@@ -1,0 +1,104 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- ================= LIQUID GLASS MATERIAL SYSTEM (Levels 0 - 6) ================= -->
+
+    <!-- Level 0: Background (Deep near-black ambient radial surface) -->
+    <SolidColorBrush x:Key="LiquidGlassBackground" Color="#050912"/>
+
+    <!-- Level 1: Main Application Surface (85% Dark Translucent) -->
+    <SolidColorBrush x:Key="LiquidGlassSurface" Color="#D90A1426"/>
+
+    <!-- Level 2: Glass Panels (Sidebar, Inspector, Dock containers - 70% Translucent) -->
+    <SolidColorBrush x:Key="LiquidGlassPanel" Color="#B2081222"/>
+
+    <!-- Level 3: Elevated Glass Surfaces (Drive Cards, Properties - 78% Translucent) -->
+    <SolidColorBrush x:Key="LiquidGlassSurfaceElevated" Color="#C80D192E"/>
+
+    <!-- Level 4: Floating Glass Surfaces (Command Bar, Address Bar - 82% Translucent) -->
+    <SolidColorBrush x:Key="LiquidGlassSurfaceFloating" Color="#D00F1E38"/>
+
+    <!-- Level 5: Modal / Dialog Glass Surfaces (Context Menu, Dialogs, Popups - 92% Translucent) -->
+    <SolidColorBrush x:Key="LiquidGlassSurfaceModal" Color="#EB0B1424"/>
+
+    <!-- Level 6: Active / Focused Glass (Accent-tinted interactive highlights) -->
+    <SolidColorBrush x:Key="LiquidGlassActiveHighlight" Color="#40168CFF"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="LiquidGlassBorderSubtle" Color="#1578BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorder" Color="#2E78BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderStrong" Color="#4578BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassHighlight" Color="#30FFFFFF"/>
+
+    <!-- Shadows -->
+    <Color x:Key="LiquidGlassShadowColor">#80000000</Color>
+    <Color x:Key="LiquidGlassGlowAccentColor">#40168CFF</Color>
+
+    <!-- Blur & Opacity Constants -->
+    <sys:Double x:Key="LiquidGlassBlurSmall">8</sys:Double>
+    <sys:Double x:Key="LiquidGlassBlurMedium">16</sys:Double>
+    <sys:Double x:Key="LiquidGlassBlurLarge">28</sys:Double>
+
+    <sys:Double x:Key="LiquidGlassOpacityLow">0.25</sys:Double>
+    <sys:Double x:Key="LiquidGlassOpacityMedium">0.65</sys:Double>
+    <sys:Double x:Key="LiquidGlassOpacityHigh">0.88</sys:Double>
+
+    <!-- Accents -->
+    <SolidColorBrush x:Key="LiquidGlassAccentSoft" Color="#25168CFF"/>
+    <SolidColorBrush x:Key="LiquidGlassAccentStrong" Color="#168CFF"/>
+
+    <!-- Level 0 to 6 Brushes (Initial Design-Time Tokens) -->
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel0Brush" Color="#050912"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel1Brush" Color="#D90A1426"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel2Brush" Color="#B2081222"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel3Brush" Color="#C80D192E"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel4Brush" Color="#D00F1E38"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel5Brush" Color="#EB0B1424"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel6Brush" Color="#40168CFF"/>
+
+    <!-- Border Level Brushes -->
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel1Brush" Color="#1578BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel2Brush" Color="#2E78BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel3Brush" Color="#3878BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel4Brush" Color="#4578BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel5Brush" Color="#6078BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassSubtleBorderBrush" Color="#1578BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassHoverBorderBrush" Color="#168CFF"/>
+
+    <!-- Control & Input Brushes -->
+    <SolidColorBrush x:Key="LiquidGlassCardBorderBrush" Color="#2E78BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassCardBackgroundBrush" Color="#C80D192E"/>
+    <SolidColorBrush x:Key="LiquidGlassInputBackgroundBrush" Color="#6008111F"/>
+    <SolidColorBrush x:Key="LiquidGlassInputBorderBrush" Color="#2E78BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassInputHoverBackgroundBrush" Color="#232936"/>
+    <SolidColorBrush x:Key="LiquidGlassInputFocusedBorderBrush" Color="#168CFF"/>
+
+    <SolidColorBrush x:Key="ControlHoverBackgroundBrush" Color="#232936"/>
+    <SolidColorBrush x:Key="ControlActiveBackgroundBrush" Color="#40168CFF"/>
+    <SolidColorBrush x:Key="SelectionBrush" Color="#4D168CFF"/>
+    <SolidColorBrush x:Key="ScrollbarThumbBrush" Color="#4094A3B8"/>
+    <SolidColorBrush x:Key="ScrollbarThumbHoverBrush" Color="#168CFF"/>
+
+    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#B2081222"/>
+
+    <!-- General Elevated Glass Card Style -->
+    <Style x:Key="LiquidGlassCard" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel3Brush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderLevel3Brush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RadiusNormal}"/>
+        <Setter Property="Padding" Value="{DynamicResource PaddingCardInner}"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="2" Direction="270"
+                                  Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.35"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Backward-Compatible Aliases for Card -->
+    <Style x:Key="Card" TargetType="Border" BasedOn="{StaticResource LiquidGlassCard}"/>
+    <Style x:Key="GlassCard" TargetType="Border" BasedOn="{StaticResource LiquidGlassCard}"/>
+
+</ResourceDictionary>

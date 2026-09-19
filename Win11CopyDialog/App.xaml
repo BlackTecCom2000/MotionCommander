@@ -6,1193 +6,278 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Styles/ContextMenu.xaml"/>
+                <ResourceDictionary Source="Themes/Colors.xaml"/>
+                <ResourceDictionary Source="Themes/Spacing.xaml"/>
+                <ResourceDictionary Source="Themes/Dimensions.xaml"/>
+                <ResourceDictionary Source="Themes/Typography.xaml"/>
+                <ResourceDictionary Source="Themes/Animations.xaml"/>
+                <ResourceDictionary Source="Themes/Materials.xaml"/>
+                <ResourceDictionary Source="Themes/Buttons.xaml"/>
+                <ResourceDictionary Source="Themes/Navigation.xaml"/>
+                <ResourceDictionary Source="Themes/CommandBar.xaml"/>
+                <ResourceDictionary Source="Themes/FileList.xaml"/>
+                <ResourceDictionary Source="Themes/ContextMenu.xaml"/>
+                <ResourceDictionary Source="Themes/Dialogs.xaml"/>
+                <ResourceDictionary Source="Themes/Inputs.xaml"/>
+                <ResourceDictionary Source="Themes/ScrollBars.xaml"/>
+                <ResourceDictionary Source="Themes/Tooltips.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- ================= DESIGN TOKENS (Fluent 2) ================= -->
-        <!-- Spacing System (4px base) -->
-        <Thickness x:Key="Spacing4">4</Thickness>
-        <Thickness x:Key="Spacing8">8</Thickness>
-        <Thickness x:Key="Spacing12">12</Thickness>
-        <Thickness x:Key="Spacing16">16</Thickness>
-        <Thickness x:Key="Spacing20">20</Thickness>
-        <Thickness x:Key="Spacing24">24</Thickness>
-        <Thickness x:Key="Spacing32">32</Thickness>
-        <Thickness x:Key="Spacing40">40</Thickness>
-        <Thickness x:Key="Spacing48">48</Thickness>
-        <Thickness x:Key="PaddingControlInner">12,6</Thickness>
-        <Thickness x:Key="PaddingCommandInner">10,5</Thickness>
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            
+            <!-- Базовые кисти (обновляются в ThemeManager.Apply) -->
+            <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#E8F3F3F3"/>
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#B0FFFFFF"/>
+            <SolidColorBrush x:Key="CardBorderBrush" Color="#E0E0E0"/>
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="#28FFFFFF"/>
+            <SolidColorBrush x:Key="SubtleBorderBrush" Color="#18FFFFFF"/>
+            <SolidColorBrush x:Key="ChipBackgroundBrush" Color="#22000000"/>
+            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1B1B1B"/>
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#605E5C"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+            <SolidColorBrush x:Key="AccentHoverBrush" Color="#106EBE"/>
+            <SolidColorBrush x:Key="AccentPressedBrush" Color="#005A9E"/>
+            <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#600D111A"/>
+            <SolidColorBrush x:Key="AccentForegroundBrush" Color="White"/>
 
-        <!-- Dimensions & Layout constraints -->
-        <sys:Double x:Key="ControlHeightCompact">32</sys:Double>
-        <sys:Double x:Key="ControlHeightNormal">36</sys:Double>
-        <sys:Double x:Key="ControlHeightLarge">40</sys:Double>
-        <sys:Double x:Key="IconSizeSmall">16</sys:Double>
-        <sys:Double x:Key="IconSizeNormal">20</sys:Double>
-        <sys:Double x:Key="IconSizeLarge">24</sys:Double>
-        <sys:Double x:Key="SidebarMinWidth">220</sys:Double>
-        <sys:Double x:Key="SidebarMaxWidth">320</sys:Double>
-        <sys:Double x:Key="PreviewMinWidth">260</sys:Double>
-        <sys:Double x:Key="PreviewMaxWidth">450</sys:Double>
-        
-        <!-- Corner Radii -->
-        <CornerRadius x:Key="RadiusSmall">6</CornerRadius>
-        <CornerRadius x:Key="RadiusNormal">8</CornerRadius>
-        <CornerRadius x:Key="RadiusLarge">12</CornerRadius>
+            <!-- Context Menu Semantic Tokens (Default Fallback) -->
+            <SolidColorBrush x:Key="ContextMenuBackground" Color="#F20B1424"/>
+            <SolidColorBrush x:Key="ContextMenuBorder" Color="#4078BEFF"/>
+            <SolidColorBrush x:Key="ContextMenuForeground" Color="#F8FAFC"/>
+            <SolidColorBrush x:Key="ContextMenuSecondaryForeground" Color="#94A3B8"/>
+            <SolidColorBrush x:Key="ContextMenuHover" Color="#28168CFF"/>
+            <SolidColorBrush x:Key="ContextMenuPressed" Color="#45168CFF"/>
+            <SolidColorBrush x:Key="ContextMenuDisabled" Color="#5594A3B8"/>
+            <SolidColorBrush x:Key="ContextMenuDanger" Color="#FF4567"/>
+            <SolidColorBrush x:Key="ContextMenuDangerHover" Color="#2EFF4567"/>
+            <SolidColorBrush x:Key="ContextMenuDivider" Color="#20FFFFFF"/>
+            <Color x:Key="ContextMenuShadowColor">#80000000</Color>
+            <Color x:Key="GlowAccentColor">#400078D4</Color>
+            <SolidColorBrush x:Key="GlowAccentBrush" Color="#400078D4"/>
+            <SolidColorBrush x:Key="ProgressTrackBrush" Color="#E6E6E6"/>
+            <SolidColorBrush x:Key="TitleForegroundBrush" Color="#1B1B1B"/>
+            <SolidColorBrush x:Key="HoverBrush" Color="#EAEAEA"/>
+            <SolidColorBrush x:Key="ListHoverBrush" Color="#F5F5F5"/>
+            <SolidColorBrush x:Key="GraphGridBrush" Color="#E3E3E3"/>
+            <SolidColorBrush x:Key="GraphFillBrush" Color="#550078D4"/>
 
-        <!-- Typography -->
-        <sys:Double x:Key="FontSizeCaptionSecondary">10</sys:Double>
-        <sys:Double x:Key="FontSizeCaption">11</sys:Double>
-        <sys:Double x:Key="FontSizeBody">12</sys:Double>
-        <sys:Double x:Key="FontSizeBodyStrong">13</sys:Double>
-        <sys:Double x:Key="FontSizeSubtitle">15</sys:Double>
-        <sys:Double x:Key="FontSizeTitle">18</sys:Double>
-        <sys:Double x:Key="FontSizeDisplay">24</sys:Double>
+            <!-- Футуристические кисти интерфейса -->
+            <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#181B24"/>
+            <SolidColorBrush x:Key="HeaderForegroundBrush" Color="#94A3B8"/>
+            <SolidColorBrush x:Key="HeaderBorderBrush" Color="#262D3D"/>
+            <SolidColorBrush x:Key="HeaderHoverBrush" Color="#222836"/>
+            <SolidColorBrush x:Key="ListRowSelectedBrush" Color="#300078D4"/>
+            <SolidColorBrush x:Key="NavDockBackgroundBrush" Color="#40000000"/>
+            <SolidColorBrush x:Key="RibbonBackgroundBrush" Color="#70161A24"/>
+            <SolidColorBrush x:Key="InputBackgroundBrush" Color="#5011141D"/>
+            <SolidColorBrush x:Key="ScrollTrackBrush" Color="#0CFFFFFF"/>
+            <SolidColorBrush x:Key="ScrollThumbBrush" Color="#4094A3B8"/>
+            <SolidColorBrush x:Key="ScrollThumbPressedBrush" Color="#00D0EF"/>
 
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        
-        <!-- Базовые кисти (обновляются в ThemeManager.Apply) -->
-        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#E8F3F3F3"/>
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#B0FFFFFF"/>
-        <SolidColorBrush x:Key="CardBorderBrush" Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="GlassBorderBrush" Color="#28FFFFFF"/>
-        <SolidColorBrush x:Key="SubtleBorderBrush" Color="#18FFFFFF"/>
-        <SolidColorBrush x:Key="ChipBackgroundBrush" Color="#22000000"/>
-        <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1B1B1B"/>
-        <SolidColorBrush x:Key="SecondaryTextBrush" Color="#605E5C"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#106EBE"/>
-        <SolidColorBrush x:Key="AccentPressedBrush" Color="#005A9E"/>
-        <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#600D111A"/>
-        <SolidColorBrush x:Key="AccentForegroundBrush" Color="White"/>
+            <!-- Глянцевые градиенты для карты разделов (Premium Glossy Partition Gradients) -->
+            <LinearGradientBrush x:Key="PartitionBasicDataGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#60A5FA" Offset="0.0"/>
+                <GradientStop Color="#3B82F6" Offset="0.5"/>
+                <GradientStop Color="#1D4ED8" Offset="1.0"/>
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="PartitionSystemEfiGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#34D399" Offset="0.0"/>
+                <GradientStop Color="#10B981" Offset="0.5"/>
+                <GradientStop Color="#047857" Offset="1.0"/>
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="PartitionMsrGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#FBBF24" Offset="0.0"/>
+                <GradientStop Color="#F59E0B" Offset="0.5"/>
+                <GradientStop Color="#B45309" Offset="1.0"/>
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="PartitionRecoveryGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#C084FC" Offset="0.0"/>
+                <GradientStop Color="#A855F7" Offset="0.5"/>
+                <GradientStop Color="#7E22CE" Offset="1.0"/>
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="PartitionUnallocatedGradient" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#94A3B8" Offset="0.0"/>
+                <GradientStop Color="#64748B" Offset="0.5"/>
+                <GradientStop Color="#334155" Offset="1.0"/>
+            </LinearGradientBrush>
 
-        <!-- Context Menu Semantic Tokens (Default Fallback) -->
-        <SolidColorBrush x:Key="ContextMenuBackground" Color="#F20B1424"/>
-        <SolidColorBrush x:Key="ContextMenuBorder" Color="#4078BEFF"/>
-        <SolidColorBrush x:Key="ContextMenuForeground" Color="#F8FAFC"/>
-        <SolidColorBrush x:Key="ContextMenuSecondaryForeground" Color="#94A3B8"/>
-        <SolidColorBrush x:Key="ContextMenuHover" Color="#28168CFF"/>
-        <SolidColorBrush x:Key="ContextMenuPressed" Color="#45168CFF"/>
-        <SolidColorBrush x:Key="ContextMenuDisabled" Color="#5594A3B8"/>
-        <SolidColorBrush x:Key="ContextMenuDanger" Color="#FF4567"/>
-        <SolidColorBrush x:Key="ContextMenuDangerHover" Color="#2EFF4567"/>
-        <SolidColorBrush x:Key="ContextMenuDivider" Color="#20FFFFFF"/>
-        <Color x:Key="ContextMenuShadowColor">#80000000</Color>
-        <Color x:Key="GlowAccentColor">#400078D4</Color>
-        <SolidColorBrush x:Key="GlowAccentBrush" Color="#400078D4"/>
-        <SolidColorBrush x:Key="ProgressTrackBrush" Color="#E6E6E6"/>
-        <SolidColorBrush x:Key="TitleForegroundBrush" Color="#1B1B1B"/>
-        <SolidColorBrush x:Key="HoverBrush" Color="#EAEAEA"/>
-        <SolidColorBrush x:Key="ListHoverBrush" Color="#F5F5F5"/>
-        <SolidColorBrush x:Key="GraphGridBrush" Color="#E3E3E3"/>
-        <SolidColorBrush x:Key="GraphFillBrush" Color="#550078D4"/>
+            <!-- Векторные иконки интерфейса (Crisp Vector Geometries) -->
+            <StreamGeometry x:Key="Icon_Desktop">M2,4 H22 A2,2 0 0 1 24,6 V16 A2,2 0 0 1 22,18 H14 V20 H18 V22 H6 V20 H10 V18 H2 A2,2 0 0 1 0,16 V6 A2,2 0 0 1 2,4 Z M2,6 V16 H22 V6 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Downloads">M 12,3 V 15 M 7,11 L 12,16 L 17,11 M 4,18 V 21 H 20 V 18</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Documents">M 6,2 H 14 L 19,7 V 22 H 6 Z M 14,2 V 7 H 19 M 9,12 H 16 M 9,16 H 14</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Pictures">M 3,4 H 21 V 20 H 3 Z M 8.5,8 A 1.5,1.5 0 1 0 8.5,5 A 1.5,1.5 0 1 0 8.5,8 Z M 4,18 L 9,13 L 13,17 L 16,14 L 20,18</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Videos">M 3,4 H 21 V 20 H 3 Z M 3,8 H 21 M 3,16 H 21 M 7,4 L 5,8 M 11,4 L 9,8 M 15,4 L 13,8 M 19,4 L 17,8 M 10,11 L 15,13.5 L 10,16 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Music">M 9,18 A 3,3 0 1 1 6,15 A 3,3 0 0 1 9,18 Z M 9,18 V 5 L 20,2 V 15 M 20,15 A 3,3 0 1 1 17,12 A 3,3 0 0 1 20,15 Z M 9,8 L 20,5</StreamGeometry>
+            <StreamGeometry x:Key="Icon_User">M 12,12 A 4,4 0 1 0 12,4 A 4,4 0 1 0 12,12 Z M 4,20 C 4,16 7,14 12,14 C 17,14 20,16 20,20</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Folder">M10,4 H4 A2,2 0 0 0 2,6 V18 A2,2 0 0 0 4,20 H20 A2,2 0 0 0 22,18 V8 A2,2 0 0 0 20,6 H12 L10,4 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Drive_Windows">M 3,5.5 L 10.5,4.3 V 11.2 H 3 Z M 11.5,4.1 L 21,2.8 V 11.2 H 11.5 Z M 3,12.2 H 10.5 V 19.1 L 3,17.9 Z M 11.5,12.2 H 21 V 20.6 L 11.5,19.3 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Drive_SSD">M 4,4 H 20 V 20 H 4 Z M 7,7 H 17 V 11 H 7 Z M 8,14 H 10 V 17 H 8 Z M 11,14 H 13 V 17 H 11 Z M 14,14 H 16 V 17 H 14 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Drive_HDD">M 4,4 H 20 V 20 H 4 Z M 12,13 A 4,4 0 1 0 12,5 A 4,4 0 1 0 12,13 Z M 12,10 A 1,1 0 1 0 12,8 A 1,1 0 1 0 12,10 Z M 16,16 H 18 M 6,16 H 12</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Drive_USB">M 8,3 H 16 V 7 H 8 Z M 9,5 H 11 V 6 H 9 Z M 13,5 H 15 V 6 H 13 Z M 6,7 H 18 V 18 C 18,19.5 16.5,21 15,21 H 9 C 7.5,21 6,19.5 6,18 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Drive_Network">M 4,14 A 4,4 0 0 1 7.5,10.2 A 6,6 0 0 1 18,9 A 4,4 0 0 1 19,17 H 4 Z M 12,17 V 21 M 8,21 H 16</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Refresh">M 17.65,6.35 A 8,8 0 1,0 19.73,13 H 17.65 A 6,6 0 1,1 16.24,7.76 L 13,11 H 20 V 4 L 17.65,6.35 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_ChevronRight">M 9,6 L 15,12 L 9,18</StreamGeometry>
+            <StreamGeometry x:Key="Icon_ChevronLeft">M 15,6 L 9,12 L 15,18</StreamGeometry>
+            <StreamGeometry x:Key="Icon_ChevronUp">M 6,15 L 12,9 L 18,15</StreamGeometry>
+            <StreamGeometry x:Key="Icon_ChevronDown">M 6,9 L 12,15 L 18,9</StreamGeometry>
+            <StreamGeometry x:Key="Icon_NavFiles">M 3,4 H 10 L 12,6 H 21 V 19 H 3 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_NavSpeed">M 13,2 L 4,14 H 11 L 10,22 L 20,9 H 13 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_NavStorage">M 3,4 H 21 V 8 H 3 Z M 3,10 H 21 V 14 H 3 Z M 3,16 H 21 V 20 H 3 Z M 17,6 H 18 M 17,12 H 18 M 17,18 H 18</StreamGeometry>
+            <StreamGeometry x:Key="Icon_NavDiagnostics">M 4,19 H 20 V 21 H 4 Z M 5,13 H 8 V 18 H 5 Z M 10,8 H 13 V 18 H 10 Z M 15,4 H 18 V 18 H 15 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_NavTools">M 14.7,3.3 C 12.8,1.4 9.8,1.6 8.1,3.4 C 6.9,4.6 6.5,6.3 6.9,7.9 L 2.3,12.5 C 1.9,12.9 1.9,13.5 2.3,13.9 L 4.1,15.7 C 4.5,16.1 5.1,16.1 5.5,15.7 L 10.1,11.1 C 11.7,11.5 13.4,11.1 14.6,9.9 C 16.4,8.2 16.6,5.2 14.7,3.3 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_NavSettings">M 12,15 A 3,3 0 1 0 12,9 A 3,3 0 0 0 12,15 Z M 19.4,13 A 7.8,7.8 0 0 0 19.5,12 A 7.8,7.8 0 0 0 19.4,11 L 21.5,9.4 C 21.7,9.2 21.8,8.9 21.6,8.7 L 19.6,5.2 C 19.5,5 19.2,4.9 19,5 L 16.5,6 A 7.5,7.5 0 0 0 14.8,5 L 14.4,2.4 C 14.4,2.2 14.2,2 13.9,2 H 10.1 C 9.8,2 9.6,2.2 9.6,2.4 L 9.2,5 A 7.5,7.5 0 0 0 7.5,6 L 5,5 C 4.8,4.9 4.5,5 4.4,5.2 L 2.4,8.7 C 2.2,8.9 2.3,9.2 2.5,9.4 L 4.6,11 A 7.8,7.8 0 0 0 4.5,12 A 7.8,7.8 0 0 0 4.6,13 L 2.5,14.6 C 2.3,14.8 2.2,15.1 2.4,15.3 L 4.4,18.8 C 4.5,19 4.8,19.1 5,19 L 7.5,18 A 7.5,7.5 0 0 0 9.2,19 L 9.6,21.6 C 9.6,21.8 9.8,22 10.1,22 H 13.9 C 14.2,22 14.4,21.8 14.4,21.6 L 14.8,19 A 7.5,7.5 0 0 0 16.5,18 L 19,19 C 19.2,19.1 19.5,19 19.6,18.8 L 21.6,15.3 C 21.8,15.1 21.7,14.8 21.5,14.6 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Archive">M 4,4 H 20 V 20 H 4 Z M 11,4 V 14 L 12,15 L 13,14 V 4 M 11,7 H 13 M 11,10 H 13</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Extract">M 12,3 L 4,7 V 17 L 12,21 L 20,17 V 7 Z M 12,3 V 11 M 12,11 L 4,7 M 12,11 L 20,7</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Shield">M12,2 L3,6 V11 C3,16.5 7,21.5 12,23 C17,21.5 21,16.5 21,11 V6 Z M12,4.5 L19,7.5 V11 C19,15 16,19 12,20.5 C8,19 5,15 5,11 V7.5 Z M9,12 L11,14 L15,9 L16,10 L11,16 L8,13 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Copy">M 8,4 H 19 V 17 H 8 Z M 5,7 H 4 V 20 H 16 V 19</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Cut">M 6,4 A 3,3 0 1 0 7.8,8.6 L 12,12 L 7.8,15.4 A 3,3 0 1 0 6,14 A 3,3 0 0 0 5,14.2 L 10.5,12 L 5,9.8 A 3,3 0 0 0 6,4 Z M 12,12 L 19,6 M 12,12 L 19,18</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Paste">M 9,4 V 2 H 15 V 4 M 5,4 H 7 V 6 H 17 V 4 H 19 V 20 H 5 Z M 9,11 H 15 M 9,14 H 13</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Transfer">M 3,12 H 17 M 12,7 L 17,12 L 12,17 M 21,5 V 19</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Move">M 4,7 L 12,3 L 20,7 V 17 L 12,21 L 4,17 Z M 12,12 L 12,17 M 12,12 L 17,9.5 M 12,12 L 7,9.5</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Delete">M 6,7 H 18 M 9,7 V 4 H 15 V 7 M 8,7 V 19 H 16 V 7 M 10,11 V 16 M 14,11 V 16</StreamGeometry>
+            <StreamGeometry x:Key="Icon_NewFolder">M 3,4 H 10 L 12,6 H 21 V 19 H 3 Z M 12,10 V 16 M 9,13 H 15</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Hashes">M 9.5,4 H 8 L 7.4,8 H 4 V 9.5 H 7.1 L 6.4,14 H 3 V 15.5 H 6.2 L 5.5,20 H 7 L 7.7,15.5 H 12 L 11.3,20 H 12.8 L 13.5,15.5 H 17 V 14 H 13.7 L 14.4,9.5 H 18 V 8 H 14.6 L 15.3,4 H 13.8 L 13.1,8 H 8.8 Z M 8.6,9.5 H 12.9 L 12.2,14 H 7.9 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Search">M 15.5,14 H 14.7 L 14.4,13.7 A 6.5,6.5 0 1 0 9.5,16 A 6.5,6.5 0 0 0 14,14.4 L 14.3,14.7 V 15.5 L 19,20.5 L 20.5,19 Z M 9.5,14 A 4.5,4.5 0 1 1 14,9.5 A 4.5,4.5 0 0 1 9.5,14 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Close">M 19,6.4 L 17.6,5 L 12,10.6 L 6.4,5 L 5,6.4 L 10.6,12 L 5,17.6 L 6.4,19 L 12,13.4 L 17.6,19 L 19,17.6 L 13.4,12 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Minimize">M 4,12 H 20</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Maximize">M 4,4 H 20 V 20 H 4 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Palette">M 12,2 A 10,10 0 0 0 2,12 A 10,10 0 0 0 12,22 C 13.1,22 14,21.1 14,20 C 14,19.5 13.8,19.1 13.5,18.7 C 13.2,18.4 13,18 13,17.5 C 13,16.4 13.9,15.5 15,15.5 H 17 C 19.8,15.5 22,13.3 22,10.5 C 22,5.8 17.5,2 12,2 Z M 6.5,11.5 A 1.5,1.5 0 1 1 6.5,8.5 A 1.5,1.5 0 0 1 6.5,11.5 Z M 9.5,7.5 A 1.5,1.5 0 1 1 9.5,4.5 A 1.5,1.5 0 0 1 9.5,7.5 Z M 14.5,7.5 A 1.5,1.5 0 1 1 14.5,4.5 A 1.5,1.5 0 0 1 14.5,7.5 Z M 17.5,11.5 A 1.5,1.5 0 1 1 17.5,8.5 A 1.5,1.5 0 0 1 17.5,11.5 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Sound">M 3,9 V 15 H 7 L 12,20 V 4 L 7,9 Z M 16,9.5 A 3.5,3.5 0 0 1 16,14.5 M 19,7 A 7,7 0 0 1 19,17</StreamGeometry>
+            <StreamGeometry x:Key="Icon_IOPipeline">M 4,4 H 20 V 8 H 4 Z M 17,6 H 18 M 4,10 H 20 V 14 H 4 Z M 17,12 H 18 M 8,17 L 12,21 L 16,17 M 12,14 V 20</StreamGeometry>
+            <StreamGeometry x:Key="Icon_ConfigEditor">M 5,3 H 19 V 21 H 5 Z M 8,7 H 16 M 8,10 H 14 M 8,13 H 16 M 8,16 H 12</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Backdrop">M 3,3 H 21 V 21 H 3 Z M 3,3 L 21,21 M 7,3 V 21 M 11,3 V 21 M 15,3 V 21 M 19,3 V 21 M 3,7 H 21 M 3,11 H 21 M 3,15 H 21 M 3,19 H 21</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Rename">M 3,17.25 V 21 H 6.75 L 17.81,9.94 L 14.06,6.19 L 3,17.25 Z M 20.71,7.04 C 21.1,6.65 21.1,6.02 20.71,5.63 L 18.37,3.29 C 17.98,2.9 17.35,2.9 16.96,3.29 L 15.13,5.12 L 18.88,8.87 L 20.71,7.04 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Duplicate">M 16,1 H 4 C 2.9,1 2,1.9 2,3 V 17 H 4 V 3 H 16 V 1 Z M 19,5 H 8 C 6.9,5 6,5.9 6,7 V 21 C 6,22.1 6.9,23 8,23 H 19 C 20.1,23 21,22.1 21,21 V 7 C 21,5.9 20.1,5 19,5 Z M 19,21 H 8 V 7 H 19 V 21 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Properties">M 12,2 A 10,10 0 1 0 22,12 A 10,10 0 0 0 12,2 Z M 13,17 H 11 V 11 H 13 Z M 13,9 H 11 V 7 H 13 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_Terminal">M 20,4 H 4 C 2.89,4 2,4.89 2,6 V 18 C 2,19.1 2.9,20 4,20 H 20 C 21.1,20 22,19.1 22,18 V 6 C 22,4.89 21.1,4 20,4 Z M 20,18 H 4 V 8 H 20 V 18 Z M 6,10 L 9,13 L 6,16 L 7.41,17.41 L 11.83,13 L 7.41,8.59 L 6,10 Z M 12,15 H 18 V 17 H 12 V 15 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_SelectAll">M 3,5 H 5 V 3 C 3.9,3 3,3.9 3,5 Z M 3,13 H 5 V 11 H 3 Z M 7,21 H 9 V 19 H 7 Z M 3,9 H 5 V 7 H 3 Z M 13,3 H 11 V 5 H 13 Z M 19,3 V 5 H 21 C 21,3.9 20.1,3 19,3 Z M 5,21 V 19 H 3 C 3,20.1 3.9,21 5,21 Z M 3,17 H 5 V 15 H 3 Z M 9,3 H 7 V 5 H 9 Z M 11,21 H 13 V 19 H 11 Z M 19,13 H 21 V 11 H 19 Z M 19,21 C 20.1,21 21,20.1 21,19 H 19 Z M 19,9 H 21 V 7 H 19 Z M 19,17 H 21 V 15 H 19 Z M 15,21 H 17 V 19 H 15 Z M 15,5 H 17 V 3 H 15 Z M 7,17 H 17 V 7 H 7 Z</StreamGeometry>
+            <StreamGeometry x:Key="Icon_OpenFolder">M 19,20 H 4 C 2.9,20 2,19.1 2,18 L 2.01,6 C 2.01,4.9 2.9,4 4,4 H 10 L 12,6 H 20 C 21.1,6 22,6.9 22,8 V 18 C 22,19.1 21.1,20 20,20 Z M 4,8 V 18 H 20 V 8 H 4 Z</StreamGeometry>
 
-        <!-- Футуристические кисти интерфейса -->
-        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#181B24"/>
-        <SolidColorBrush x:Key="HeaderForegroundBrush" Color="#94A3B8"/>
-        <SolidColorBrush x:Key="HeaderBorderBrush" Color="#262D3D"/>
-        <SolidColorBrush x:Key="HeaderHoverBrush" Color="#222836"/>
-        <SolidColorBrush x:Key="ListRowSelectedBrush" Color="#300078D4"/>
-        <SolidColorBrush x:Key="NavDockBackgroundBrush" Color="#40000000"/>
-        <SolidColorBrush x:Key="RibbonBackgroundBrush" Color="#70161A24"/>
-        <SolidColorBrush x:Key="InputBackgroundBrush" Color="#5011141D"/>
-        <SolidColorBrush x:Key="ScrollTrackBrush" Color="#0CFFFFFF"/>
-        <SolidColorBrush x:Key="ScrollThumbBrush" Color="#4094A3B8"/>
-        <SolidColorBrush x:Key="ScrollThumbPressedBrush" Color="#00D0EF"/>
-
-        <!-- Кисти аппаратных типов носителей (Hardware Media Brushes) -->
-        <SolidColorBrush x:Key="MediaNVMeBrush" Color="#00F0FF"/>
-        <SolidColorBrush x:Key="MediaNVMeBackground" Color="#2000F0FF"/>
-        <SolidColorBrush x:Key="MediaSsdBrush" Color="#3B82F6"/>
-        <SolidColorBrush x:Key="MediaSsdBackground" Color="#203B82F6"/>
-        <SolidColorBrush x:Key="MediaHddBrush" Color="#F59E0B"/>
-        <SolidColorBrush x:Key="MediaHddBackground" Color="#20F59E0B"/>
-        <SolidColorBrush x:Key="MediaUsbBrush" Color="#10B981"/>
-        <SolidColorBrush x:Key="MediaUsbBackground" Color="#2010B981"/>
-
-        <!-- Глянцевые градиенты для карты разделов (Premium Glossy Partition Gradients) -->
-        <LinearGradientBrush x:Key="PartitionBasicDataGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#60A5FA" Offset="0.0"/>
-            <GradientStop Color="#3B82F6" Offset="0.5"/>
-            <GradientStop Color="#1D4ED8" Offset="1.0"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="PartitionSystemEfiGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#34D399" Offset="0.0"/>
-            <GradientStop Color="#10B981" Offset="0.5"/>
-            <GradientStop Color="#047857" Offset="1.0"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="PartitionMsrGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#FBBF24" Offset="0.0"/>
-            <GradientStop Color="#F59E0B" Offset="0.5"/>
-            <GradientStop Color="#B45309" Offset="1.0"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="PartitionRecoveryGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#C084FC" Offset="0.0"/>
-            <GradientStop Color="#A855F7" Offset="0.5"/>
-            <GradientStop Color="#7E22CE" Offset="1.0"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="PartitionUnallocatedGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#94A3B8" Offset="0.0"/>
-            <GradientStop Color="#64748B" Offset="0.5"/>
-            <GradientStop Color="#334155" Offset="1.0"/>
-        </LinearGradientBrush>
-
-        <!-- Векторные иконки интерфейса (Crisp Vector Geometries) -->
-        <StreamGeometry x:Key="Icon_Desktop">M2,4 H22 A2,2 0 0 1 24,6 V16 A2,2 0 0 1 22,18 H14 V20 H18 V22 H6 V20 H10 V18 H2 A2,2 0 0 1 0,16 V6 A2,2 0 0 1 2,4 Z M2,6 V16 H22 V6 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Downloads">M 12,3 V 15 M 7,11 L 12,16 L 17,11 M 4,18 V 21 H 20 V 18</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Documents">M 6,2 H 14 L 19,7 V 22 H 6 Z M 14,2 V 7 H 19 M 9,12 H 16 M 9,16 H 14</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Pictures">M 3,4 H 21 V 20 H 3 Z M 8.5,8 A 1.5,1.5 0 1 0 8.5,5 A 1.5,1.5 0 1 0 8.5,8 Z M 4,18 L 9,13 L 13,17 L 16,14 L 20,18</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Videos">M 3,4 H 21 V 20 H 3 Z M 3,8 H 21 M 3,16 H 21 M 7,4 L 5,8 M 11,4 L 9,8 M 15,4 L 13,8 M 19,4 L 17,8 M 10,11 L 15,13.5 L 10,16 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Music">M 9,18 A 3,3 0 1 1 6,15 A 3,3 0 0 1 9,18 Z M 9,18 V 5 L 20,2 V 15 M 20,15 A 3,3 0 1 1 17,12 A 3,3 0 0 1 20,15 Z M 9,8 L 20,5</StreamGeometry>
-        <StreamGeometry x:Key="Icon_User">M 12,12 A 4,4 0 1 0 12,4 A 4,4 0 1 0 12,12 Z M 4,20 C 4,16 7,14 12,14 C 17,14 20,16 20,20</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Folder">M10,4 H4 A2,2 0 0 0 2,6 V18 A2,2 0 0 0 4,20 H20 A2,2 0 0 0 22,18 V8 A2,2 0 0 0 20,6 H12 L10,4 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Drive_Windows">M 3,5.5 L 10.5,4.3 V 11.2 H 3 Z M 11.5,4.1 L 21,2.8 V 11.2 H 11.5 Z M 3,12.2 H 10.5 V 19.1 L 3,17.9 Z M 11.5,12.2 H 21 V 20.6 L 11.5,19.3 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Drive_SSD">M 4,4 H 20 V 20 H 4 Z M 7,7 H 17 V 11 H 7 Z M 8,14 H 10 V 17 H 8 Z M 11,14 H 13 V 17 H 11 Z M 14,14 H 16 V 17 H 14 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Drive_HDD">M 4,4 H 20 V 20 H 4 Z M 12,13 A 4,4 0 1 0 12,5 A 4,4 0 1 0 12,13 Z M 12,10 A 1,1 0 1 0 12,8 A 1,1 0 1 0 12,10 Z M 16,16 H 18 M 6,16 H 12</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Drive_USB">M 8,3 H 16 V 7 H 8 Z M 9,5 H 11 V 6 H 9 Z M 13,5 H 15 V 6 H 13 Z M 6,7 H 18 V 18 C 18,19.5 16.5,21 15,21 H 9 C 7.5,21 6,19.5 6,18 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Drive_Network">M 4,14 A 4,4 0 0 1 7.5,10.2 A 6,6 0 0 1 18,9 A 4,4 0 0 1 19,17 H 4 Z M 12,17 V 21 M 8,21 H 16</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Refresh">M 17.65,6.35 A 8,8 0 1,0 19.73,13 H 17.65 A 6,6 0 1,1 16.24,7.76 L 13,11 H 20 V 4 L 17.65,6.35 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_ChevronRight">M 9,6 L 15,12 L 9,18</StreamGeometry>
-        <StreamGeometry x:Key="Icon_ChevronLeft">M 15,6 L 9,12 L 15,18</StreamGeometry>
-        <StreamGeometry x:Key="Icon_ChevronUp">M 6,15 L 12,9 L 18,15</StreamGeometry>
-        <StreamGeometry x:Key="Icon_ChevronDown">M 6,9 L 12,15 L 18,9</StreamGeometry>
-        <StreamGeometry x:Key="Icon_NavFiles">M 3,4 H 10 L 12,6 H 21 V 19 H 3 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_NavSpeed">M 13,2 L 4,14 H 11 L 10,22 L 20,9 H 13 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_NavStorage">M 3,4 H 21 V 8 H 3 Z M 3,10 H 21 V 14 H 3 Z M 3,16 H 21 V 20 H 3 Z M 17,6 H 18 M 17,12 H 18 M 17,18 H 18</StreamGeometry>
-        <StreamGeometry x:Key="Icon_NavDiagnostics">M 4,19 H 20 V 21 H 4 Z M 5,13 H 8 V 18 H 5 Z M 10,8 H 13 V 18 H 10 Z M 15,4 H 18 V 18 H 15 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_NavTools">M 14.7,3.3 C 12.8,1.4 9.8,1.6 8.1,3.4 C 6.9,4.6 6.5,6.3 6.9,7.9 L 2.3,12.5 C 1.9,12.9 1.9,13.5 2.3,13.9 L 4.1,15.7 C 4.5,16.1 5.1,16.1 5.5,15.7 L 10.1,11.1 C 11.7,11.5 13.4,11.1 14.6,9.9 C 16.4,8.2 16.6,5.2 14.7,3.3 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_NavSettings">M 12,15 A 3,3 0 1 0 12,9 A 3,3 0 0 0 12,15 Z M 19.4,13 A 7.8,7.8 0 0 0 19.5,12 A 7.8,7.8 0 0 0 19.4,11 L 21.5,9.4 C 21.7,9.2 21.8,8.9 21.6,8.7 L 19.6,5.2 C 19.5,5 19.2,4.9 19,5 L 16.5,6 A 7.5,7.5 0 0 0 14.8,5 L 14.4,2.4 C 14.4,2.2 14.2,2 13.9,2 H 10.1 C 9.8,2 9.6,2.2 9.6,2.4 L 9.2,5 A 7.5,7.5 0 0 0 7.5,6 L 5,5 C 4.8,4.9 4.5,5 4.4,5.2 L 2.4,8.7 C 2.2,8.9 2.3,9.2 2.5,9.4 L 4.6,11 A 7.8,7.8 0 0 0 4.5,12 A 7.8,7.8 0 0 0 4.6,13 L 2.5,14.6 C 2.3,14.8 2.2,15.1 2.4,15.3 L 4.4,18.8 C 4.5,19 4.8,19.1 5,19 L 7.5,18 A 7.5,7.5 0 0 0 9.2,19 L 9.6,21.6 C 9.6,21.8 9.8,22 10.1,22 H 13.9 C 14.2,22 14.4,21.8 14.4,21.6 L 14.8,19 A 7.5,7.5 0 0 0 16.5,18 L 19,19 C 19.2,19.1 19.5,19 19.6,18.8 L 21.6,15.3 C 21.8,15.1 21.7,14.8 21.5,14.6 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Archive">M 4,4 H 20 V 20 H 4 Z M 11,4 V 14 L 12,15 L 13,14 V 4 M 11,7 H 13 M 11,10 H 13</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Extract">M 12,3 L 4,7 V 17 L 12,21 L 20,17 V 7 Z M 12,3 V 11 M 12,11 L 4,7 M 12,11 L 20,7</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Shield">M12,2 L3,6 V11 C3,16.5 7,21.5 12,23 C17,21.5 21,16.5 21,11 V6 Z M12,4.5 L19,7.5 V11 C19,15 16,19 12,20.5 C8,19 5,15 5,11 V7.5 Z M9,12 L11,14 L15,9 L16,10 L11,16 L8,13 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Copy">M 8,4 H 19 V 17 H 8 Z M 5,7 H 4 V 20 H 16 V 19</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Cut">M 6,4 A 3,3 0 1 0 7.8,8.6 L 12,12 L 7.8,15.4 A 3,3 0 1 0 6,14 A 3,3 0 0 0 5,14.2 L 10.5,12 L 5,9.8 A 3,3 0 0 0 6,4 Z M 12,12 L 19,6 M 12,12 L 19,18</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Paste">M 9,4 V 2 H 15 V 4 M 5,4 H 7 V 6 H 17 V 4 H 19 V 20 H 5 Z M 9,11 H 15 M 9,14 H 13</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Transfer">M 3,12 H 17 M 12,7 L 17,12 L 12,17 M 21,5 V 19</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Move">M 4,7 L 12,3 L 20,7 V 17 L 12,21 L 4,17 Z M 12,12 L 12,17 M 12,12 L 17,9.5 M 12,12 L 7,9.5</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Delete">M 6,7 H 18 M 9,7 V 4 H 15 V 7 M 8,7 V 19 H 16 V 7 M 10,11 V 16 M 14,11 V 16</StreamGeometry>
-        <StreamGeometry x:Key="Icon_NewFolder">M 3,4 H 10 L 12,6 H 21 V 19 H 3 Z M 12,10 V 16 M 9,13 H 15</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Hashes">M 9.5,4 H 8 L 7.4,8 H 4 V 9.5 H 7.1 L 6.4,14 H 3 V 15.5 H 6.2 L 5.5,20 H 7 L 7.7,15.5 H 12 L 11.3,20 H 12.8 L 13.5,15.5 H 17 V 14 H 13.7 L 14.4,9.5 H 18 V 8 H 14.6 L 15.3,4 H 13.8 L 13.1,8 H 8.8 Z M 8.6,9.5 H 12.9 L 12.2,14 H 7.9 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Search">M 15.5,14 H 14.7 L 14.4,13.7 A 6.5,6.5 0 1 0 9.5,16 A 6.5,6.5 0 0 0 14,14.4 L 14.3,14.7 V 15.5 L 19,20.5 L 20.5,19 Z M 9.5,14 A 4.5,4.5 0 1 1 14,9.5 A 4.5,4.5 0 0 1 9.5,14 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Close">M 19,6.4 L 17.6,5 L 12,10.6 L 6.4,5 L 5,6.4 L 10.6,12 L 5,17.6 L 6.4,19 L 12,13.4 L 17.6,19 L 19,17.6 L 13.4,12 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Minimize">M 4,12 H 20</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Maximize">M 4,4 H 20 V 20 H 4 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Palette">M 12,2 A 10,10 0 0 0 2,12 A 10,10 0 0 0 12,22 C 13.1,22 14,21.1 14,20 C 14,19.5 13.8,19.1 13.5,18.7 C 13.2,18.4 13,18 13,17.5 C 13,16.4 13.9,15.5 15,15.5 H 17 C 19.8,15.5 22,13.3 22,10.5 C 22,5.8 17.5,2 12,2 Z M 6.5,11.5 A 1.5,1.5 0 1 1 6.5,8.5 A 1.5,1.5 0 0 1 6.5,11.5 Z M 9.5,7.5 A 1.5,1.5 0 1 1 9.5,4.5 A 1.5,1.5 0 0 1 9.5,7.5 Z M 14.5,7.5 A 1.5,1.5 0 1 1 14.5,4.5 A 1.5,1.5 0 0 1 14.5,7.5 Z M 17.5,11.5 A 1.5,1.5 0 1 1 17.5,8.5 A 1.5,1.5 0 0 1 17.5,11.5 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Sound">M 3,9 V 15 H 7 L 12,20 V 4 L 7,9 Z M 16,9.5 A 3.5,3.5 0 0 1 16,14.5 M 19,7 A 7,7 0 0 1 19,17</StreamGeometry>
-        <StreamGeometry x:Key="Icon_IOPipeline">M 4,4 H 20 V 8 H 4 Z M 17,6 H 18 M 4,10 H 20 V 14 H 4 Z M 17,12 H 18 M 8,17 L 12,21 L 16,17 M 12,14 V 20</StreamGeometry>
-        <StreamGeometry x:Key="Icon_ConfigEditor">M 5,3 H 19 V 21 H 5 Z M 8,7 H 16 M 8,10 H 14 M 8,13 H 16 M 8,16 H 12</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Backdrop">M 3,3 H 21 V 21 H 3 Z M 3,3 L 21,21 M 7,3 V 21 M 11,3 V 21 M 15,3 V 21 M 19,3 V 21 M 3,7 H 21 M 3,11 H 21 M 3,15 H 21 M 3,19 H 21</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Rename">M 3,17.25 V 21 H 6.75 L 17.81,9.94 L 14.06,6.19 L 3,17.25 Z M 20.71,7.04 C 21.1,6.65 21.1,6.02 20.71,5.63 L 18.37,3.29 C 17.98,2.9 17.35,2.9 16.96,3.29 L 15.13,5.12 L 18.88,8.87 L 20.71,7.04 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Duplicate">M 16,1 H 4 C 2.9,1 2,1.9 2,3 V 17 H 4 V 3 H 16 V 1 Z M 19,5 H 8 C 6.9,5 6,5.9 6,7 V 21 C 6,22.1 6.9,23 8,23 H 19 C 20.1,23 21,22.1 21,21 V 7 C 21,5.9 20.1,5 19,5 Z M 19,21 H 8 V 7 H 19 V 21 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Properties">M 12,2 A 10,10 0 1 0 22,12 A 10,10 0 0 0 12,2 Z M 13,17 H 11 V 11 H 13 Z M 13,9 H 11 V 7 H 13 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_Terminal">M 20,4 H 4 C 2.89,4 2,4.89 2,6 V 18 C 2,19.1 2.9,20 4,20 H 20 C 21.1,20 22,19.1 22,18 V 6 C 22,4.89 21.1,4 20,4 Z M 20,18 H 4 V 8 H 20 V 18 Z M 6,10 L 9,13 L 6,16 L 7.41,17.41 L 11.83,13 L 7.41,8.59 L 6,10 Z M 12,15 H 18 V 17 H 12 V 15 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_SelectAll">M 3,5 H 5 V 3 C 3.9,3 3,3.9 3,5 Z M 3,13 H 5 V 11 H 3 Z M 7,21 H 9 V 19 H 7 Z M 3,9 H 5 V 7 H 3 Z M 13,3 H 11 V 5 H 13 Z M 19,3 V 5 H 21 C 21,3.9 20.1,3 19,3 Z M 5,21 V 19 H 3 C 3,20.1 3.9,21 5,21 Z M 3,17 H 5 V 15 H 3 Z M 9,3 H 7 V 5 H 9 Z M 11,21 H 13 V 19 H 11 Z M 19,13 H 21 V 11 H 19 Z M 19,21 C 20.1,21 21,20.1 21,19 H 19 Z M 19,9 H 21 V 7 H 19 Z M 19,17 H 21 V 15 H 19 Z M 15,21 H 17 V 19 H 15 Z M 15,5 H 17 V 3 H 15 Z M 7,17 H 17 V 7 H 7 Z</StreamGeometry>
-        <StreamGeometry x:Key="Icon_OpenFolder">M 19,20 H 4 C 2.9,20 2,19.1 2,18 L 2.01,6 C 2.01,4.9 2.9,4 4,4 H 10 L 12,6 H 20 C 21.1,6 22,6.9 22,8 V 18 C 22,19.1 21.1,20 20,20 Z M 4,8 V 18 H 20 V 8 H 4 Z</StreamGeometry>
-
-        <!-- Футуристическая навигационная пилюля (Futuristic Nav Tab) -->
-        <Style x:Key="FuturisticNavTab" TargetType="RadioButton">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-            <Setter Property="Padding" Value="14,6"/>
-            <Setter Property="Margin" Value="2,0"/>
-            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="TabBorder" CornerRadius="13" Background="Transparent"
-                                BorderBrush="Transparent" BorderThickness="1" Padding="{TemplateBinding Padding}"
-                                WindowChrome.IsHitTestVisibleInChrome="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              WindowChrome.IsHitTestVisibleInChrome="True"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#3000F0FF" Offset="0"/>
-                                            <GradientStop Color="#207000FF" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                                <Setter TargetName="TabBorder" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="12" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Футуристический заголовок таблицы файлов (устраняет белый цвет в темной теме) -->
-        <Style TargetType="GridViewColumnHeader">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Background" Value="{DynamicResource HeaderBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource HeaderForegroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource HeaderBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="GridViewColumnHeader">
-                        <Grid>
-                            <Border Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                            </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource HeaderHoverBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Плавные футуристические строки элементов ListView -->
-        <Style TargetType="ListViewItem">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Margin" Value="2,1"/>
-            <Setter Property="Padding" Value="6,2"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListViewItem">
-                        <Border x:Name="ItemBorder" CornerRadius="6" Background="{TemplateBinding Background}"
-                                BorderBrush="Transparent" BorderThickness="1" Padding="{TemplateBinding Padding}">
-                            <Grid>
-                                <Border x:Name="LeftAccent" Width="3" HorizontalAlignment="Left" Margin="-6,-2,0,-2"
-                                        CornerRadius="1.5" Background="{DynamicResource AccentBrush}" Opacity="0">
-                                    <Border.Effect>
-                                        <DropShadowEffect BlurRadius="6" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}"/>
-                                    </Border.Effect>
-                                </Border>
-                                <GridViewRowPresenter VerticalAlignment="Center" Margin="6,0,0,0"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ListHoverBrush}"/>
-                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ListRowSelectedBrush}"/>
-                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter TargetName="LeftAccent" Property="Opacity" Value="1"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Modern Premium TextBox -->
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource HoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter TargetName="bd" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="10" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="0.6"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Футуристическая кнопка тулбара (CyberToolButton) -->
-        <Style x:Key="CyberToolButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10" Padding="{TemplateBinding Padding}">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="0" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="0"/>
-                            </Border.Effect>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                            <EventTrigger RoutedEvent="MouseEnter">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleX)" To="1.04" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleY)" To="1.04" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).BlurRadius" To="16" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).Opacity" To="0.8" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                            <EventTrigger RoutedEvent="MouseLeave">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleX)" To="1.0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleY)" To="1.0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).BlurRadius" To="0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).Opacity" To="0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource ListRowSelectedBrush}"/>
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.95" ScaleY="0.95"/></Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Фирменная кнопка панели команд (RibbonActionButton) -->
-        <Style x:Key="RibbonActionButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8" Padding="{TemplateBinding Padding}">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="0" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="0"/>
-                            </Border.Effect>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                            <EventTrigger RoutedEvent="MouseEnter">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleX)" To="1.03" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleY)" To="1.03" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).BlurRadius" To="12" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).Opacity" To="0.7" Duration="0:0:0.15" DecelerationRatio="0.8"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                            <EventTrigger RoutedEvent="MouseLeave">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleX)" To="1.0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetProperty="(RenderTransform).(ScaleTransform.ScaleY)" To="1.0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).BlurRadius" To="0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="(Effect).Opacity" To="0" Duration="0:0:0.2" DecelerationRatio="0.8"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.96" ScaleY="0.96"/></Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Акцентная кнопка панели команд (RibbonPrimaryActionButton) -->
-        <Style x:Key="RibbonPrimaryActionButton" TargetType="Button" BasedOn="{StaticResource RibbonActionButton}">
-            <Setter Property="Background" Value="{DynamicResource ListRowSelectedBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-        </Style>
-
-        <!-- Элегантный элемент бокового меню навигации (SidebarNavItem) -->
-        <Style x:Key="SidebarNavItem" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="Margin" Value="0,0,0,3"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8" Padding="{TemplateBinding Padding}">
-                            <Grid>
-                                <!-- Левая индикаторная полоска активности (Accent Pill) -->
-                                <Border x:Name="IndicatorPill" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                        Width="3" Height="14" CornerRadius="1.5"
-                                        Background="{DynamicResource AccentBrush}" Opacity="0" Margin="-4,0,0,0"/>
-                                <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-                                <Setter TargetName="IndicatorPill" Property="Opacity" Value="1"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Карточка накопителя в боковом меню (SidebarDriveCard) -->
-        <Style x:Key="SidebarDriveCard" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="10,9"/>
-            <Setter Property="Margin" Value="0,0,0,7"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
-                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Круглая кнопка навигации (CyberNavCircleButton) -->
-        <Style x:Key="CyberNavCircleButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Margin" Value="0,0,5,0"/>
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="15">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.94" ScaleY="0.94"/></Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Компактная icon-кнопка (legacy-окна: CopyDialog / Motion / FileManager) -->
-        <Style x:Key="IconButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Width" Value="36"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Плавный прогресс-бар с закруглением -->
-        <Style TargetType="ProgressBar">
-            <Setter Property="Height" Value="6"/>
-            <Setter Property="Background" Value="{DynamicResource ProgressTrackBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ProgressBar">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="3" ClipToBounds="True">
-                            <Grid x:Name="PART_Track">
-                                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="3"
-                                        Background="{TemplateBinding Foreground}"/>
-                            </Grid>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Футуристический стиль ComboBox -->
-        <Style TargetType="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-
-        <!-- Текстовые стили -->
-        <Style x:Key="MutedText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
-
-        <Style x:Key="H2" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="FontSize" Value="15"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-
-        <!-- Базовая кнопка Win11 -->
-        <Style x:Key="Win11Button" TargetType="Button">
-            <Setter Property="Padding" Value="14,7"/>
-            <Setter Property="MinHeight" Value="34"/>
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
-                                </Setter>
-                                <Setter TargetName="bd" Property="Opacity" Value="0.8"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Акцентная кнопка -->
-        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource Win11Button}">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="12" Direction="270" ShadowDepth="2"
-                                                  Color="{DynamicResource GlowAccentColor}" Opacity="0.6"/>
-                            </Border.Effect>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- 3D Cyber Button (3D Button Architect) с плавным неоновым сиянием и мягким светом -->
-        <Style x:Key="CyberButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="MinHeight" Value="34"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid>
-                            <!-- Мягкое неоновое свечение (Ambient Aura) -->
-                            <Border CornerRadius="8" Margin="-1">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="16" ShadowDepth="1" Direction="270"
-                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.6"/>
-                                </Border.Effect>
-                                <Border.Background>
-                                    <SolidColorBrush Color="{DynamicResource GlowAccentColor}"/>
-                                </Border.Background>
-                            </Border>
-
-                            <!-- Основное тело кнопки -->
-                            <Border x:Name="OuterBorder" CornerRadius="8" BorderThickness="1"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    Background="{DynamicResource CyberButtonGradientBrush}">
-                                <Grid ClipToBounds="True">
-                                    <!-- Плавный световой градиент (Smooth Shimmer Wave) -->
-                                    <Rectangle x:Name="Beam" Width="100" HorizontalAlignment="Left"
-                                               RenderTransformOrigin="0.5,0.5" Opacity="0">
-                                        <Rectangle.Fill>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                <GradientStop Color="#00FFFFFF" Offset="0"/>
-                                                <GradientStop Color="#33FFFFFF" Offset="0.5"/>
-                                                <GradientStop Color="#00FFFFFF" Offset="1"/>
-                                            </LinearGradientBrush>
-                                        </Rectangle.Fill>
-                                        <Rectangle.RenderTransform>
-                                            <TransformGroup>
-                                                <SkewTransform AngleX="-20"/>
-                                                <TranslateTransform x:Name="BeamTransform" X="-120"/>
-                                            </TransformGroup>
-                                        </Rectangle.RenderTransform>
-                                    </Rectangle>
-
-                                    <!-- Контент -->
-                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                      Margin="14,6"/>
+            <!-- Плавный прогресс-бар с закруглением -->
+            <Style TargetType="ProgressBar">
+                <Setter Property="Height" Value="6"/>
+                <Setter Property="Background" Value="{DynamicResource ProgressTrackBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ProgressBar">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="3" ClipToBounds="True">
+                                <Grid x:Name="PART_Track">
+                                    <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="3"
+                                            Background="{TemplateBinding Foreground}"/>
                                 </Grid>
                             </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="Beam" Storyboard.TargetProperty="Opacity"
-                                                             To="0.8" Duration="0:0:0.3"/>
-                                            <DoubleAnimation Storyboard.TargetName="BeamTransform" Storyboard.TargetProperty="X"
-                                                             From="-120" To="450" Duration="0:0:2.5"
-                                                             RepeatBehavior="Forever">
-                                                <DoubleAnimation.EasingFunction>
-                                                    <CubicEase EasingMode="EaseInOut"/>
-                                                </DoubleAnimation.EasingFunction>
-                                            </DoubleAnimation>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="Beam" Storyboard.TargetProperty="Opacity"
-                                                             To="0" Duration="0:0:0.3"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
-                                </Setter>
-                                <Setter TargetName="OuterBorder" Property="Opacity" Value="0.92"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
-        <!-- 3D Cyber Danger Button (Red Glow for Force Delete & Override Operations) -->
-        <Style x:Key="CyberDangerButton" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="MinHeight" Value="34"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
-            <Setter Property="RenderTransform">
-                <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
-            </Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid>
-                            <Border CornerRadius="8" Margin="-1">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="16" ShadowDepth="1" Direction="270"
-                                                      Color="#DC2626" Opacity="0.6"/>
-                                </Border.Effect>
-                                <Border.Background>
-                                    <SolidColorBrush Color="#40DC2626"/>
-                                </Border.Background>
+            <!-- Чип скорости (Speed Preset Chip) -->
+            <Style x:Key="SpeedChip" TargetType="Button">
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Padding" Value="10,5"/>
+                <Setter Property="Margin" Value="0,0,6,0"/>
+                <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="12" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
-                            <Border x:Name="OuterBorder" CornerRadius="8" BorderThickness="1"
-                                    BorderBrush="#80EF4444">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#DC2626" Offset="0"/>
-                                        <GradientStop Color="#991B1B" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                  Margin="14,6"/>
-                            </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="OuterBorder" Property="BorderBrush" Value="#FCA5A5"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
-                                </Setter>
-                                <Setter TargetName="OuterBorder" Property="Opacity" Value="0.9"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.45"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
+                                    <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
-        <!-- Чип скорости (Speed Preset Chip) -->
-        <Style x:Key="SpeedChip" TargetType="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="10,5"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="12" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="bd" Property="Opacity" Value="0.7"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+            <!-- Плитка выбора темы (ThemeTile) -->
+            <Style x:Key="ThemeTile" TargetType="Border">
+                <Setter Property="Width" Value="100"/>
+                <Setter Property="Height" Value="80"/>
+                <Setter Property="Margin" Value="0,0,10,10"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Padding" Value="8"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
 
-        <!-- Плитка выбора темы (ThemeTile) -->
-        <Style x:Key="ThemeTile" TargetType="Border">
-            <Setter Property="Width" Value="100"/>
-            <Setter Property="Height" Value="80"/>
-            <Setter Property="Margin" Value="0,0,10,10"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="8"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                    <Setter Property="Background" Value="{DynamicResource HoverBrush}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
+            <!-- Кастомный неоновый слайдер -->
+            <Style x:Key="NeonSlider" TargetType="Slider">
+                <Setter Property="MinHeight" Value="28"/>
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Slider">
+                            <Grid VerticalAlignment="Center">
+                                <!-- Фоновый трек -->
+                                <Border Height="6" CornerRadius="3" Background="{DynamicResource ProgressTrackBrush}"/>
+                                <!-- Заполненный прогресс трека -->
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate>
+                                                    <Border Height="6" CornerRadius="3" Background="{DynamicResource AccentBrush}"/>
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb>
+                                            <Thumb.Template>
+                                                <ControlTemplate>
+                                                    <Grid Width="20" Height="20">
+                                                        <Border CornerRadius="10" Background="{DynamicResource AccentBrush}">
+                                                            <Border.Effect>
+                                                                <DropShadowEffect BlurRadius="8" ShadowDepth="1"
+                                                                                  Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
+                                                            </Border.Effect>
+                                                        </Border>
+                                                        <Ellipse Width="8" Height="8" Fill="White"/>
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
+                                            <RepeatButton.Template>
+                                                <ControlTemplate>
+                                                    <Border Background="Transparent"/>
+                                                </ControlTemplate>
+                                            </RepeatButton.Template>
+                                        </RepeatButton>
+                                    </Track.IncreaseRepeatButton>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
-        <!-- Кастомный неоновый слайдер -->
-        <Style x:Key="NeonSlider" TargetType="Slider">
-            <Setter Property="MinHeight" Value="28"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid VerticalAlignment="Center">
-                            <!-- Фоновый трек -->
-                            <Border Height="6" CornerRadius="3" Background="{DynamicResource ProgressTrackBrush}"/>
-                            <!-- Заполненный прогресс трека -->
-                            <Track x:Name="PART_Track">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static Slider.DecreaseLarge}">
-                                        <RepeatButton.Template>
-                                            <ControlTemplate>
-                                                <Border Height="6" CornerRadius="3" Background="{DynamicResource AccentBrush}"/>
-                                            </ControlTemplate>
-                                        </RepeatButton.Template>
-                                    </RepeatButton>
-                                </Track.DecreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb>
-                                        <Thumb.Template>
-                                            <ControlTemplate>
-                                                <Grid Width="20" Height="20">
-                                                    <Border CornerRadius="10" Background="{DynamicResource AccentBrush}">
-                                                        <Border.Effect>
-                                                            <DropShadowEffect BlurRadius="8" ShadowDepth="1"
-                                                                              Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
-                                                        </Border.Effect>
-                                                    </Border>
-                                                    <Ellipse Width="8" Height="8" Fill="White"/>
-                                                </Grid>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="{x:Static Slider.IncreaseLarge}">
-                                        <RepeatButton.Template>
-                                            <ControlTemplate>
-                                                <Border Background="Transparent"/>
-                                            </ControlTemplate>
-                                        </RepeatButton.Template>
-                                    </RepeatButton>
-                                </Track.IncreaseRepeatButton>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Кнопки заголовка окна -->
-        <Style x:Key="CaptionButton" TargetType="Button">
-            <Setter Property="Width" Value="44"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TitleForegroundBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="CaptionCloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#C42B1C"/>
-                    <Setter Property="Foreground" Value="White"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="Card" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16"/>
-        </Style>
-
-        <!-- ================= ФУТУРИСТИЧЕСКИЙ СКРОЛЛБАР (FUTURISTIC CYBER SCROLLBAR) ================= -->
-
-        <!-- Невидимые кнопки прокрутки страницы -->
-        <Style x:Key="ScrollInvisibleRepeatButton" TargetType="RepeatButton">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RepeatButton">
-                        <Rectangle Fill="Transparent"/>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Вертикальный ползунок (Cyber Thumb) -->
-        <Style x:Key="FuturisticVerticalThumb" TargetType="Thumb">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Thumb">
-                        <Grid>
-                            <Border x:Name="ThumbVisual" CornerRadius="4" Margin="1,2"
-                                    Background="{DynamicResource ScrollThumbBrush}"
-                                    SnapsToDevicePixels="True"/>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
-                                <Setter TargetName="ThumbVisual" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="10" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="0.85"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbPressedBrush}"/>
-                                <Setter TargetName="ThumbVisual" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="14" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="1.0"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Горизонтальный ползунок (Cyber Thumb) -->
-        <Style x:Key="FuturisticHorizontalThumb" TargetType="Thumb">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Thumb">
-                        <Grid>
-                            <Border x:Name="ThumbVisual" CornerRadius="4" Margin="2,1"
-                                    Background="{DynamicResource ScrollThumbBrush}"
-                                    SnapsToDevicePixels="True"/>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}"/>
-                                <Setter TargetName="ThumbVisual" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="10" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="0.85"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="ThumbVisual" Property="Background" Value="{DynamicResource ScrollThumbPressedBrush}"/>
-                                <Setter TargetName="ThumbVisual" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="14" ShadowDepth="0" Color="{DynamicResource GlowAccentColor}" Opacity="1.0"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Глобальный футуристический ScrollBar (Без стрелок, с неоновым световодом) -->
-        <Style TargetType="{x:Type ScrollBar}">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ScrollBar}">
-                        <Grid x:Name="Bg" Background="Transparent" SnapsToDevicePixels="True">
-                            <!-- Тонкий неоновый направляющий рельс -->
-                            <Rectangle Width="1" Fill="{DynamicResource SubtleBorderBrush}" HorizontalAlignment="Center" Margin="0,4"/>
-                            <Track x:Name="PART_Track" IsDirectionReversed="True">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource ScrollInvisibleRepeatButton}" Command="{x:Static ScrollBar.PageUpCommand}"/>
-                                </Track.DecreaseRepeatButton>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource ScrollInvisibleRepeatButton}" Command="{x:Static ScrollBar.PageDownCommand}"/>
-                                </Track.IncreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb Style="{StaticResource FuturisticVerticalThumb}"/>
-                                </Track.Thumb>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="Orientation" Value="Vertical">
-                    <Setter Property="Width" Value="8"/>
-                    <Setter Property="MinWidth" Value="8"/>
-                </Trigger>
-                <Trigger Property="Orientation" Value="Horizontal">
-                    <Setter Property="Height" Value="8"/>
-                    <Setter Property="MinHeight" Value="8"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="{x:Type ScrollBar}">
-                                <Grid x:Name="Bg" Background="Transparent" SnapsToDevicePixels="True">
-                                    <!-- Горизонтальный направляющий рельс -->
-                                    <Rectangle Height="1" Fill="{DynamicResource SubtleBorderBrush}" VerticalAlignment="Center" Margin="4,0"/>
-                                    <Track x:Name="PART_Track" IsDirectionReversed="False">
-                                        <Track.DecreaseRepeatButton>
-                                            <RepeatButton Style="{StaticResource ScrollInvisibleRepeatButton}" Command="{x:Static ScrollBar.PageLeftCommand}"/>
-                                        </Track.DecreaseRepeatButton>
-                                        <Track.IncreaseRepeatButton>
-                                            <RepeatButton Style="{StaticResource ScrollInvisibleRepeatButton}" Command="{x:Static ScrollBar.PageRightCommand}"/>
-                                        </Track.IncreaseRepeatButton>
-                                        <Track.Thumb>
-                                            <Thumb Style="{StaticResource FuturisticHorizontalThumb}"/>
-                                        </Track.Thumb>
-                                    </Track>
-                                </Grid>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- ================= СУПЕР-ПЛАВНЫЙ КИНЕТИЧЕСКИЙ СКРОЛЛИНГ (SUPER SMOOTH SCROLL) ================= -->
-        <Style TargetType="{x:Type ScrollViewer}">
-            <Setter Property="helpers:SmoothScroll.IsEnabled" Value="True"/>
-            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
-        </Style>
-
-        <Style TargetType="{x:Type ListView}">
-            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
-            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
-            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
-            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
-            <Setter Property="helpers:SmoothScroll.IsEnabled" Value="True"/>
-        </Style>
-
-        <Style TargetType="{x:Type ListBox}">
-            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
-            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
-            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
-            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
-            <Setter Property="helpers:SmoothScroll.IsEnabled" Value="True"/>
-        </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

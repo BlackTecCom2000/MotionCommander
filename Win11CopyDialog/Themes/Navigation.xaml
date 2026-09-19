@@ -1,0 +1,157 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ================= HARDWARE MEDIA TYPES & GRADIENTS ================= -->
+    <SolidColorBrush x:Key="MediaNVMeBrush" Color="#00F0FF"/>
+    <SolidColorBrush x:Key="MediaNVMeBackground" Color="#2000F0FF"/>
+    <SolidColorBrush x:Key="MediaSsdBrush" Color="#3B82F6"/>
+    <SolidColorBrush x:Key="MediaSsdBackground" Color="#203B82F6"/>
+    <SolidColorBrush x:Key="MediaHddBrush" Color="#F59E0B"/>
+    <SolidColorBrush x:Key="MediaHddBackground" Color="#20F59E0B"/>
+    <SolidColorBrush x:Key="MediaUsbBrush" Color="#10B981"/>
+    <SolidColorBrush x:Key="MediaUsbBackground" Color="#2010B981"/>
+
+    <!-- Partition Gradients -->
+    <LinearGradientBrush x:Key="PartitionBasicDataGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#60A5FA" Offset="0.0"/>
+        <GradientStop Color="#3B82F6" Offset="0.5"/>
+        <GradientStop Color="#1D4ED8" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PartitionSystemEfiGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#34D399" Offset="0.0"/>
+        <GradientStop Color="#10B981" Offset="0.5"/>
+        <GradientStop Color="#047857" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PartitionMsrGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FBBF24" Offset="0.0"/>
+        <GradientStop Color="#F59E0B" Offset="0.5"/>
+        <GradientStop Color="#B45309" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PartitionRecoveryGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#C084FC" Offset="0.0"/>
+        <GradientStop Color="#A855F7" Offset="0.5"/>
+        <GradientStop Color="#7E22CE" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PartitionUnallocatedGradient" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#94A3B8" Offset="0.0"/>
+        <GradientStop Color="#64748B" Offset="0.5"/>
+        <GradientStop Color="#334155" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <!-- ================= MAIN NAVIGATION PILLS ================= -->
+    <Style x:Key="FuturisticNavTab" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilySystem}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        <Setter Property="Padding" Value="14,6"/>
+        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+        <Setter Property="RenderTransform">
+            <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="TabBorder" CornerRadius="{DynamicResource RadiusLarge}"
+                            Background="Transparent" BorderBrush="Transparent" BorderThickness="1"
+                            Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"
+                            WindowChrome.IsHitTestVisibleInChrome="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          WindowChrome.IsHitTestVisibleInChrome="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource LiquidGlassAccentSoft}"/>
+                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="TabBorder" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="12" ShadowDepth="0"
+                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.6"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value><ScaleTransform ScaleX="0.96" ScaleY="0.96"/></Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="GlassNavTab" TargetType="RadioButton" BasedOn="{StaticResource FuturisticNavTab}"/>
+
+    <!-- ================= SIDEBAR NAVIGATION ================= -->
+    <Style x:Key="SidebarNavItem" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Margin" Value="0,1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="NavRoot"
+                            CornerRadius="{DynamicResource RadiusNormal}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="NavRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
+                            <Setter TargetName="NavRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="NavRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Sidebar Elevated Drive Card -->
+    <Style x:Key="SidebarDriveCard" TargetType="Border">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource RadiusNormal}"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Margin" Value="0,3"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+        <Setter Property="RenderTransform">
+            <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="270"
+                                          Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.4"/>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+</ResourceDictionary>

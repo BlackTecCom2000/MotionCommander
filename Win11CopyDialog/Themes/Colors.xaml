@@ -1,0 +1,55 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ================================================================= -->
+    <!--                   LIQUID GLASS: BASE COLOR PALETTE               -->
+    <!-- ================================================================= -->
+
+    <!-- Theme Root / Ambient Backgrounds -->
+    <Color x:Key="Color_BgDeep">#050912</Color>
+    <Color x:Key="Color_BgDeepLightened">#0B1120</Color>
+    <Color x:Key="Color_BgVignette">#020408</Color>
+
+    <!-- Glass Surface Base Tints -->
+    <Color x:Key="Color_SurfaceL1">#0A1426</Color>
+    <Color x:Key="Color_SurfaceL2">#0D192E</Color>
+    <Color x:Key="Color_SurfaceL3">#112038</Color>
+    <Color x:Key="Color_SurfaceL4">#162744</Color>
+    <Color x:Key="Color_SurfaceModal">#0D1626</Color>
+
+    <!-- Glass Borders & Highlights -->
+    <Color x:Key="Color_BorderSubtle">#1578BEFF</Color>
+    <Color x:Key="Color_BorderDefault">#2D78BEFF</Color>
+    <Color x:Key="Color_BorderStrong">#4A8CFF</Color>
+    <Color x:Key="Color_BorderFocus">#00D4FF</Color>
+    <Color x:Key="Color_HighlightEdge">#40FFFFFF</Color>
+
+    <!-- Typography -->
+    <Color x:Key="Color_TextPrimary">#F8FAFC</Color>
+    <Color x:Key="Color_TextSecondary">#94A3B8</Color>
+    <Color x:Key="Color_TextTertiary">#64748B</Color>
+    <Color x:Key="Color_TextMuted">#475569</Color>
+    <Color x:Key="Color_TextDisabled">#334155</Color>
+
+    <!-- Brand / Accent System (Cyan & Liquid Blue) -->
+    <Color x:Key="Color_AccentPrimary">#00D4FF</Color>
+    <Color x:Key="Color_AccentPrimaryDim">#168CFF</Color>
+    <Color x:Key="Color_AccentHover">#38E1FF</Color>
+    <Color x:Key="Color_AccentPressed">#00B4D8</Color>
+    <Color x:Key="Color_AccentGlow">#4000D4FF</Color>
+    <Color x:Key="Color_AccentSoft">#2500D4FF</Color>
+
+    <!-- Functional / Status Colors -->
+    <Color x:Key="Color_Success">#10B981</Color>
+    <Color x:Key="Color_SuccessMuted">#2010B981</Color>
+    <Color x:Key="Color_Warning">#F59E0B</Color>
+    <Color x:Key="Color_WarningMuted">#20F59E0B</Color>
+    <Color x:Key="Color_Danger">#EF4444</Color>
+    <Color x:Key="Color_DangerMuted">#25EF4444</Color>
+    <Color x:Key="Color_DangerHover">#3AEF4444</Color>
+
+    <!-- Shadows -->
+    <Color x:Key="Color_ShadowAmbient">#80000000</Color>
+    <Color x:Key="Color_ShadowElevated">#A0000000</Color>
+
+</ResourceDictionary>

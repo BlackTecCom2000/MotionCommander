@@ -233,8 +233,8 @@
                       GlassFrameThickness="-1" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
 
-    <Border Background="{DynamicResource WindowBackgroundBrush}"
-            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="12">
+    <Border Background="{DynamicResource LiquidGlassMaterialLevel0Brush}"
+            BorderBrush="{DynamicResource LiquidGlassBorderLevel2Brush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusWindow}">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" /> <!-- Header -->
@@ -243,77 +243,81 @@
                 <RowDefinition Height="Auto" /> <!-- Footer -->
             </Grid.RowDefinitions>
             <!-- ШАПКА ОКНА (Header with Navigation Tabs) -->
-            <Grid Grid.Row="0" Height="56" Background="Transparent" MouseDown="TitleBar_MouseDown">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <Border Grid.Row="0" Height="56" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}"
+                    BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1"
+                    MouseDown="TitleBar_MouseDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <!-- Брендовый заголовок -->
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,16,0">
-                    <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentBrush}" Margin="0,0,10,0">
-                        <Border.Effect>
-                            <DropShadowEffect BlurRadius="12" ShadowDepth="1" Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
-                        </Border.Effect>
-                        <TextBlock Text="✦" FontSize="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
-                    <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                        <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.4.0 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
-                    </Border>
-                    <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" Content="⟳" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="4,0,0,0" Padding="6,3" VerticalAlignment="Center"/>
-                </StackPanel>
+                    <!-- Брендовый заголовок -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,16,0">
+                        <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentBrush}" Margin="0,0,10,0">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="1" Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
+                            </Border.Effect>
+                            <TextBlock Text="✦" FontSize="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
+                        <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.1 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
+                        </Border>
+                        <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" Content="⟳" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="4,0,0,0" Padding="6,3" VerticalAlignment="Center"/>
+                    </StackPanel>
 
-                <!-- НАВИГАЦИЯ (Центр шапки) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,0">
-                    <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}" Content="Файлы" GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}" Content="Передача" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}" Content="Накопители" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}" Content="Диагностика" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                    <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}" Content="Утилиты" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
-                </StackPanel>
+                    <!-- НАВИГАЦИЯ (Центр шапки) -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,0">
+                        <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}" Content="Файлы" GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}" Content="Передача" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}" Content="Накопители" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}" Content="Диагностика" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                        <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}" Content="Утилиты" GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"/>
+                    </StackPanel>
 
-                <!-- Быстрые переключатели: Окно настроек и тема -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="OpenSettingsWindowBtn" Style="{StaticResource CaptionButton}"
-                            ToolTip="Настройки и Опции" Click="OpenSettingsWindow_Click" Margin="0,0,4,0">
-                        <Path Data="{StaticResource Icon_NavSettings}" Fill="{DynamicResource TitleForegroundBrush}" Width="13" Height="13" Stretch="Uniform"/>
-                    </Button>
-                    <Button x:Name="QuickThemeBtn" Style="{StaticResource CaptionButton}"
-                            ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0">
-                        <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13" Foreground="{DynamicResource TitleForegroundBrush}"/>
-                    </Button>
-                </StackPanel>
+                    <!-- Быстрые переключатели: Окно настроек и тема -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="OpenSettingsWindowBtn" Style="{StaticResource CaptionButton}"
+                                ToolTip="Настройки и Опции" Click="OpenSettingsWindow_Click" Margin="0,0,4,0">
+                            <Path Data="{StaticResource Icon_NavSettings}" Fill="{DynamicResource TitleForegroundBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                        </Button>
+                        <Button x:Name="QuickThemeBtn" Style="{StaticResource CaptionButton}"
+                                ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0">
+                            <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13" Foreground="{DynamicResource TitleForegroundBrush}"/>
+                        </Button>
+                    </StackPanel>
 
-                <!-- Кнопки управления окном -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal">
-                    <Button x:Name="AvailableUpdateBtn" Style="{StaticResource CaptionButton}" ToolTip="Доступно обновление!" Click="AvailableUpdateBtn_Click" Visibility="Collapsed" Margin="0,0,4,0">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="🚀" FontSize="11" Margin="0,0,2,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Обновить" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FontSize="11" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource CaptionButton}" ToolTip="Свернуть" Click="Min_Click">
-                        <Path Data="{StaticResource Icon_Minimize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="2" Stretch="Fill"/>
-                    </Button>
-                    <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" ToolTip="Развернуть" Click="Max_Click">
-                        <Path Data="{StaticResource Icon_Maximize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
-                    </Button>
-                    <Button Style="{StaticResource CaptionCloseButton}" ToolTip="Закрыть" Click="Close_Click">
-                        <Path Data="{StaticResource Icon_Close}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
-                    </Button>
-                </StackPanel>
-            </Grid>
+                    <!-- Кнопки управления окном -->
+                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                        <Button x:Name="AvailableUpdateBtn" Style="{StaticResource CaptionButton}" ToolTip="Доступно обновление!" Click="AvailableUpdateBtn_Click" Visibility="Collapsed" Margin="0,0,4,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="🚀" FontSize="11" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Обновить" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FontSize="11" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource CaptionButton}" ToolTip="Свернуть" Click="Min_Click">
+                            <Path Data="{StaticResource Icon_Minimize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="2" Stretch="Fill"/>
+                        </Button>
+                        <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" ToolTip="Развернуть" Click="Max_Click">
+                            <Path Data="{StaticResource Icon_Maximize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                        </Button>
+                        <Button Style="{StaticResource CaptionCloseButton}" ToolTip="Закрыть" Click="Close_Click">
+                            <Path Data="{StaticResource Icon_Close}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <!-- ОСНОВНОЙ КОНТЕНТ (5 ВКЛАДОК) -->
                 <!-- ================= 1. ФАЙЛЫ И АРХИВЫ ================= -->
             <!-- TOOLBAR -->
             <StackPanel Grid.Row="1">
 <!-- Панель команд (Floating Glass Ribbon Dock) -->
-                        <Border  Background="{DynamicResource RibbonBackgroundBrush}"
-                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,1" Padding="12,6">
+                        <Border Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
+                                BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
                             <DockPanel>
                                 <!-- Правая часть: Скрытые файлы и Обновить (всегда прижаты вправо) -->
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -348,7 +352,7 @@
                                         </StackPanel>
                                     </Button>
 
-                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource GlassBorderBrush}" Margin="6,0,8,0"/>
+                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="6,0,8,0"/>
 
                                     <Button Style="{StaticResource RibbonActionButton}" Click="CopyItem_Click" ToolTip="Копировать в буфер обмена (Ctrl+C)">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -386,7 +390,7 @@
                                             <TextBlock Text="Хэши" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
-                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource GlassBorderBrush}" Margin="6,0,8,0"/>
+                                    <Rectangle Width="1" Height="20" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="6,0,8,0"/>
                                     <Button x:Name="OpenFileManagerBtn" Style="{StaticResource RibbonPrimaryActionButton}" Click="OpenFileManager_Click" ToolTip="Открыть автономный файловый менеджер (Motion UI)">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"/>
@@ -399,7 +403,7 @@
 
                         
 <!-- Строка пути и Поиск -->
-                        <Border  Background="{DynamicResource WindowBackgroundBrush}" Padding="12,6" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,0,0,1">
+                        <Border Background="{DynamicResource LiquidGlassMaterialLevel1Brush}" Padding="12,6" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -418,8 +422,8 @@
                                     </Button>
                                 </StackPanel>
 
-                                <Border Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
-                                        BorderThickness="1" CornerRadius="8" Padding="6,2">
+                                <Border Grid.Column="1" Background="{DynamicResource LiquidGlassInputBackgroundBrush}" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource RadiusM}" Padding="6,2">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -437,8 +441,8 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Column="2" Margin="8,0,0,0" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
-                                        BorderThickness="1" CornerRadius="8" Padding="6,2">
+                                <Border Grid.Column="2" Margin="8,0,0,0" Background="{DynamicResource LiquidGlassInputBackgroundBrush}" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}"
+                                        BorderThickness="1" CornerRadius="{DynamicResource RadiusM}" Padding="6,2">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -471,10 +475,10 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- SIDEBAR -->
-                <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}">
-                    <StackPanel>
+                <Border Grid.Column="0" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}">
+                    <DockPanel LastChildFill="True">
 <!-- Левая панель навигации: Быстрый доступ и Накопители -->
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{DynamicResource WindowBackgroundBrush}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Background="Transparent">
                                 <StackPanel Margin="10,8">
                                     
                                     <!-- Заголовок: Быстрый доступ -->
@@ -643,10 +647,10 @@
                             </ScrollViewer>
 
                             
-                    </StackPanel>
+                    </DockPanel>
                 </Border>
                 
-                <GridSplitter Grid.Column="1" Width="1" HorizontalAlignment="Center" Background="{DynamicResource GlassBorderBrush}"/>
+                <GridSplitter Grid.Column="1" Width="1" HorizontalAlignment="Center" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
 
                 <!-- WORKSPACE -->
                 <Grid Grid.Column="2" Margin="10">
@@ -1075,10 +1079,10 @@
 
                 </Grid>
                 
-                <GridSplitter Grid.Column="3" Width="1" HorizontalAlignment="Center" Background="{DynamicResource GlassBorderBrush}"/>
+                <GridSplitter Grid.Column="3" Width="1" HorizontalAlignment="Center" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
 
                 <!-- INSPECTOR -->
-                <Border Grid.Column="4" Background="{DynamicResource SidebarBackgroundBrush}">
+                <Border Grid.Column="4" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}">
                     <StackPanel Margin="16">
                         <TextBlock Text="СВОЙСТВА" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
                         <Border Style="{StaticResource Card}" Height="150" Margin="0,0,0,10">
@@ -1093,9 +1097,9 @@
             </Grid>
 
             <!-- FOOTER -->
-            <Border Grid.Row="3" Background="{DynamicResource RibbonBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0">
+            <Border Grid.Row="3" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,1,0,0">
 <!-- Статус-бар внизу -->
-                        <Border  Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="0,1,0,0" Padding="12,6">
+                        <Border Background="Transparent" Padding="12,6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -1105,8 +1109,6 @@
                                 <TextBlock x:Name="StatusDiskText" Grid.Column="1" FontSize="11" Style="{StaticResource MutedText}" Text=""/>
                             </Grid>
                         </Border>
-
-                        
             </Border>
             
             <!-- SEAMLESS UPDATE MORPHING OVERLAY -->

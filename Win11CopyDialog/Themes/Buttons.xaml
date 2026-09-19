@@ -1,0 +1,232 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ================= LIQUID GLASS BUTTON SYSTEM ================= -->
+
+    <!-- Base Glass Button -->
+    <Style x:Key="GlassButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Height" Value="{DynamicResource ControlHeightNormal}"/>
+        <Setter Property="Padding" Value="{DynamicResource PaddingControlInner}"/>
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassSurfaceElevated}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeBody}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilySystem}"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+        <Setter Property="RenderTransform">
+            <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{DynamicResource RadiusNormal}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderStrong}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
+                            </Setter>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Glass Primary Button (Accent glow) -->
+    <Style x:Key="GlassPrimaryButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{DynamicResource RadiusNormal}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="1"
+                                              Color="{DynamicResource GlowAccentColor}" Opacity="0.5"/>
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                            <Setter TargetName="ButtonRoot" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="16" ShadowDepth="1"
+                                                      Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97"/></Setter.Value>
+                            </Setter>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Glass Secondary Button -->
+    <Style x:Key="GlassSecondaryButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+        <Setter Property="Background" Value="{DynamicResource LiquidGlassPanel}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
+    </Style>
+
+    <!-- Glass Ghost Button -->
+    <Style x:Key="GlassGhostButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <!-- Glass Danger Button -->
+    <Style x:Key="GlassDangerButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+        <Setter Property="Background" Value="#25FF4567"/>
+        <Setter Property="Foreground" Value="#FF4567"/>
+        <Setter Property="BorderBrush" Value="#60FF4567"/>
+    </Style>
+
+    <!-- Glass Icon Button (Circular or square icon) -->
+    <Style x:Key="GlassIconButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Width" Value="{DynamicResource ControlHeightCompact}"/>
+        <Setter Property="Height" Value="{DynamicResource ControlHeightCompact}"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassBorderSubtle}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+        <Setter Property="RenderTransform">
+            <Setter.Value><ScaleTransform ScaleX="1" ScaleY="1"/></Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonRoot"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{DynamicResource RadiusNormal}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                            <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value><ScaleTransform ScaleX="0.94" ScaleY="0.94"/></Setter.Value>
+                            </Setter>
+                            <Setter TargetName="ButtonRoot" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- TitleBar Caption Buttons -->
+    <Style x:Key="CaptionButton" TargetType="Button">
+        <Setter Property="Width" Value="38"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6" Margin="1" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CaptionCloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6" Margin="1" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="#C8E81123"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="#E8E81123"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================= BACKWARD COMPATIBILITY ALIASES ================= -->
+    <Style x:Key="Win11Button" TargetType="Button" BasedOn="{StaticResource GlassButton}"/>
+    <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
+    <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource GlassIconButton}"/>
+    <Style x:Key="CyberButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
+    <Style x:Key="CyberPrimaryButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
+    <Style x:Key="CyberDangerButton" TargetType="Button" BasedOn="{StaticResource GlassDangerButton}"/>
+    <Style x:Key="CyberToolButton" TargetType="Button" BasedOn="{StaticResource GlassButton}"/>
+    <Style x:Key="RibbonActionButton" TargetType="Button" BasedOn="{StaticResource GlassButton}"/>
+    <Style x:Key="RibbonPrimaryActionButton" TargetType="Button" BasedOn="{StaticResource GlassPrimaryButton}"/>
+    <Style x:Key="CyberNavCircleButton" TargetType="Button" BasedOn="{StaticResource GlassIconButton}">
+        <Setter Property="Width" Value="30"/>
+        <Setter Property="Height" Value="30"/>
+    </Style>
+
+</ResourceDictionary>

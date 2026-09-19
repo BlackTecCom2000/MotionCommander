@@ -1,0 +1,41 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- ================= DIMENSIONS & LAYOUT METRICS ================= -->
+    <!-- Heights -->
+    <sys:Double x:Key="ControlHeightCompact">28</sys:Double>
+    <sys:Double x:Key="ControlHeightNormal">34</sys:Double>
+    <sys:Double x:Key="ControlHeightLarge">40</sys:Double>
+    <sys:Double x:Key="ToolbarHeight">44</sys:Double>
+    <sys:Double x:Key="TitleBarHeight">56</sys:Double>
+    <sys:Double x:Key="StatusBarHeight">30</sys:Double>
+
+    <!-- Icon Sizes -->
+    <sys:Double x:Key="IconSizeSmall">14</sys:Double>
+    <sys:Double x:Key="IconSizeNormal">16</sys:Double>
+    <sys:Double x:Key="IconSizeMedium">20</sys:Double>
+    <sys:Double x:Key="IconSizeLarge">24</sys:Double>
+
+    <!-- Panel Width Boundaries -->
+    <sys:Double x:Key="SidebarMinWidth">220</sys:Double>
+    <sys:Double x:Key="SidebarPreferredWidth">260</sys:Double>
+    <sys:Double x:Key="SidebarMaxWidth">340</sys:Double>
+
+    <sys:Double x:Key="PreviewMinWidth">260</sys:Double>
+    <sys:Double x:Key="PreviewPreferredWidth">300</sys:Double>
+    <sys:Double x:Key="PreviewMaxWidth">450</sys:Double>
+
+    <!-- Corner Radii -->
+    <CornerRadius x:Key="RadiusSmall">6</CornerRadius>
+    <CornerRadius x:Key="RadiusNormal">8</CornerRadius>
+    <CornerRadius x:Key="RadiusLarge">12</CornerRadius>
+    <CornerRadius x:Key="RadiusXL">16</CornerRadius>
+    <CornerRadius x:Key="RadiusPill">999</CornerRadius>
+
+    <!-- Line Widths -->
+    <sys:Double x:Key="BorderThicknessSubtle">1</sys:Double>
+    <sys:Double x:Key="BorderThicknessNormal">1</sys:Double>
+    <sys:Double x:Key="BorderThicknessFocus">1.5</sys:Double>
+
+</ResourceDictionary>
