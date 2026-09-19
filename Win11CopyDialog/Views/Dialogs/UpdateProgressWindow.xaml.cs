@@ -16,7 +16,14 @@ public partial class UpdateProgressWindow : Window
     {
         InitializeComponent();
         _updateInfo = updateInfo;
-        TitleText.Text = $"Загрузка обновления v{updateInfo.LatestVersion}...";
+        
+        string actionPrefix = updateInfo.SwitchMode switch
+        {
+            VersionSwitchMode.Downgrade => "Откат на версию",
+            VersionSwitchMode.Reinstall => "Переустановка версии",
+            _ => "Загрузка обновления"
+        };
+        TitleText.Text = $"{actionPrefix} v{updateInfo.LatestVersion}...";
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -35,12 +42,19 @@ public partial class UpdateProgressWindow : Window
 
         try
         {
-            bool isPatch = _updateInfo.HasPatch;
+            bool isPatch = _updateInfo.HasPatch && _updateInfo.SwitchMode == VersionSwitchMode.Upgrade;
             string url = isPatch ? _updateInfo.PatchUrl : (!string.IsNullOrEmpty(_updateInfo.DownloadUrl) ? _updateInfo.DownloadUrl : _updateInfo.InstallerUrl);
+
+            string actionPrefix = _updateInfo.SwitchMode switch
+            {
+                VersionSwitchMode.Downgrade => "Откат на версию",
+                VersionSwitchMode.Reinstall => "Переустановка версии",
+                _ => "Загрузка обновления"
+            };
 
             TitleText.Text = isPatch 
                 ? $"Загрузка инкрементального патча v{_updateInfo.LatestVersion}..." 
-                : $"Загрузка обновления v{_updateInfo.LatestVersion}...";
+                : $"{actionPrefix} v{_updateInfo.LatestVersion}...";
 
             string downloadedFile;
             try

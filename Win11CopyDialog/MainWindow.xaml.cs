@@ -164,6 +164,16 @@ public partial class MainWindow : Window
     }
 
 
+    private void SelectVersionBtn_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var dlg = new Views.Dialogs.VersionSelectDialog
+        {
+            Owner = this
+        };
+        dlg.ShowDialog();
+    }
+
     private async void AvailableUpdateBtn_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();

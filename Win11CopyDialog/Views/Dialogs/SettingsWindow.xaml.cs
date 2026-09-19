@@ -44,8 +44,27 @@ public partial class SettingsWindow : Window
         InitHaptics();
         InitShellIntegration();
         LoadConfigToEditor();
+        InitVersionDisplay();
 
         _initializing = false;
+    }
+
+    private void InitVersionDisplay()
+    {
+        string currentVer = Modules.UpdateEngine.UpdateService.GetCurrentVersion();
+        if (SettingsCurrentVersionText != null) SettingsCurrentVersionText.Text = $"v{currentVer}";
+        if (LicenseVersionText != null) LicenseVersionText.Text = $"Motion Commander Pro v{currentVer} — Зарегистрировано на:";
+    }
+
+    private void OpenVersionSelector_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var dlg = new VersionSelectDialog
+        {
+            Owner = this
+        };
+        dlg.ShowDialog();
+        InitVersionDisplay();
     }
 
     private void InitShellIntegration()

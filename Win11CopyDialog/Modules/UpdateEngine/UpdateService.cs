@@ -7,6 +7,31 @@ using System.Windows;
 
 namespace Win11CopyDialog.Modules.UpdateEngine;
 
+public enum VersionSwitchMode
+{
+    Upgrade,
+    Downgrade,
+    Reinstall
+}
+
+public sealed class ReleaseVersionItem
+{
+    public string Version { get; set; } = "";
+    public string TagName { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string ReleaseDate { get; set; } = "";
+    public string Body { get; set; } = "";
+    public string DownloadUrl { get; set; } = "";
+    public string SetupExeUrl { get; set; } = "";
+    public bool IsCurrent { get; set; }
+    public bool IsUpgrade { get; set; }
+    public bool IsDowngrade { get; set; }
+
+    public string StatusBadgeText => IsCurrent ? "Текущая" : (IsUpgrade ? "Обновление" : "Откат");
+    public string ActionButtonText => IsCurrent ? "Переустановить" : (IsUpgrade ? "Обновить" : "Откатить");
+    public string DisplayTitle => $"Версия v{Version}" + (IsCurrent ? " (Установлена)" : "");
+}
+
 public sealed class UpdateInfo
 {
     public string CurrentVersion { get; set; } = "3.0.0";
@@ -20,6 +45,7 @@ public sealed class UpdateInfo
     public string InstallerUrl { get; set; } = "";
     public string SetupExeUrl { get; set; } = "";
     public string ErrorMessage { get; set; } = "";
+    public VersionSwitchMode SwitchMode { get; set; } = VersionSwitchMode.Upgrade;
 
     public bool HasPatch => !string.IsNullOrWhiteSpace(PatchUrl);
 }
@@ -167,13 +193,174 @@ public static class UpdateService
         }
     }
 
-    public static bool IsNewerVersion(string currentStr, string latestStr)
+    public static int CompareVersions(string verA, string verB)
     {
-        if (Version.TryParse(currentStr, out var current) && Version.TryParse(latestStr, out var latest))
+        string cleanA = verA.TrimStart('v', 'V');
+        string cleanB = verB.TrimStart('v', 'V');
+        if (Version.TryParse(cleanA, out var vA) && Version.TryParse(cleanB, out var vB))
         {
-            return latest > current;
+            return vA.CompareTo(vB);
         }
-        return string.Compare(latestStr, currentStr, StringComparison.OrdinalIgnoreCase) > 0;
+        return string.Compare(cleanA, cleanB, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsNewerVersion(string currentStr, string targetStr)
+    {
+        return CompareVersions(targetStr, currentStr) > 0;
+    }
+
+    public static bool IsOlderVersion(string currentStr, string targetStr)
+    {
+        return CompareVersions(targetStr, currentStr) < 0;
+    }
+
+    public static async Task<List<ReleaseVersionItem>> GetAvailableReleasesAsync(CancellationToken ct = default)
+    {
+        string currentVer = GetCurrentVersion();
+        var list = new List<ReleaseVersionItem>();
+        var seenTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Попытка получить релизы через GitHub Releases API
+        try
+        {
+            string releasesUrl = "https://api.github.com/repos/BlackTecCom2000/MotionCommander/releases?per_page=50";
+            using var req = new HttpRequestMessage(HttpMethod.Get, releasesUrl);
+            using var resp = await _httpClient.SendAsync(req, ct);
+            if (resp.IsSuccessStatusCode)
+            {
+                string json = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var rel in doc.RootElement.EnumerateArray())
+                    {
+                        string tagName = rel.TryGetProperty("tag_name", out var tProp) ? (tProp.GetString() ?? "") : "";
+                        if (string.IsNullOrWhiteSpace(tagName)) continue;
+
+                        string verNum = tagName.TrimStart('v', 'V');
+                        seenTags.Add(tagName);
+
+                        var item = new ReleaseVersionItem
+                        {
+                            Version = verNum,
+                            TagName = tagName,
+                            Name = rel.TryGetProperty("name", out var nProp) ? (nProp.GetString() ?? tagName) : tagName,
+                            ReleaseDate = rel.TryGetProperty("published_at", out var dProp) ? (dProp.GetString() ?? "") : "",
+                            Body = rel.TryGetProperty("body", out var bProp) ? (bProp.GetString() ?? "") : ""
+                        };
+
+                        if (rel.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var a in assets.EnumerateArray())
+                            {
+                                if (a.TryGetProperty("browser_download_url", out var dlProp))
+                                {
+                                    string dl = dlProp.GetString() ?? "";
+                                    if (dl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(item.DownloadUrl))
+                                    {
+                                        item.DownloadUrl = dl;
+                                    }
+                                    if (dl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(item.SetupExeUrl))
+                                    {
+                                        item.SetupExeUrl = dl;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(item.DownloadUrl))
+                        {
+                            item.DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Portable.zip";
+                        }
+                        if (string.IsNullOrEmpty(item.SetupExeUrl))
+                        {
+                            item.SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Setup.exe";
+                        }
+
+                        int cmp = CompareVersions(verNum, currentVer);
+                        item.IsCurrent = cmp == 0;
+                        item.IsUpgrade = cmp > 0;
+                        item.IsDowngrade = cmp < 0;
+
+                        list.Add(item);
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 2. Fallback / Дополнение через GitHub Tags API
+        try
+        {
+            string tagsUrl = "https://api.github.com/repos/BlackTecCom2000/MotionCommander/tags?per_page=50";
+            using var req = new HttpRequestMessage(HttpMethod.Get, tagsUrl);
+            using var resp = await _httpClient.SendAsync(req, ct);
+            if (resp.IsSuccessStatusCode)
+            {
+                string json = await resp.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var tag in doc.RootElement.EnumerateArray())
+                    {
+                        string tagName = tag.TryGetProperty("name", out var nProp) ? (nProp.GetString() ?? "") : "";
+                        if (string.IsNullOrWhiteSpace(tagName) || seenTags.Contains(tagName)) continue;
+
+                        string verNum = tagName.TrimStart('v', 'V');
+                        seenTags.Add(tagName);
+
+                        var item = new ReleaseVersionItem
+                        {
+                            Version = verNum,
+                            TagName = tagName,
+                            Name = $"Motion Commander {tagName}",
+                            DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Portable.zip",
+                            SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Setup.exe",
+                            Body = $"Релиз Motion Commander {tagName}. Совместим со встроенным обновлением и откатом."
+                        };
+
+                        int cmp = CompareVersions(verNum, currentVer);
+                        item.IsCurrent = cmp == 0;
+                        item.IsUpgrade = cmp > 0;
+                        item.IsDowngrade = cmp < 0;
+
+                        list.Add(item);
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 3. Если сеть недоступна или нет тегов — fallback на список локально известных релизов
+        if (list.Count == 0)
+        {
+            var fallbackVersions = new[]
+            {
+                "3.8.13", "3.8.12", "3.8.11", "3.8.10", "3.8.9", "3.8.7", "3.8.6", "3.8.5", "3.8.4", "3.8.3", "3.8.2", "3.8.1", "3.8.0", "3.7.1", "3.7.0", "3.0.0"
+            };
+
+            foreach (var v in fallbackVersions)
+            {
+                int cmp = CompareVersions(v, currentVer);
+                list.Add(new ReleaseVersionItem
+                {
+                    Version = v,
+                    TagName = $"v{v}",
+                    Name = $"Motion Commander v{v}",
+                    DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Portable.zip",
+                    SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Setup.exe",
+                    Body = $"Релиз v{v} из дистрибутивов Motion Commander.",
+                    IsCurrent = cmp == 0,
+                    IsUpgrade = cmp > 0,
+                    IsDowngrade = cmp < 0
+                });
+            }
+        }
+
+        // Сортировка от новейших к старейшим
+        list.Sort((a, b) => CompareVersions(b.Version, a.Version));
+
+        return list;
     }
 
     public static async Task<string> DownloadUpdateAsync(
