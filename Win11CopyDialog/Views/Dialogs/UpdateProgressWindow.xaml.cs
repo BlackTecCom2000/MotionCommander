@@ -26,13 +26,35 @@ public partial class UpdateProgressWindow : Window
         {
             UpdateProgressBar.Value = p.percent;
             PercentText.Text = $"{p.percent}%";
-            StatusText.Text = $"Скачано {p.bytesRead / 1024 / 1024} МБ из {p.totalBytes / 1024 / 1024} МБ ({p.speedMBps:F1} МБ/с)";
+            double downloadedMb = p.bytesRead / (1024.0 * 1024.0);
+            double totalMb = p.totalBytes > 0 ? p.totalBytes / (1024.0 * 1024.0) : 0;
+            StatusText.Text = totalMb > 0
+                ? $"Скачано {downloadedMb:F1} МБ из {totalMb:F1} МБ ({p.speedMBps:F1} МБ/с)"
+                : $"Скачано {downloadedMb:F1} МБ ({p.speedMBps:F1} МБ/с)";
         });
 
         try
         {
-            string url = !string.IsNullOrEmpty(_updateInfo.DownloadUrl) ? _updateInfo.DownloadUrl : _updateInfo.InstallerUrl;
-            string downloadedFile = await UpdateService.DownloadUpdateAsync(url, progress, _cts.Token);
+            bool isPatch = _updateInfo.HasPatch;
+            string url = isPatch ? _updateInfo.PatchUrl : (!string.IsNullOrEmpty(_updateInfo.DownloadUrl) ? _updateInfo.DownloadUrl : _updateInfo.InstallerUrl);
+
+            TitleText.Text = isPatch 
+                ? $"Загрузка инкрементального патча v{_updateInfo.LatestVersion}..." 
+                : $"Загрузка обновления v{_updateInfo.LatestVersion}...";
+
+            string downloadedFile;
+            try
+            {
+                downloadedFile = await UpdateService.DownloadUpdateAsync(url, progress, _cts.Token);
+            }
+            catch when (isPatch && !_cts.IsCancellationRequested && !string.IsNullOrEmpty(_updateInfo.DownloadUrl))
+            {
+                // Fallback to full download if patch fails
+                isPatch = false;
+                url = _updateInfo.DownloadUrl;
+                TitleText.Text = $"Загрузка полного пакета v{_updateInfo.LatestVersion}...";
+                downloadedFile = await UpdateService.DownloadUpdateAsync(url, progress, _cts.Token);
+            }
             
             if (downloadedFile.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             {
@@ -53,7 +75,7 @@ public partial class UpdateProgressWindow : Window
                 return;
             }
 
-            StatusText.Text = "Распаковка обновления...";
+            StatusText.Text = isPatch ? "Применение быстрого патча..." : "Распаковка обновления...";
             UpdateProgressBar.IsIndeterminate = true;
             PercentText.Visibility = Visibility.Collapsed;
             CancelBtn.IsEnabled = false;

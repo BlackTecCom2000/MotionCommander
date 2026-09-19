@@ -14,9 +14,14 @@ public sealed class UpdateInfo
     public bool IsUpdateAvailable { get; set; }
     public string ReleaseDate { get; set; } = "";
     public List<string> Changelog { get; set; } = new();
+    public string PatchUrl { get; set; } = "";
+    public double PatchSizeMb { get; set; }
     public string DownloadUrl { get; set; } = "";
     public string InstallerUrl { get; set; } = "";
+    public string SetupExeUrl { get; set; } = "";
     public string ErrorMessage { get; set; } = "";
+
+    public bool HasPatch => !string.IsNullOrWhiteSpace(PatchUrl);
 }
 
 public static class UpdateService
@@ -64,6 +69,16 @@ public static class UpdateService
                 info.ReleaseDate = dProp.GetString() ?? "";
             }
 
+            if (root.TryGetProperty("patchUrl", out var patchProp))
+            {
+                info.PatchUrl = patchProp.GetString() ?? "";
+            }
+
+            if (root.TryGetProperty("patchSizeMb", out var patchMbProp) && patchMbProp.TryGetDouble(out var pMb))
+            {
+                info.PatchSizeMb = pMb;
+            }
+
             if (root.TryGetProperty("downloadUrl", out var dlProp))
             {
                 info.DownloadUrl = dlProp.GetString() ?? "";
@@ -72,6 +87,11 @@ public static class UpdateService
             if (root.TryGetProperty("installerUrl", out var instProp))
             {
                 info.InstallerUrl = instProp.GetString() ?? "";
+            }
+
+            if (root.TryGetProperty("setupExeUrl", out var setupProp))
+            {
+                info.SetupExeUrl = setupProp.GetString() ?? "";
             }
 
             if (root.TryGetProperty("changelog", out var clProp) && clProp.ValueKind == JsonValueKind.Array)
@@ -262,6 +282,7 @@ public static class UpdateService
 
         sb.AppendLine($"echo Starting updated application...");
         sb.AppendLine($"start \"\" \"{newExePath}\" --seamless-update \"{stateFilePath}\"");
+        sb.AppendLine($"rd /s /q \"{stagingFolder}\" 2>nul");
         sb.AppendLine($"del \"%~f0\""); // self-delete the bat
 
         File.WriteAllText(batPath, sb.ToString(), System.Text.Encoding.ASCII);

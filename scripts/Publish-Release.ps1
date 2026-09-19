@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "3.8.4",
+    [string]$Version = "3.8.5",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -78,6 +78,28 @@ Copy-Item $zipFile -Destination $latestZip -Force
 $zipMb = [Math]::Round((Get-Item $zipFile).Length / 1MB, 2)
 Write-Host "Portable archive created: $zipFile ($zipMb MB)" -ForegroundColor Green
 
+Write-Host "Packaging lightweight Delta Patch ZIP..." -ForegroundColor Cyan
+$patchStagingDir = "$distDir\patch_staging"
+if (Test-Path $patchStagingDir) { Remove-Item $patchStagingDir -Recurse -Force }
+New-Item -ItemType Directory -Path $patchStagingDir -Force | Out-Null
+
+# Copy only the application files (exclude heavy 35MB static runtimes/ folder)
+Get-ChildItem -Path $publishDir -File | ForEach-Object {
+    Copy-Item $_.FullName -Destination $patchStagingDir -Force
+}
+
+$patchFile = "$distDir\MotionCommander-v$cleanVer-Patch.zip"
+$latestPatch = "$distDir\MotionCommander-Latest-Patch.zip"
+if (Test-Path $patchFile) { Remove-Item $patchFile -Force }
+if (Test-Path $latestPatch) { Remove-Item $latestPatch -Force }
+
+[System.IO.Compression.ZipFile]::CreateFromDirectory($patchStagingDir, $patchFile, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+Copy-Item $patchFile -Destination $latestPatch -Force
+Remove-Item $patchStagingDir -Recurse -Force
+
+$patchMb = [Math]::Round((Get-Item $patchFile).Length / 1MB, 2)
+Write-Host "Delta Patch archive created: $patchFile ($patchMb MB)" -ForegroundColor Green
+
 # 4. Compile Inno Setup Windows Installer (.exe)
 Write-Host "[4/7] Compiling Windows Installer (.exe)..." -ForegroundColor Cyan
 $isccPaths = @(
@@ -119,6 +141,8 @@ $versionManifest = [ordered]@{
     license = "MIT"
     minWindowsVersion = "10.0.19041"
     changelog = $Notes
+    patchUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Patch.zip"
+    patchSizeMb = $patchMb
     downloadUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
     installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
     setupExeUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Setup.exe"
