@@ -213,6 +213,22 @@ public static class UpdateService
         return stagingDir;
     }
 
+    public static bool IsInstalledVersion()
+    {
+        try
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (File.Exists(Path.Combine(baseDir, "unins000.exe")))
+                return true;
+
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\{D37D5726-2F1E-4B07-B25C-2150E697DF2A}_is1");
+            if (key != null)
+                return true;
+        }
+        catch { }
+        return false;
+    }
+
     public static void ApplySeamlessUpdate(string stagingFolder, AppState currentState)
     {
         string currentDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -250,6 +266,18 @@ public static class UpdateService
 
         File.WriteAllText(batPath, sb.ToString(), System.Text.Encoding.ASCII);
 
+        bool needsElevation = false;
+        try
+        {
+            string probeFile = Path.Combine(currentDir, $"__perm_probe_{Guid.NewGuid():N}.tmp");
+            File.WriteAllText(probeFile, "test");
+            File.Delete(probeFile);
+        }
+        catch
+        {
+            needsElevation = true;
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = "cmd.exe",
@@ -258,6 +286,12 @@ public static class UpdateService
             WindowStyle = ProcessWindowStyle.Hidden,
             CreateNoWindow = true
         };
+
+        if (needsElevation)
+        {
+            psi.Verb = "runas";
+        }
+
         Process.Start(psi);
 
         // Now safely close current application

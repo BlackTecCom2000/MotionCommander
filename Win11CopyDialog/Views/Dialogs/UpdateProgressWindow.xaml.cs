@@ -31,9 +31,28 @@ public partial class UpdateProgressWindow : Window
 
         try
         {
-            string url = !string.IsNullOrEmpty(_updateInfo.InstallerUrl) ? _updateInfo.InstallerUrl : _updateInfo.DownloadUrl;
+            string url = !string.IsNullOrEmpty(_updateInfo.DownloadUrl) ? _updateInfo.DownloadUrl : _updateInfo.InstallerUrl;
             string downloadedFile = await UpdateService.DownloadUpdateAsync(url, progress, _cts.Token);
             
+            if (downloadedFile.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                StatusText.Text = "Запуск программы установки...";
+                UpdateProgressBar.IsIndeterminate = true;
+                PercentText.Visibility = Visibility.Collapsed;
+                CancelBtn.IsEnabled = false;
+                await Task.Delay(500);
+
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = downloadedFile,
+                    UseShellExecute = true,
+                    Arguments = "/CLOSEAPPLICATIONS"
+                };
+                System.Diagnostics.Process.Start(psi);
+                Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
+                return;
+            }
+
             StatusText.Text = "Распаковка обновления...";
             UpdateProgressBar.IsIndeterminate = true;
             PercentText.Visibility = Visibility.Collapsed;

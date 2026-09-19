@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "3.1.0",
+    [string]$Version = "3.8.2",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -120,7 +120,8 @@ $versionManifest = [ordered]@{
     minWindowsVersion = "10.0.19041"
     changelog = $Notes
     downloadUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
-    installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Setup.exe"
+    installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
+    setupExeUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Setup.exe"
 }
 
 $jsonStr = $versionManifest | ConvertTo-Json -Depth 5
