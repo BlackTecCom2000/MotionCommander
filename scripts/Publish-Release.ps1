@@ -1,5 +1,5 @@
-param(
-    [string]$Version = "3.8.7",
+﻿param(
+    [string]$Version = "3.8.8",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -182,3 +182,4 @@ if (!$SkipPush) {
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host "   Release v$cleanVer successfully published and ready!   " -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green
+
