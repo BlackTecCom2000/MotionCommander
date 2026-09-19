@@ -1,4 +1,4 @@
-﻿<Window x:Class="Win11CopyDialog.CopyDialogWindow"
+<Window x:Class="Win11CopyDialog.CopyDialogWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:Win11CopyDialog.Controls"
@@ -95,9 +95,10 @@
                             HorizontalAlignment="Left" Margin="0,12,0,0" Padding="10,5"
                             Content="Подробнее ⌄" Click="DetailsButton_Click"/>
 
-                    <!-- Expanded detail panel -->
+                    <!-- Expanded detail panel with soft liquid glass divider -->
                     <StackPanel x:Name="DetailsPanel" Visibility="Collapsed">
-                        <TextBlock Text="Текущий файл" Margin="0,14,0,4" FontSize="12"
+                        <Separator Style="{StaticResource LiquidGlassDividerSubtle}" Margin="0,12,0,4"/>
+                        <TextBlock Text="Текущий файл" Margin="0,4,0,4" FontSize="12"
                                    Style="{StaticResource MutedText}"/>
                         <ProgressBar x:Name="FileProgress" Minimum="0" Maximum="100" Height="5"
                                      Background="{DynamicResource ProgressTrackBrush}"

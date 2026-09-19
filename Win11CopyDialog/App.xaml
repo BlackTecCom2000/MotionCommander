@@ -19,6 +19,7 @@
                 <ResourceDictionary Source="Themes/ContextMenu.xaml"/>
                 <ResourceDictionary Source="Themes/Dialogs.xaml"/>
                 <ResourceDictionary Source="Themes/Inputs.xaml"/>
+                <ResourceDictionary Source="Themes/Dividers.xaml"/>
                 <ResourceDictionary Source="Themes/ScrollBars.xaml"/>
                 <ResourceDictionary Source="Themes/Tooltips.xaml"/>
             </ResourceDictionary.MergedDictionaries>

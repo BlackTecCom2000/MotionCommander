@@ -1,5 +1,5 @@
 ﻿{
-    "version":  "3.8.12",
+    "version":  "3.8.13",
     "releaseDate":  "2026-09-20",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
@@ -13,9 +13,9 @@
                       "System Driver Inspector: WMI PnP device audit, state indicators, devmgmt.msc and report export",
                       "Settings Window: 10 designer themes (Cyberpunk, OLED Midnight, Matrix, Sunset), backdrops, haptics and JSON editor"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.12-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.13-Patch.zip",
     "patchSizeMb":  1.89,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.12-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.12-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.12-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.13-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.13-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.13-Setup.exe"
 }
