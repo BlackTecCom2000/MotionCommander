@@ -6,7 +6,12 @@
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Liquid Glass Chromatic Lens Overhaul (2211.zip reference): RGB dispersion spectral borders, multi-tier inset specular bevels, floating capsule pills and ambient luminous fluid backdrop"
+                      "Direct I/O Streamer: Hardware saturation PCIe/SATA pipeline with null-allocation pool",
+                      "Speed Telemetry HUD: 30 FPS Canvas speed graph, 4-tile neon indicators and bottleneck detector",
+                      "WizTree Disk Space Analyzer: Folder weights treemap, Top-100 heavy files and extensions statistics",
+                      "Duplicate File Cleaner: 3-stage high-speed scan (Size -\u003e 4KB Pre-Hash -\u003e Full SHA-256)",
+                      "System Driver Inspector: WMI PnP device audit, state indicators, devmgmt.msc and report export",
+                      "Settings Window: 10 designer themes (Cyberpunk, OLED Midnight, Matrix, Sunset), backdrops, haptics and JSON editor"
                   ],
     "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.7-Patch.zip",
     "patchSizeMb":  1.87,
