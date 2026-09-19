@@ -2,8 +2,10 @@
 **/bin/
 **/obj/
 **/publish/
+Release/
 dist/*
 !dist/*.zip
+!dist/*.exe
 **/.vs/
 *.user
 *.suo

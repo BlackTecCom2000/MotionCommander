@@ -180,6 +180,7 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Set("NavDockBackgroundBrush", new SolidColorBrush(navDockBg));
         Set("RibbonBackgroundBrush", new SolidColorBrush(ribbonBg));
         Set("InputBackgroundBrush", new SolidColorBrush(inputBg));
+        Set("ControlBackgroundBrush", new SolidColorBrush(inputBg));
         Set("CyberButtonGradientBrush", cyberGrad);
         Set("PrimaryTextBrush", new SolidColorBrush(primary));
         Set("SecondaryTextBrush", new SolidColorBrush(secondary));

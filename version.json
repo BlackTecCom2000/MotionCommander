@@ -1,13 +1,18 @@
-{
-  "version": "3.8.0",
-  "releaseDate": "2026-09-18",
-  "downloadUrl": "https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.8.0/MotionCommander-Windows-x64.zip",
-  "installerUrl": "https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.8.0/MotionCommander-Windows-x64.zip",
-  "changelog": [
-    "🆕 Добавлен Download Manager — многопоточный менеджер загрузок с поддержкой докачки, расписания и SQLite-персистентностью",
-    "🆕 Добавлен Uninstaller — профессиональный менеджер удаления программ с защитой системных компонентов",
-    "🆕 Добавлен модуль безопасной миграции Windows (OS Migration / Live Clone) с VSS и многоступенчатой верификацией",
-    "⚡ Улучшена производительность и стабильность Theme Engine",
-    "🛠 Множество мелких исправлений и улучшений UX"
-  ]
+﻿{
+    "version":  "3.8.1",
+    "releaseDate":  "2026-09-19",
+    "productName":  "Motion Commander",
+    "author":  "BlackTecCom - Jaborov Daler",
+    "license":  "MIT",
+    "minWindowsVersion":  "10.0.19041",
+    "changelog":  [
+                      "Direct I/O Streamer: Hardware saturation PCIe/SATA pipeline with null-allocation pool",
+                      "Speed Telemetry HUD: 30 FPS Canvas speed graph, 4-tile neon indicators and bottleneck detector",
+                      "WizTree Disk Space Analyzer: Folder weights treemap, Top-100 heavy files and extensions statistics",
+                      "Duplicate File Cleaner: 3-stage high-speed scan (Size -\u003e 4KB Pre-Hash -\u003e Full SHA-256)",
+                      "System Driver Inspector: WMI PnP device audit, state indicators, devmgmt.msc and report export",
+                      "Settings Window: 10 designer themes (Cyberpunk, OLED Midnight, Matrix, Sunset), backdrops, haptics and JSON editor"
+                  ],
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.1-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.1-Setup.exe"
 }

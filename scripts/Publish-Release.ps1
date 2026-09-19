@@ -54,14 +54,17 @@ if (!$SkipBuild) {
     }
 }
 
-# 3. Package portable ZIP in dist/
-Write-Host "[3/6] Packaging portable ZIP archives..." -ForegroundColor Cyan
+# 3. Publish binaries and package portable ZIP in dist/
+Write-Host "[3/7] Publishing binaries..." -ForegroundColor Cyan
 $distDir = "$repoRoot\dist"
-if (!(Test-Path $distDir)) {
-    New-Item -ItemType Directory -Path $distDir -Force | Out-Null
-}
+$publishDir = "$distDir\publish"
+if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
+New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
 
-$sourceGui = "$repoRoot\Win11CopyDialog\bin\Release\net8.0-windows"
+& dotnet publish "$repoRoot\Win11CopyDialog\Win11CopyDialog.csproj" -c Release -o $publishDir
+& dotnet publish "$repoRoot\src\MotionCommander.Cli\MotionCommander.Cli.csproj" -c Release -o $publishDir
+
+Write-Host "Packaging portable ZIP archives..." -ForegroundColor Cyan
 $zipFile = "$distDir\MotionCommander-v$cleanVer-Portable.zip"
 $latestZip = "$distDir\MotionCommander-Latest-Portable.zip"
 
@@ -69,14 +72,45 @@ if (Test-Path $zipFile) { Remove-Item $zipFile -Force }
 if (Test-Path $latestZip) { Remove-Item $latestZip -Force }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::CreateFromDirectory($sourceGui, $zipFile, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+[System.IO.Compression.ZipFile]::CreateFromDirectory($publishDir, $zipFile, [System.IO.Compression.CompressionLevel]::Optimal, $false)
 Copy-Item $zipFile -Destination $latestZip -Force
 
 $zipMb = [Math]::Round((Get-Item $zipFile).Length / 1MB, 2)
-Write-Host "Archive created: $zipFile ($zipMb MB)" -ForegroundColor Green
+Write-Host "Portable archive created: $zipFile ($zipMb MB)" -ForegroundColor Green
 
-# 4. Update version.json
-Write-Host "[4/6] Updating version.json manifest..." -ForegroundColor Cyan
+# 4. Compile Inno Setup Windows Installer (.exe)
+Write-Host "[4/7] Compiling Windows Installer (.exe)..." -ForegroundColor Cyan
+$isccPaths = @(
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+    "C:\Program Files\Inno Setup 6\ISCC.exe"
+)
+$iscc = $isccPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) {
+    $cmd = Get-Command iscc -ErrorAction SilentlyContinue
+    if ($cmd) { $iscc = $cmd.Source }
+}
+
+$issFile = "$repoRoot\installer\MotionCommander.iss"
+if ($iscc -and (Test-Path $issFile)) {
+    & $iscc "/DMyAppVersion=$cleanVer" $issFile
+    if ($LASTEXITCODE -eq 0) {
+        $setupExe = "$distDir\MotionCommander-v$cleanVer-Setup.exe"
+        $latestSetup = "$distDir\MotionCommander-Latest-Setup.exe"
+        if (Test-Path $setupExe) {
+            Copy-Item $setupExe -Destination $latestSetup -Force
+            $setupMb = [Math]::Round((Get-Item $setupExe).Length / 1MB, 2)
+            Write-Host "Installer created: $setupExe ($setupMb MB)" -ForegroundColor Green
+        }
+    } else {
+        Write-Warning "Inno Setup compilation exited with code $LASTEXITCODE"
+    }
+} else {
+    Write-Warning "Inno Setup compiler (ISCC.exe) not found. Skipping installer generation."
+}
+
+# 5. Update version.json
+Write-Host "[5/7] Updating version.json manifest..." -ForegroundColor Cyan
 $versionManifest = [ordered]@{
     version = $cleanVer
     releaseDate = (Get-Date).ToString("yyyy-MM-dd")
@@ -86,24 +120,24 @@ $versionManifest = [ordered]@{
     minWindowsVersion = "10.0.19041"
     changelog = $Notes
     downloadUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
-    installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
+    installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Setup.exe"
 }
 
 $jsonStr = $versionManifest | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText("$repoRoot\version.json", $jsonStr, [System.Text.Encoding]::UTF8)
 
-# 5. Update local install directory
+# 6. Update local install directory
 $localInstallDir = "$env:LOCALAPPDATA\Programs\MotionCommander"
 if (Test-Path $localInstallDir) {
-    Write-Host "[5/6] Updating local installation at $localInstallDir..." -ForegroundColor Cyan
+    Write-Host "[6/7] Updating local installation at $localInstallDir..." -ForegroundColor Cyan
     try {
-        Copy-Item "$sourceGui\*" -Destination $localInstallDir -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item "$publishDir\*" -Destination $localInstallDir -Recurse -Force -ErrorAction SilentlyContinue
     } catch {
         Write-Warning "Some files in $localInstallDir are locked and will be updated on app restart."
     }
 }
 
-# 6. Git commit, tag, and push
+# 7. Git commit, tag, and push
 if (!$SkipPush) {
     & git add -A
     $commitMsg = "release: v$cleanVer - " + ($Notes -join "; ")
