@@ -18,6 +18,18 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
         private readonly DownloadTaskConfig _config;
         private DownloadItem _selectedDownload;
 
+        private string _newUrl;
+        
+        public string NewUrl
+        {
+            get => _newUrl;
+            set
+            {
+                _newUrl = value;
+                OnPropertyChanged();
+            }
+        }
+
         public ObservableCollection<DownloadItem> Downloads { get; set; } = new ObservableCollection<DownloadItem>();
 
         public DownloadItem SelectedDownload
@@ -71,9 +83,14 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
 
         private async Task AddDownloadAsync()
         {
-            // For testing: hardcoded URL
-            var url = "https://releases.ubuntu.com/22.04.3/ubuntu-22.04.3-desktop-amd64.iso";
-            var fileName = "ubuntu-22.04.3-desktop-amd64.iso";
+            if (string.IsNullOrWhiteSpace(NewUrl)) return;
+            
+            var url = NewUrl.Trim();
+            
+            // Extract filename from URL or use a default one
+            var uri = new Uri(url);
+            var fileName = Path.GetFileName(uri.LocalPath);
+            if (string.IsNullOrEmpty(fileName)) fileName = "download_" + DateTime.Now.Ticks + ".bin";
             
             var item = new DownloadItem
             {
@@ -85,6 +102,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
 
             await _dbService.SaveDownloadAsync(item);
             App.Current.Dispatcher.Invoke(() => Downloads.Insert(0, item));
+            
+            NewUrl = string.Empty;
 
             var engine = new DownloadEngine(_dbService, _config);
             engine.ProgressChanged += Engine_ProgressChanged;

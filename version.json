@@ -1,5 +1,5 @@
-﻿{
-    "version":  "3.8.15",
+{
+    "version":  "3.8.16",
     "releaseDate":  "2026-09-20",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
@@ -8,9 +8,9 @@
     "changelog":  [
                       "Fix crash on File Manager button click caused by invalid Brush token in FolderTreeControl"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.15-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.16-Patch.zip",
     "patchSizeMb":  1.9,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.15-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.15-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.15-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.16-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.16-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.16-Setup.exe"
 }

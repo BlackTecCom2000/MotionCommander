@@ -33,7 +33,6 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
 
             try
             {
-                // Ensure total size is known
                 if (item.TotalBytes == 0)
                 {
                     item.TotalBytes = await GetFileSizeAsync(item.Url);
@@ -42,7 +41,6 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
 
                 var segmentManager = new SegmentManager(_dbService, item);
                 
-                // Initialize segments if not already done
                 if (!item.Segments.Any())
                 {
                     await segmentManager.InitializeSegmentsAsync(_config.MaxConcurrentSegments);
@@ -54,13 +52,35 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                     tasks.Add(segmentManager.DownloadSegmentAsync(segment, _cancellationTokenSource.Token));
                 }
 
-                // Periodic progress saving could be a background loop here
+                // High-performance smooth UI Update Throttler (approx 30fps update rate)
                 var progressTask = Task.Run(async () =>
+                {
+                    long lastBytes = item.BytesDownloaded;
+                    while (!_cancellationTokenSource.IsCancellationRequested && item.Status == DownloadStatus.Downloading)
+                    {
+                        await Task.Delay(33); // ~30 fps
+                        
+                        long currentBytes = item.BytesDownloaded;
+                        long delta = currentBytes - lastBytes;
+                        lastBytes = currentBytes;
+
+                        // Calculate speed per second (delta is over 33ms, so multiply by 30)
+                        item.Speed = delta * (1000.0 / 33.0); 
+
+                        // Trigger UI updates safely
+                        item.OnPropertyChanged(nameof(item.BytesDownloaded));
+                        item.OnPropertyChanged(nameof(item.Progress));
+                        
+                        ProgressChanged?.Invoke(this, item);
+                    }
+                });
+
+                // Periodically save state to DB
+                var dbSaveTask = Task.Run(async () =>
                 {
                     while (!_cancellationTokenSource.IsCancellationRequested && item.Status == DownloadStatus.Downloading)
                     {
-                        await Task.Delay(1000);
-                        ProgressChanged?.Invoke(this, item);
+                        await Task.Delay(5000);
                         await _dbService.SaveDownloadAsync(item);
                     }
                 });
@@ -68,6 +88,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                 await Task.WhenAll(tasks);
 
                 item.Status = DownloadStatus.Verifying;
+                item.Speed = 0;
+                item.OnPropertyChanged(nameof(item.Status));
                 ProgressChanged?.Invoke(this, item);
 
                 await segmentManager.MergeSegmentsAsync();
@@ -81,12 +103,14 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
             catch (OperationCanceledException)
             {
                 item.Status = DownloadStatus.Paused;
+                item.Speed = 0;
                 await _dbService.SaveDownloadAsync(item);
             }
             catch (Exception ex)
             {
                 item.Status = DownloadStatus.Failed;
                 item.ErrorMessage = ex.Message;
+                item.Speed = 0;
                 await _dbService.SaveDownloadAsync(item);
                 DownloadFailed?.Invoke(this, item);
             }

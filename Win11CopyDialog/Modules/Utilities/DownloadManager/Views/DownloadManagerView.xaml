@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="600" d:DesignWidth="900">
     <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -13,12 +13,25 @@
         
         <!-- Toolbar -->
         <Border Grid.Row="0" Margin="20,20,20,10" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
-                <Button Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
-                <Button Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
-                <Button Content="🗑 Удалить" Command="{Binding DeleteDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBox Grid.Column="0" Text="{Binding NewUrl, UpdateSourceTrigger=PropertyChanged}" 
+                         Background="#11FFFFFF" Foreground="White" BorderThickness="0" Padding="10" 
+                         VerticalContentAlignment="Center"
+                         Margin="0,0,10,0" ToolTip="Введите URL для загрузки"/>
+                         
+                <Button Grid.Column="1" Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="2" Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="3" Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="4" Content="🗑 Удалить" Command="{Binding DeleteDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35"/>
+            </Grid>
         </Border>
 
         <!-- Downloads List -->
@@ -26,29 +39,69 @@
                   Background="Transparent" 
                   BorderThickness="0"
                   ItemsSource="{Binding Downloads}"
-                  SelectedItem="{Binding SelectedDownload}">
+                  SelectedItem="{Binding SelectedDownload}"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    <Setter Property="Margin" Value="0,0,0,10"/>
+                    <Setter Property="Margin" Value="0,0,0,15"/>
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListViewItem">
                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15">
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="150"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                                            <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource PrimaryText}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Url}" Foreground="{DynamicResource MutedText}" FontSize="12" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
-                                            <ProgressBar Value="{Binding BytesDownloaded}" Maximum="{Binding TotalBytes}" Height="4" Margin="0,10,0,0" Background="#33FFFFFF" Foreground="#00FFCC"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <TextBlock Text="{Binding Status}" Foreground="#00FFCC" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right"/>
-                                            <!-- Additional stats like speed could go here -->
-                                        </StackPanel>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="200"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                                <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource PrimaryText}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Url}" Foreground="{DynamicResource MutedText}" FontSize="12" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding Status}" Foreground="#00FFCC" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right"/>
+                                                <TextBlock Text="{Binding SpeedText}" Foreground="{DynamicResource MutedText}" FontSize="12" HorizontalAlignment="Right" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        
+                                        <ProgressBar Grid.Row="1" Value="{Binding Progress}" Maximum="100" Height="4" Margin="0,15,0,0" Background="#33FFFFFF" Foreground="#00FFCC"/>
+                                        
+                                        <!-- Segments Visualizer -->
+                                        <ItemsControl Grid.Row="2" ItemsSource="{Binding Segments}" Margin="0,10,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Rows="1" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="1,0" Height="10" Background="#22FFFFFF" CornerRadius="2">
+                                                        <!-- Segment Progress fills from left to right -->
+                                                        <Grid>
+                                                            <ProgressBar Value="{Binding Progress}" Maximum="100" 
+                                                                         Background="Transparent" Foreground="#00FFCC" BorderThickness="0">
+                                                                <ProgressBar.Template>
+                                                                    <ControlTemplate TargetType="ProgressBar">
+                                                                        <Border Background="{TemplateBinding Background}" CornerRadius="2">
+                                                                            <Grid x:Name="PART_Track">
+                                                                                <Rectangle x:Name="PART_Indicator" Fill="{TemplateBinding Foreground}" HorizontalAlignment="Left" RadiusX="2" RadiusY="2"/>
+                                                                            </Grid>
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </ProgressBar.Template>
+                                                            </ProgressBar>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </Grid>
                                 </Border>
                             </ControlTemplate>

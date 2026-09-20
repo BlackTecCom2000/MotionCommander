@@ -1,7 +1,8 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using SQLite;
 
 namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
@@ -20,6 +21,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
     {
         private long _bytesDownloaded;
         private DownloadStatus _status;
+        private double _speed;
+        private ObservableCollection<DownloadSegment> _segments = new ObservableCollection<DownloadSegment>();
 
         [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -30,8 +33,50 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
 
         public long BytesDownloaded
         {
-            get => _bytesDownloaded;
-            set { _bytesDownloaded = value; OnPropertyChanged(); }
+            get => Interlocked.Read(ref _bytesDownloaded);
+            set 
+            { 
+                Interlocked.Exchange(ref _bytesDownloaded, value); 
+                OnPropertyChanged(); 
+                OnPropertyChanged(nameof(Progress)); 
+            }
+        }
+        
+        public void AddBytesDownloaded(long bytes)
+        {
+            Interlocked.Add(ref _bytesDownloaded, bytes);
+            // Notice: we do not call OnPropertyChanged here to avoid UI thread flooding.
+            // The DownloadEngine will trigger OnPropertyChanged periodically.
+        }
+        
+        [Ignore]
+        public double Speed
+        {
+            get => _speed;
+            set { _speed = value; OnPropertyChanged(); OnPropertyChanged(nameof(SpeedText)); }
+        }
+
+        [Ignore]
+        public string SpeedText
+        {
+            get
+            {
+                if (_speed > 1024 * 1024)
+                    return $"{(_speed / 1024 / 1024):0.##} MB/s";
+                if (_speed > 1024)
+                    return $"{(_speed / 1024):0.##} KB/s";
+                return $"{_speed:0} B/s";
+            }
+        }
+
+        [Ignore]
+        public double Progress
+        {
+            get
+            {
+                if (TotalBytes == 0) return 0;
+                return (double)_bytesDownloaded / TotalBytes * 100.0;
+            }
         }
 
         public DownloadStatus Status
@@ -46,10 +91,14 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
         
         // Navigation property
         [Ignore]
-        public List<DownloadSegment> Segments { get; set; } = new List<DownloadSegment>();
+        public ObservableCollection<DownloadSegment> Segments 
+        { 
+            get => _segments;
+            set { _segments = value; OnPropertyChanged(); }
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        public void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

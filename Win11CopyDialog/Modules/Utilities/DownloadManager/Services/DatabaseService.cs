@@ -50,7 +50,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                 var items = await _db.Table<DownloadItem>().OrderByDescending(x => x.DateAdded).ToListAsync();
                 foreach (var item in items)
                 {
-                    item.Segments = await GetSegmentsAsync(item.Id);
+                    item.Segments = new System.Collections.ObjectModel.ObservableCollection<DownloadSegment>(await GetSegmentsAsync(item.Id));
                 }
                 return items;
             }
@@ -68,7 +68,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                 var item = await _db.Table<DownloadItem>().FirstOrDefaultAsync(x => x.Id == id);
                 if (item != null)
                 {
-                    item.Segments = await GetSegmentsAsync(id);
+                    item.Segments = new System.Collections.ObjectModel.ObservableCollection<DownloadSegment>(await GetSegmentsAsync(id));
                 }
                 return item;
             }

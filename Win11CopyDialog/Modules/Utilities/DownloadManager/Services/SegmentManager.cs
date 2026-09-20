@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,21 +13,21 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
 {
     public class SegmentManager
     {
+        private static readonly HttpClient _sharedClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+        
         private readonly DatabaseService _dbService;
-        private readonly HttpClient _httpClient;
         private readonly DownloadItem _downloadItem;
 
         public SegmentManager(DatabaseService dbService, DownloadItem downloadItem)
         {
             _dbService = dbService;
             _downloadItem = downloadItem;
-            _httpClient = new HttpClient();
         }
 
         public async Task InitializeSegmentsAsync(int numberOfSegments)
         {
             if (_downloadItem.Segments.Any())
-                return; // Already initialized
+                return;
 
             long segmentSize = _downloadItem.TotalBytes / numberOfSegments;
 
@@ -42,7 +43,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                     BytesDownloaded = 0
                 };
                 
-                _downloadItem.Segments.Add(segment);
+                App.Current.Dispatcher.Invoke(() => _downloadItem.Segments.Add(segment));
                 await _dbService.SaveSegmentAsync(segment);
             }
         }
@@ -58,32 +59,39 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                 long currentStart = segment.StartPosition + segment.BytesDownloaded;
                 request.Headers.Range = new RangeHeaderValue(currentStart, segment.EndPosition);
 
-                using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                using var response = await _sharedClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 response.EnsureSuccessStatusCode();
 
                 using var stream = await response.Content.ReadAsStreamAsync();
                 
                 var segmentFilePath = $"{_downloadItem.SavePath}.part{segment.Index}";
-                using var fileStream = new FileStream(segmentFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
                 
-                // Seek to the correct position if resuming
+                // Optimized file stream
+                using var fileStream = new FileStream(segmentFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
+                
                 if (segment.BytesDownloaded > 0)
                 {
                     fileStream.Seek(segment.BytesDownloaded, SeekOrigin.Begin);
                 }
 
-                var buffer = new byte[8192];
-                int bytesRead;
-
-                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+                // Zero-allocation buffering
+                byte[] buffer = ArrayPool<byte>.Shared.Rent(131072);
+                try
                 {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
-                    
-                    segment.BytesDownloaded += bytesRead;
-                    _downloadItem.BytesDownloaded += bytesRead;
-
-                    // Periodically save state here in a real scenario
-                    // We'll defer saving until paused/completed or via a timer
+                    int bytesRead;
+                    while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
+                        
+                        segment.BytesDownloaded += bytesRead;
+                        
+                        // Atomically update total bytes downloaded for the main item
+                        _downloadItem.AddBytesDownloaded(bytesRead);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
                 }
 
                 segment.Status = SegmentStatus.Completed;
@@ -94,7 +102,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                 segment.Status = SegmentStatus.Pending;
                 await _dbService.SaveSegmentAsync(segment);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 segment.Status = SegmentStatus.Failed;
                 await _dbService.SaveSegmentAsync(segment);
@@ -106,24 +114,35 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
         {
             var finalFilePath = _downloadItem.SavePath;
             
-            // Delete if exists
             if (File.Exists(finalFilePath))
                 File.Delete(finalFilePath);
 
-            using var finalStream = new FileStream(finalFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+            using var finalStream = new FileStream(finalFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(131072);
 
-            foreach (var segment in _downloadItem.Segments.OrderBy(s => s.Index))
+            try
             {
-                var segmentFilePath = $"{_downloadItem.SavePath}.part{segment.Index}";
-                if (File.Exists(segmentFilePath))
+                foreach (var segment in _downloadItem.Segments.OrderBy(s => s.Index))
                 {
-                    using var segmentStream = new FileStream(segmentFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    await segmentStream.CopyToAsync(finalStream);
-                    segmentStream.Close();
-                    
-                    // Cleanup part
-                    File.Delete(segmentFilePath);
+                    var segmentFilePath = $"{_downloadItem.SavePath}.part{segment.Index}";
+                    if (File.Exists(segmentFilePath))
+                    {
+                        using (var segmentStream = new FileStream(segmentFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, FileOptions.Asynchronous))
+                        {
+                            int bytesRead;
+                            while ((bytesRead = await segmentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                            {
+                                await finalStream.WriteAsync(buffer, 0, bytesRead);
+                            }
+                        }
+                        
+                        File.Delete(segmentFilePath);
+                    }
                 }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
     }
