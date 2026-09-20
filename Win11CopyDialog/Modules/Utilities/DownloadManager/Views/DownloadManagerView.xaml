@@ -12,7 +12,7 @@
         </Grid.RowDefinitions>
         
         <!-- Toolbar -->
-        <Border Grid.Row="0" Margin="20,20,20,10" Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15">
+        <Border Grid.Row="0" Margin="20,20,20,10" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -27,10 +27,10 @@
                          VerticalContentAlignment="Center"
                          Margin="0,0,10,0" ToolTip="Введите URL для загрузки"/>
                          
-                <Button Grid.Column="1" Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
-                <Button Grid.Column="2" Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
-                <Button Grid.Column="3" Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
-                <Button Grid.Column="4" Content="🗑 Удалить" Command="{Binding DeleteDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35"/>
+                <Button Grid.Column="1" Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{StaticResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="2" Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{StaticResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="3" Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{StaticResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="4" Content="🗑 Удалить" Command="{Binding DeleteDownloadCommand}" Style="{StaticResource CyberDangerButton}" Width="100" Height="35"/>
             </Grid>
         </Border>
 
@@ -48,7 +48,7 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListViewItem">
-                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="15">
+                                <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
@@ -62,12 +62,12 @@
                                                 <ColumnDefinition Width="200"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                                                <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource PrimaryText}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Url}" Foreground="{DynamicResource MutedText}" FontSize="12" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource PrimaryTextBrush}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Url}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
                                                 <TextBlock Text="{Binding Status}" Foreground="#00FFCC" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right"/>
-                                                <TextBlock Text="{Binding SpeedText}" Foreground="{DynamicResource MutedText}" FontSize="12" HorizontalAlignment="Right" Margin="0,2,0,0"/>
+                                                <TextBlock Text="{Binding SpeedText}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,2,0,0"/>
                                             </StackPanel>
                                         </Grid>
                                         
