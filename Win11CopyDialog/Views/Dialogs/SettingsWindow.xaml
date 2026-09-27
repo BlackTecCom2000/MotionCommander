@@ -75,6 +75,50 @@
                                 </StackPanel>
                             </StackPanel>
                         </Border>
+
+                        <!-- Качество анимаций: Эконом / Максимум -->
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Качество анимаций" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                                <TextBlock Text="Управляет частотой кадров, количеством слоёв фона и нагрузкой на процессор" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="AnimationEconomyRadio" Content="⚡ Эконом (30 FPS, без фоновой анимации)" Margin="0,0,16,0" Checked="AnimationQuality_Checked"/>
+                                    <RadioButton x:Name="AnimationMaximumRadio" Content="✨ Максимум (60 FPS, живой фон)" IsChecked="True" Checked="AnimationQuality_Checked"/>
+                                </StackPanel>
+
+                                <CheckBox x:Name="LiveBackdropCheck"
+                                          Content="🌌 Живой анимированный фон (звёзды, туманности)"
+                                          Margin="0,12,0,0"
+                                          IsChecked="True"
+                                          Checked="LiveBackdrop_Changed"
+                                          Unchecked="LiveBackdrop_Changed"/>
+                                <TextBlock x:Name="LiveBackdropHint" Text="🌌 Живой фон включён — звёзды и туманности анимируются"
+                                           FontSize="11" Style="{StaticResource MutedText}" Margin="24,4,0,0"/>
+                                <TextBlock x:Name="AnimationPerfText" Text=""
+                                           FontSize="11" Style="{StaticResource MutedText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Режим установки: полная установка / портативный -->
+                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Режим установки и хранения данных" FontWeight="Bold" FontSize="13" Margin="0,0,0,4"/>
+                                <TextBlock Text="Определяется автоматически. В портативном режиме настройки и журналы хранятся рядом с программой — удобно для флешки" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="InstallModeInstalledRadio" Content="📁 Полная установка" Margin="0,0,16,0" Checked="InstallMode_Checked"/>
+                                    <RadioButton x:Name="InstallModePortableRadio" Content="💾 Портативный режим" Margin="0,0,16,0" Checked="InstallMode_Checked"/>
+                                    <RadioButton x:Name="InstallModeAutoRadio" Content="🔄 Авто" IsChecked="True" Margin="0,0,16,0" Checked="InstallMode_Checked"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="InstallModeDetailText" Text=""
+                                           FontSize="11" Style="{StaticResource MutedText}" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                                <Button x:Name="OpenDataFolderBtn" Content="📂 Открыть папку с данными"
+                                        HorizontalAlignment="Left" Margin="0,10,0,0"
+                                        Padding="12,6" FontSize="11" Click="OpenDataFolder_Click"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

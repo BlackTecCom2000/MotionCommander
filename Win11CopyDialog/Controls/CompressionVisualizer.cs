@@ -47,8 +47,17 @@ public sealed class CompressionVisualizer : FrameworkElement
     private double _time;
     private bool _running;
 
-    private Brush _accent = new SolidColorBrush(Color.FromRgb(0, 120, 212));
-    private Brush _crystal = new SolidColorBrush(Color.FromRgb(138, 43, 226));
+    // Кисти заморожены: незамороженная кисть клонируется WPF при каждом обращении,
+    // что в кадре анимации даёт тысячи лишних аллокаций.
+    private Brush _accent = Frozen(Color.FromRgb(0, 120, 212));
+    private Brush _crystal = Frozen(Color.FromRgb(138, 43, 226));
+
+    private static Brush Frozen(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        if (b.CanFreeze) b.Freeze();
+        return b;
+    }
 
     public CompressionVisualizer()
     {
@@ -68,7 +77,7 @@ public sealed class CompressionVisualizer : FrameworkElement
 
         Loaded += (_, _) =>
         {
-            if (Application.Current?.Resources["AccentBrush"] is Brush b) _accent = b;
+            RefreshThemeBrushes();
             _last = DateTime.Now;
             _running = true;
             CompositionTarget.Rendering += OnRendering;
@@ -78,6 +87,33 @@ public sealed class CompressionVisualizer : FrameworkElement
             _running = false;
             CompositionTarget.Rendering -= OnRendering;
         };
+
+        // Раньше акцент читался только в Loaded, поэтому смена темы оставляла
+        // визуализатор со старым цветом до пересоздания окна.
+        _themeHandler = (_, _) => RefreshThemeBrushes();
+        ThemeManager.Instance.PropertyChanged += _themeHandler;
+    }
+
+    private readonly System.ComponentModel.PropertyChangedEventHandler _themeHandler;
+
+    private void RefreshThemeBrushes()
+    {
+        var r = Application.Current?.Resources;
+        if (r == null) return;
+        if (Lookup(r, "AccentBrush") is Brush b) _accent = b;
+    }
+
+    private static object? Lookup(ResourceDictionary dict, string key, int depth = 0)
+    {
+        if (depth > 4) return null;
+        if (dict.Contains(key)) { try { return dict[key]; } catch { return null; } }
+        foreach (var m in dict.MergedDictionaries)
+        {
+            if (m == null) continue;
+            var v = Lookup(m, key, depth + 1);
+            if (v != null) return v;
+        }
+        return null;
     }
 
     private void OnRendering(object? sender, EventArgs e)

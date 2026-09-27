@@ -11,9 +11,20 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Явный переключатель портативного режима имеет приоритет над автоопределением.
+        if (e.Args.Contains("--portable"))
+            Helpers.AppPaths.SetPortable(true, out _);
+
+        // Каталоги для изменяемого состояния. В Program Files писать рядом с exe
+        // нельзя, поэтому staging/логи/бенчмарки живут в профиле пользователя.
+        Helpers.AppPaths.EnsureDirectories();
+
         CleanupOldFiles();
 
-        string crashLog = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
+        // crash.log РАНЬШЕ писался рядом с exe. В Program Files запись запрещена,
+        // лог молча не создавался, а диалог утверждал, что он записан.
+        string crashLog = Helpers.AppPaths.CrashLogFile;
         AppDomain.CurrentDomain.UnhandledException += (s, ev) => {
             try { System.IO.File.AppendAllText(crashLog, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] (Domain)\n{ev.ExceptionObject}\n\n"); } catch {}
         };
@@ -28,7 +39,7 @@ public partial class App : Application
             // пользователю и не убивают процесс.
             MessageBox.Show(
                 $"Непредвиденная ошибка интерфейса:\n\n{ev.Exception?.Message}\n\n" +
-                $"Подробности записаны в crash.log рядом с программой.",
+                $"Подробности записаны в файл:`r`n{crashLog}",
                 "Motion Commander — ошибка",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -150,6 +161,15 @@ public partial class App : Application
             return;
         }
 
+        // --theme-audit: прогон всех тем и проверка, что каждый ключ, на который
+        // ссылается разметка, реально определён и перекрашивается.
+        if (e.Args.Contains("--theme-audit"))
+        {
+            RunThemeAudit();
+            Shutdown(0);
+            return;
+        }
+
         // --selftest: конструктор + классика + motion, прогнать 5 с, закрыться (exit 0).
         // Любая ошибка XAML/движка уронит процесс — это и есть проверка.
         if (e.Args.Contains("--selftest"))
@@ -197,12 +217,12 @@ public partial class App : Application
                 var report = benchTask.GetAwaiter().GetResult();
 
                 string outJson = System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-                string outPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "benchmark_last_run.json");
+                string outPath = System.IO.Path.Combine(Helpers.AppPaths.BenchmarkDirectory, "benchmark_last_run.json");
                 System.IO.File.WriteAllText(outPath, outJson);
             }
             catch (Exception ex)
             {
-                string errPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "benchmark_error.txt");
+                string errPath = System.IO.Path.Combine(Helpers.AppPaths.BenchmarkDirectory, "benchmark_error.txt");
                 System.IO.File.WriteAllText(errPath, ex.ToString());
             }
             finally
@@ -337,6 +357,139 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Аудит тем: для каждой темы применяет её и проверяет, что все ключи,
+    /// используемые в разметке, определены и заморожены.
+    /// Именно этот прогон ловит регрессии вида «светлая тема рисует тёмные карточки».
+    /// </summary>
+    private void RunThemeAudit()
+    {
+        var res = Application.Current?.Resources;
+        if (res == null) { System.Console.WriteLine("no resources"); return; }
+
+        // Ключи, которые разметка обязана получать из палитры.
+        string[] required =
+        {
+            "WindowBackgroundBrush","CardBackgroundBrush","CardBorderBrush",
+            "GlassBorderBrush","SubtleBorderBrush","ChipBackgroundBrush",
+            "LiquidGlassMaterialLevel0Brush","LiquidGlassMaterialLevel1Brush",
+            "LiquidGlassMaterialLevel2Brush","LiquidGlassMaterialLevel3Brush",
+            "LiquidGlassMaterialLevel4Brush","LiquidGlassMaterialLevel5Brush",
+            "LiquidGlassMaterialLevel6Brush",
+            "LiquidGlassBorderLevel1Brush","LiquidGlassBorderLevel2Brush",
+            "LiquidGlassBorderLevel3Brush","LiquidGlassBorderLevel4Brush",
+            "LiquidGlassBorderLevel5Brush","LiquidGlassSubtleBorderBrush",
+            "LiquidGlassHoverBorderBrush","LiquidGlassCardBorderBrush",
+            "LiquidGlassCardBackgroundBrush","LiquidGlassInputBackgroundBrush",
+            "LiquidGlassInputBorderBrush","LiquidGlassInputHoverBackgroundBrush",
+            "LiquidGlassInputFocusedBorderBrush","LiquidGlassHoverHighlight",
+            "PrimaryTextBrush","TextPrimaryBrush","SecondaryTextBrush","TextSecondaryBrush",
+            "LiquidGlassTextSecondaryBrush","TextTertiaryBrush","LiquidGlassTextTertiaryBrush",
+            "MutedTextBrush","TextMutedBrush","TextDisabledBrush","TitleForegroundBrush",
+            "StatusSuccessBrush","StatusWarningBrush","StatusDangerBrush",
+            "SuccessGreenBrush","WarningAmberBrush","ErrorRedBrush",
+            "AccentBrush","AccentHoverBrush","AccentPressedBrush","AccentForegroundBrush",
+            "BaseFontFamily","BodyFontSize","CaptionFontSize","MinTouchTarget",
+            "ScrollbarWidth","RadiusWindow","RadiusS","RadiusM","RadiusL","RadiusXL",
+            "ScrollTrackBrush","ScrollThumbBrush","ScrollThumbHoverBrush",
+            "HeaderBackgroundBrush","HeaderForegroundBrush","HeaderBorderBrush",
+            "HeaderHoverBrush","NavDockBackgroundBrush","RibbonBackgroundBrush",
+            "InputBackgroundBrush","ControlBackgroundBrush","HoverBrush","ListHoverBrush",
+            "ProgressTrackBrush","GraphGridBrush","GraphFillBrush",
+            "ContextMenuBackground","ContextMenuBorder","ContextMenuForeground",
+            "ContextMenuHover","ContextMenuPressed","ContextMenuDisabled",
+            "ContextMenuDanger","ContextMenuDivider",
+        };
+
+        // Поиск значения по всей цепочке словарей: собственный словарь приложения,
+        // затем каждый объединённый (рекурсивно). Так же ведёт себя разрешение
+        // {DynamicResource} в разметке, в отличие от голого res[key].
+        static object? Lookup(ResourceDictionary dict, string key, int depth = 0)
+        {
+            if (depth > 4) return null;
+            if (dict.Contains(key))
+            {
+                try { return dict[key]; } catch { return null; }
+            }
+            foreach (var merged in dict.MergedDictionaries)
+            {
+                if (merged == null) continue;
+                var v = Lookup(merged, key, depth + 1);
+                if (v != null) return v;
+            }
+            return null;
+        }
+
+        var problems = new List<string>();
+        var tm = Models.ThemeManager.Instance;
+        var originalTheme = tm.Theme;
+        var originalAccent = tm.Accent;
+
+        int themesChecked = 0;
+        foreach (var theme in Models.ThemeManager.AllThemes)
+        {
+            foreach (var accent in new[] { null, tm.Accents[1] })
+            {
+                tm.Theme = theme;
+                if (accent != null) tm.Accent = accent;
+                themesChecked++;
+
+                object?[] values = required.Select(k => Lookup(res, k)).ToArray();
+
+                var missing = required
+                    .Where((_, i) => values[i] == null)
+                    .ToList();
+                if (missing.Count > 0)
+                    problems.Add($"{theme}/{tm.Accent.Name}: отсутствуют ключи: {string.Join(", ", missing)}");
+
+                // Карточка должна быть не темнее окна в тёмной теме и не намного
+                // светлее в светлой: иначе светлая тема рисует тёмные панели.
+                int idxCard = Array.IndexOf(required, "CardBackgroundBrush");
+                int idxWin = Array.IndexOf(required, "WindowBackgroundBrush");
+                if (idxCard >= 0 && idxWin >= 0 &&
+                    values[idxWin] is System.Windows.Media.SolidColorBrush wbg &&
+                    values[idxCard] is System.Windows.Media.SolidColorBrush cbg)
+                {
+                    double cardLum = Lum(cbg.Color);
+                    double winLum = Lum(wbg.Color);
+                    if (tm.IsDark && cardLum + 0.02 < winLum)
+                        problems.Add($"{theme}: карточка ({cardLum:F3}) темнее окна ({winLum:F3})");
+                    if (!tm.IsDark && cardLum > winLum + 0.30)
+                        problems.Add($"{theme}: карточка ({cardLum:F3}) намного светлее окна ({winLum:F3})");
+                }
+
+                // Все создаваемые кисти должны быть заморожены (иначе WPF клонирует их каждый кадр).
+                var unfrozen = required
+                    .Where((_, i) => values[i] is System.Windows.Freezable f && !f.IsFrozen)
+                    .ToList();
+                if (unfrozen.Count > 0)
+                    problems.Add($"{theme}: незамороженные кисти: {string.Join(", ", unfrozen)}");
+            }
+        }
+
+        tm.Theme = originalTheme;
+        tm.Accent = originalAccent;
+
+        System.Console.WriteLine($"THEME AUDIT: проверено комбинаций тем/акцентов: {themesChecked}");
+        System.Console.WriteLine($"Тем всего: {Models.ThemeManager.AllThemes.Length}");
+        if (problems.Count == 0)
+        {
+            System.Console.WriteLine("РЕЗУЛЬТАТ: OK - все ключи определены, карточки корректны, кисти заморожены");
+        }
+        else
+        {
+            System.Console.WriteLine($"РЕЗУЛЬТАТ: НАЙДЕНО ПРОБЛЕМ: {problems.Count}");
+            foreach (var p in problems.Take(40)) System.Console.WriteLine("  " + p);
+        }
+        System.Console.Out.Flush();
+
+        static double Lum(System.Windows.Media.Color c)
+        {
+            double F(byte v) { double s = v / 255.0; return s <= 0.04045 ? s / 12.92 : System.Math.Pow((s + 0.055) / 1.055, 2.4); }
+            return 0.2126 * F(c.R) + 0.7152 * F(c.G) + 0.0722 * F(c.B);
+        }
+    }
+
     private void CleanupOldFiles()
     {
         try
@@ -347,7 +500,8 @@ public partial class App : Application
             {
                 try { System.IO.File.Delete(file); } catch { }
             }
-            string stagingDir = System.IO.Path.Combine(currentDir, "staging");
+            // staging теперь живёт в профиле пользователя, а не рядом с exe.
+            string stagingDir = Helpers.AppPaths.StagingDirectory;
             if (System.IO.Directory.Exists(stagingDir))
             {
                 try { System.IO.Directory.Delete(stagingDir, true); } catch { }

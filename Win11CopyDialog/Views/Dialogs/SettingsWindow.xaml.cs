@@ -11,13 +11,37 @@ namespace Win11CopyDialog.Views.Dialogs;
 
 public sealed class AppConfigData
 {
+    // ---------- Оформление ----------
     public string Theme { get; set; } = nameof(AppTheme.MotionGlass);
     public string Accent { get; set; } = "Неон Циан";
-    public string Backdrop { get; set; } = "Mica";
+    public string Backdrop { get; set; } = "";          // пусто = следовать теме
     public bool HapticAudioEnabled { get; set; } = true;
+
+    /// <summary>Режим анимаций: 0 = Эконом, 1 = Максимум.</summary>
+    public int AnimationQuality { get; set; } = 1;
+    public bool LiveBackdropEnabled { get; set; } = true;
+
+    // ---------- Портативный режим ----------
+    /// <summary>true = хранить настройки рядом с программой. null = определять автоматически.</summary>
+    public bool? PortableMode { get; set; }
+
+    // ---------- Прокрутка (ранее отдельный AppSettings конфликтовал за один файл) ----------
+    public bool SmoothScrollEnabled { get; set; } = true;
+    public double ScrollDampingRate { get; set; } = 22.0;   // 10..38
+    public double ScrollStepSize { get; set; } = 110.0;      // 50..220
+    public bool ScrollInertiaEnabled { get; set; } = true;
+    public bool ScrollHapticEnabled { get; set; }
+    public string ScrollPreset { get; set; } = "Balanced";  // UltraSilk/Balanced/Snappy/Custom
+
+    // ---------- Визуальные эффекты ----------
+    public bool TabAnimationsEnabled { get; set; } = true;
+    public bool NeonGlowEnabled { get; set; } = true;
+    public bool HapticSoundsEnabled { get; set; } = true;
+
+    // ---------- Параметры I/O (реально читаются движками) ----------
     public int DefaultBufferSizeKb { get; set; } = 1024;
     public int ConcurrencyThreads { get; set; } = 4;
-    public bool DirectIoBypassCache { get; set; } = false;
+    public bool DirectIoBypassCache { get; set; }
     public bool SequentialScanOptimized { get; set; } = true;
     public bool AutoVerifyCrc32 { get; set; } = true;
 
@@ -26,6 +50,41 @@ public sealed class AppConfigData
     /// «3.0.0 Pro», и это значение попадало в конфиг каждого пользователя.
     /// </summary>
     public string Version { get; set; } = "";
+
+    /// <summary>Общий экземпляр. Читается всеми потребителями (SmoothScroll, темы, окна).</summary>
+    public static AppConfigData Instance { get; private set; } = LoadFromFile(AppPaths.SettingsFile);
+
+    /// <summary>Перезачитывает конфиг с диска (после смены режима хранения).</summary>
+    public static void Reload() => Instance = LoadFromFile(AppPaths.SettingsFile);
+
+    /// <summary>
+    /// Сохраняет конфиг. Пишет атомарно (через временный файл), иначе сбой
+    /// питания в середине записи оставлял бы повреждённый settings.json
+    /// и все настройки молча сбрасывались бы при следующем запуске.
+    /// </summary>
+    public void Save()
+    {
+        try
+        {
+            DefaultBufferSizeKb = Math.Clamp(DefaultBufferSizeKb, 256, 8192);
+            ConcurrencyThreads = Math.Clamp(ConcurrencyThreads, 1, 16);
+            ScrollDampingRate = Math.Clamp(ScrollDampingRate, 10, 38);
+            ScrollStepSize = Math.Clamp(ScrollStepSize, 50, 220);
+            Version = "";
+
+            string path = AppPaths.SettingsFile;
+            AppPaths.EnsureDir(Path.GetDirectoryName(path) ?? AppPaths.WritableDataDirectory);
+
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            if (File.Exists(path)) File.Replace(tmp, path, null, ignoreMetadataErrors: true);
+            else File.Move(tmp, path);
+        }
+        catch
+        {
+            // Настройки — не критичные данные: отказ записи не должен ломать UI.
+        }
+    }
 
     /// <summary>
     /// Читает конфигурацию с диска.
@@ -105,6 +164,8 @@ public partial class SettingsWindow : Window
 
         InitThemes();
         InitAccents();
+        InitAnimationQuality();
+        InitInstallMode();
         InitHaptics();
         InitShellIntegration();
         LoadConfigToEditor();
@@ -239,15 +300,41 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>
+    /// Порядок тем в выпадающем списке. Раньше индекс ComboBox приравнивался к
+    /// (int)AppTheme, поэтому добавление темы молча ломало сохранение:
+    /// выбранная тема восстанавливалась как соседняя.
+    /// Теперь список и перечисление расходятся, а поиск идёт по имени.
+    /// </summary>
+    private static readonly AppTheme[] ThemeOrder =
+    {
+        AppTheme.MotionGlass,
+        AppTheme.CosmicNebula,
+        AppTheme.DeepSea,
+        AppTheme.CyberpunkDark,
+        AppTheme.RoyalIndigo,
+        AppTheme.SunsetAmber,
+        AppTheme.MicaDark,
+        AppTheme.Dark,
+        AppTheme.OledMidnight,
+        AppTheme.MatrixEmerald,
+        AppTheme.TerminalAmber,
+        AppTheme.RoseQuartz,
+        AppTheme.MicaLight,
+        AppTheme.Acrylic,
+        AppTheme.Light,
+        AppTheme.MinimalWhite,
+    };
+
     private void InitThemes()
     {
         ThemesComboBox.Items.Clear();
-        foreach (AppTheme t in Enum.GetValues<AppTheme>())
-        {
+        foreach (var t in ThemeOrder)
             ThemesComboBox.Items.Add(ThemeManager.Instance.ThemeDisplayName(t));
-        }
 
-        ThemesComboBox.SelectedIndex = (int)ThemeManager.Instance.Theme;
+        // Находим текущую тему по имени, а не по индексу — устойчиво к перестановкам.
+        int idx = Array.IndexOf(ThemeOrder, ThemeManager.Instance.Theme);
+        ThemesComboBox.SelectedIndex = idx >= 0 ? idx : 0;
         UpdateThemeDescription(ThemeManager.Instance.Theme);
     }
 
@@ -256,33 +343,46 @@ public partial class SettingsWindow : Window
         if (_initializing) return;
         HapticAudio.PlayClick();
 
-        if (ThemesComboBox.SelectedIndex >= 0)
-        {
-            var selectedTheme = (AppTheme)ThemesComboBox.SelectedIndex;
-            ThemeManager.Instance.Theme = selectedTheme;
-            BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
-            UpdateThemeDescription(selectedTheme);
-            SaveCurrentStateToConfig();
-        }
+        int i = ThemesComboBox.SelectedIndex;
+        if (i < 0 || i >= ThemeOrder.Length) return;
+
+        var selectedTheme = ThemeOrder[i];
+        ThemeManager.Instance.Theme = selectedTheme;
+        // Сброс ручного выбора фона: тема задаёт собственный материал.
+        ThemeManager.Instance.BackdropOverride = null;
+        BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
+        UpdateThemeDescription(selectedTheme);
+        SaveCurrentStateToConfig();
     }
 
     private void UpdateThemeDescription(AppTheme t)
     {
         ThemeDescriptionText.Text = t switch
         {
-            AppTheme.CyberpunkDark => "⚡ Глубокий тёмный индиго #0B0E14 с неоновым акцентом и высокой контрастностью.",
-            AppTheme.OledMidnight => "🌑 Абсолютный чёрный цвет #000000 для экономии энергии на OLED матрицах и бесконечной глубины.",
-            AppTheme.MatrixEmerald => "💻 Стиль терминала кибер-хакеров: тёмно-зелёные карточки и изумрудный неоновый луч.",
-            AppTheme.SunsetAmber => "🔥 Тёплые угольные тона #14100E в гармонии с сияющим янтарным и золотым свечением.",
+            AppTheme.CosmicNebula => "🌌 Глубокий космос: индиго #04050F, фиолетовые туманности и живой звёздный фон за окном. Самая насыщенная тема.",
+            AppTheme.DeepSea => "🌊 Холодная глубина океана: бирюзовые тона и живой фоновый градиент. Успокаивает и не утомляет.",
+            AppTheme.CyberpunkDark => "⚡ Глубокий тёмный индиго #0B0E14 с неоновым акцентом и моноширинным шрифтом.",
+            AppTheme.OledMidnight => "🌑 Абсолютный чёрный #000000 для экономии энергии на OLED. Без скруглений.",
+            AppTheme.MatrixEmerald => "💻 Стиль терминала: тёмно-зелёные карточки, изумрудный неон, моноширинный шрифт.",
+            AppTheme.TerminalAmber => "🖥 Янтарный фосфор на почти чёрном фоне. Ретро-терминал с минимальным скруглением.",
+            AppTheme.SunsetAmber => "🔥 Тёплые угольные тона #14100E с янтарным и золотым свечением.",
             AppTheme.RoyalIndigo => "🔮 Премиальный глубокий сапфировый ультрамарин с фиолетовыми переливами.",
             AppTheme.MicaDark => "◈ Фирменный полупрозрачный материал Windows 11 Mica Alt в тёмном исполнении.",
             AppTheme.MicaLight => "◈ Светлый воздушный матовый стиль Windows 11 Mica с мягкими тенями.",
             AppTheme.Acrylic => "⬣ Глубокий эффект матового стекла Acrylic с адаптивным шумом DWM.",
-            AppTheme.Dark => "☾ Классический чистый тёмный интерфейс без прозрачностей.",
+            AppTheme.RoseQuartz => "🌸 Светлая пастельная тема: розовый кварц с тёплыми тенями, высокая читаемость.",
+            AppTheme.Dark => "☾ Классический чистый тёмный интерфейс без прозрачности.",
             AppTheme.Light => "☀ Чистый минималистичный светлый стиль Windows.",
             AppTheme.MinimalWhite => "⬜ Полностью белый, плоский и минималистичный интерфейс без AI-помощника.",
             _ => "Индивидуальный стиль оформления."
         };
+
+        if (LiveBackdropHint != null)
+        {
+            LiveBackdropHint.Text = ThemeManager.Instance.LiveBackdropEnabled
+                ? "🌌 Живой фон включён — звёзды и туманности анимируются"
+                : "Живой фон выключен";
+        }
     }
 
     private void InitAccents()
@@ -342,14 +442,131 @@ public partial class SettingsWindow : Window
         if (BackdropMicaRadio.IsChecked == true) bType = BackdropType.MicaAlt;
         else if (BackdropAcrylicRadio.IsChecked == true) bType = BackdropType.Acrylic;
 
-        if (Application.Current != null)
-        {
-            foreach (Window w in Application.Current.Windows)
-            {
-                BackdropHelper.Apply(w, bType, ThemeManager.Instance.IsDark);
-            }
-        }
+        ThemeManager.Instance.BackdropOverride = bType == BackdropType.None ? null : bType;
         SaveCurrentStateToConfig();
+    }
+
+    // ================= Качество анимаций =================
+
+    private void InitAnimationQuality()
+    {
+        bool max = ThemeManager.Instance.AnimationQuality == AnimationQuality.Maximum;
+        AnimationMaximumRadio.IsChecked = max;
+        AnimationEconomyRadio.IsChecked = !max;
+        LiveBackdropCheck.IsChecked = ThemeManager.Instance.LiveBackdropEnabled;
+        UpdateAnimationPerfText();
+    }
+
+    private void AnimationQuality_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_initializing) return;
+        HapticAudio.PlayClick();
+
+        ThemeManager.Instance.AnimationQuality = AnimationMaximumRadio?.IsChecked == true
+            ? AnimationQuality.Maximum
+            : AnimationQuality.Economy;
+
+        // В режиме «Эконом» живой фон автоматически отключается:
+        // держать 60 FPS анимации на слабой машине бессмысленно.
+        if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy && LiveBackdropCheck != null)
+            LiveBackdropCheck.IsChecked = false;
+
+        UpdateAnimationPerfText();
+        UpdateThemeDescription(ThemeManager.Instance.Theme);
+        SaveCurrentStateToConfig();
+    }
+
+    private void LiveBackdrop_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_initializing) return;
+        HapticAudio.PlayClick();
+
+        ThemeManager.Instance.LiveBackdropEnabled = LiveBackdropCheck?.IsChecked == true;
+        UpdateAnimationPerfText();
+        UpdateThemeDescription(ThemeManager.Instance.Theme);
+        SaveCurrentStateToConfig();
+    }
+
+    private void UpdateAnimationPerfText()
+    {
+        if (AnimationPerfText == null) return;
+
+        if (!ThemeManager.AnimationsAllowed)
+        {
+            AnimationPerfText.Text = "⚠ Анимации отключены в настройках Windows (Специальные возможности → Визуальные эффекты). Приложение уважает эту настройку.";
+            return;
+        }
+
+        bool live = ThemeManager.Instance.LiveBackdropEnabled;
+        AnimationPerfText.Text = ThemeManager.Instance.AnimationQuality == AnimationQuality.Maximum
+            ? (live
+                ? "Режим «Максимум»: 60 FPS, живой фон активен, 0 аллокаций в кадре."
+                : "Режим «Максимум»: 60 FPS, живой фон выключен — фон статичный, анимации интерфейса работают.")
+            : "Режим «Эконом»: 30 FPS, живой фон и декоративные эффекты отключены. Ниже нагрузка на процессор и батарею.";
+    }
+
+    // ================= Режим установки =================
+
+    private void InitInstallMode()
+    {
+        InstallModeAutoRadio.IsChecked = true;
+        UpdateInstallModeDetail();
+    }
+
+    private void InstallMode_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_initializing) return;
+        HapticAudio.PlayClick();
+
+        bool? wanted = InstallModePortableRadio?.IsChecked == true ? true
+            : InstallModeInstalledRadio?.IsChecked == true ? false
+            : null;
+
+        if (wanted is bool p)
+        {
+            if (!AppPaths.SetPortable(p, out string? err))
+            {
+                MessageBox.Show(err ?? "Не удалось изменить режим.", "Режим установки",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                // Возвращаем переключатель в «Авто», раз принудительный режим недоступен.
+                InstallModeAutoRadio.IsChecked = true;
+                UpdateInstallModeDetail();
+                return;
+            }
+            // Режим сменился: переопределяем кэш путей и перечитываем конфиг
+            // из нового места, иначе настройки «прыгали» между папками.
+            AppPaths.ResetCaches();
+            AppConfigData.Reload();
+        }
+
+        UpdateInstallModeDetail();
+        SaveCurrentStateToConfig();
+    }
+
+    private void UpdateInstallModeDetail()
+    {
+        if (InstallModeDetailText == null) return;
+
+        bool writable = AppPaths.IsDirectoryWritable(AppPaths.WritableDataDirectory);
+        InstallModeDetailText.Text =
+            AppPaths.Describe() +
+            (writable ? "" : "\n\n⚠ В папку данных нельзя записывать. Настройки могут не сохраняться.");
+    }
+
+    private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        try
+        {
+            AppPaths.EnsureDir(AppPaths.WritableDataDirectory);
+            var psi = new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+            psi.ArgumentList.Add(AppPaths.WritableDataDirectory);
+            Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            if (StatusMessage != null) StatusMessage.Text = $"Не удалось открыть папку: {ex.Message}";
+        }
     }
 
     private void InitHaptics()
@@ -392,43 +609,53 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            var data = new AppConfigData
-            {
-                Theme = ThemeManager.Instance.Theme.ToString(),
-                Accent = ThemeManager.Instance.Accent.Name,
-                Backdrop = BackdropMicaRadio?.IsChecked == true ? "MicaAlt" : (BackdropAcrylicRadio?.IsChecked == true ? "Acrylic" : "Solid"),
-                HapticAudioEnabled = HapticAudio.Enabled,
-                DefaultBufferSizeKb = DefaultBufferCombo?.SelectedIndex switch
-                {
-                    0 => 256,
-                    1 => 512,
-                    2 => 1024,
-                    3 => 2048,
-                    4 => 4096,
-                    5 => 8192,
-                    _ => 1024
-                },
-                ConcurrencyThreads = ThreadsCombo?.SelectedIndex switch
-                {
-                    0 => 1,
-                    1 => 2,
-                    2 => 4,
-                    3 => 8,
-                    4 => 16,
-                    _ => 4
-                },
-                DirectIoBypassCache = DirectIoCheck?.IsChecked == true,
-                SequentialScanOptimized = SequentialScanCheck?.IsChecked == true,
-                AutoVerifyCrc32 = VerifyCrcCheck?.IsChecked == true
-            };
+            // ВАЖНО: изменяем СУЩЕСТВУЮЩИЙ экземпляр, а не создаём новый объект.
+            // Раньше здесь создавался новый AppConfigData, из-за чего все поля,
+            // которых нет в этом окне (параметры прокрутки, портативный режим),
+            // молча сбрасывались к значениям по умолчанию при каждом движении
+            // ползунка в настройках.
+            var data = AppConfigData.Instance;
 
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            string json = JsonSerializer.Serialize(data, options);
-            File.WriteAllText(_configFilePath, json);
-            if (ConfigEditorBox != null)
+            data.Theme = ThemeManager.Instance.Theme.ToString();
+            data.Accent = ThemeManager.Instance.Accent.IsSystem ? "" : ThemeManager.Instance.Accent.Name;
+            data.Backdrop = BackdropMicaRadio?.IsChecked == true ? "MicaAlt"
+                : (BackdropAcrylicRadio?.IsChecked == true ? "Acrylic" : "");
+            data.AnimationQuality = (int)ThemeManager.Instance.AnimationQuality;
+            data.LiveBackdropEnabled = ThemeManager.Instance.LiveBackdropEnabled;
+            data.HapticAudioEnabled = HapticAudio.Enabled;
+
+            data.DefaultBufferSizeKb = DefaultBufferCombo?.SelectedIndex switch
             {
-                ConfigEditorBox.Text = json;
-            }
+                0 => 256,
+                1 => 512,
+                2 => 1024,
+                3 => 2048,
+                4 => 4096,
+                5 => 8192,
+                _ => 1024
+            };
+            data.ConcurrencyThreads = ThreadsCombo?.SelectedIndex switch
+            {
+                0 => 1,
+                1 => 2,
+                2 => 4,
+                3 => 8,
+                4 => 16,
+                _ => 4
+            };
+            data.DirectIoBypassCache = DirectIoCheck?.IsChecked == true;
+            data.SequentialScanOptimized = SequentialScanCheck?.IsChecked == true;
+            data.AutoVerifyCrc32 = VerifyCrcCheck?.IsChecked == true;
+
+            // Атомарная запись: при сбое питания посреди File.WriteAllText
+            // settings.json оставался бы обрезанным, и все настройки пропали бы.
+            data.Save();
+            ThemeManager.Instance.Save();
+
+            if (ConfigEditorBox != null)
+                ConfigEditorBox.Text = File.Exists(_configFilePath)
+                    ? File.ReadAllText(_configFilePath)
+                    : JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
 
             // Раньше ошибка сохранения уходила только в Debug.WriteLine, который
             // в Release-сборке вырезается компилятором. Пользователь не знал,
@@ -484,6 +711,10 @@ public partial class SettingsWindow : Window
     /// Применяет конфигурацию к живому приложению.
     ///
     /// Вызывается при сбросе настроек и при загрузке конфига при старте.
+    ///
+    /// <para>Раньше применялись только тема и звук. Акцент, фон окна и качество
+    /// анимаций записывались в конфиг, но сюда никогда не попадали, поэтому
+    /// после перезапуска молча сбрасывались. Теперь восстанавливаются все.</para>
     /// </summary>
     public static void ApplyConfigToApp(AppConfigData data)
     {
@@ -491,10 +722,33 @@ public partial class SettingsWindow : Window
 
         // Тема применяется по ИМЕНИ, а не по индексу: перестановка элементов
         // в enum AppTheme больше не переназначает тему пользователя.
-        if (Enum.TryParse<AppTheme>(data.Theme, ignoreCase: true, out var theme))
+        if (Enum.TryParse<AppTheme>(data.Theme, ignoreCase: true, out var theme)
+            && Enum.IsDefined(typeof(AppTheme), theme))
         {
             ThemeManager.Instance.Theme = theme;
         }
+
+        // Акцент по имени.
+        if (!string.IsNullOrWhiteSpace(data.Accent))
+        {
+            var acc = ThemeManager.Instance.Accents
+                .FirstOrDefault(a => string.Equals(a.Name, data.Accent, StringComparison.OrdinalIgnoreCase));
+            if (acc != null) ThemeManager.Instance.Accent = acc;
+        }
+
+        // Фон окна: пустая строка = следовать теме.
+        ThemeManager.Instance.BackdropOverride =
+            !string.IsNullOrWhiteSpace(data.Backdrop) &&
+            Enum.TryParse<BackdropType>(data.Backdrop, ignoreCase: true, out var bd) && bd != BackdropType.None
+                ? bd
+                : null;
+
+        ThemeManager.Instance.AnimationQuality =
+            Enum.IsDefined(typeof(AnimationQuality), data.AnimationQuality)
+                ? (AnimationQuality)data.AnimationQuality
+                : AnimationQuality.Maximum;
+
+        ThemeManager.Instance.LiveBackdropEnabled = data.LiveBackdropEnabled;
 
         HapticAudio.Enabled = data.HapticAudioEnabled;
     }

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Win11CopyDialog.Models;
+using Win11CopyDialog.Views.Dialogs;
 
 namespace Win11CopyDialog.Helpers;
 
@@ -105,7 +106,7 @@ public static class SmoothScroll
     private static void OnContainerPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         if (e.Handled) return;
-        if (!AppSettings.Instance.SmoothScrollEnabled) return;
+        if (!AppConfigData.Instance.SmoothScrollEnabled) return;
 
         if (sender is DependencyObject d)
         {
@@ -208,7 +209,7 @@ internal sealed class SmoothScrollController : IDisposable
         if (e.Handled) return;
 
         // Если сглаживание отключено пользователем в Настройках — используем стандартный скролл
-        if (!AppSettings.Instance.SmoothScrollEnabled) return;
+        if (!AppConfigData.Instance.SmoothScrollEnabled) return;
 
         bool canScrollV = _sv.ScrollableHeight > 0;
         bool canScrollH = _sv.ScrollableWidth > 0;
@@ -233,7 +234,7 @@ internal sealed class SmoothScrollController : IDisposable
         }
 
         // Тактильный щелчок при прокрутке колесика (если включен)
-        if (AppSettings.Instance.ScrollHapticEnabled)
+        if (AppConfigData.Instance.ScrollHapticEnabled)
         {
             HapticAudio.PlayScrollTick();
         }
@@ -243,7 +244,7 @@ internal sealed class SmoothScrollController : IDisposable
         _lastWheelTime = now;
 
         // Адаптивное кинетическое ускорение при быстром вращении колесика
-        if (AppSettings.Instance.ScrollInertiaEnabled && elapsed < 160)
+        if (AppConfigData.Instance.ScrollInertiaEnabled && elapsed < 160)
         {
             _velocityMultiplier = Math.Min(2.6, _velocityMultiplier + 0.35);
         }
@@ -253,7 +254,7 @@ internal sealed class SmoothScrollController : IDisposable
         }
 
         // Пользовательский шаг прокрутки из настроек (по умолчанию 110 px)
-        double baseStep = AppSettings.Instance.ScrollStepSize;
+        double baseStep = AppConfigData.Instance.ScrollStepSize;
         double step = (delta / 120.0) * baseStep * _velocityMultiplier;
 
         if (isHorizontal)
@@ -307,7 +308,7 @@ internal sealed class SmoothScrollController : IDisposable
         bool doneV = true;
         bool doneH = true;
 
-        double rate = AppSettings.Instance.ScrollDampingRate;
+        double rate = AppConfigData.Instance.ScrollDampingRate;
 
         if (_sv.ScrollableHeight > 0)
         {

@@ -63,4 +63,24 @@
     <Color x:Key="Color_LensHighlightDiffuse">#26FFFFFF</Color>  <!-- 15% diffuse glow -->
     <Color x:Key="Color_LensRefractDark">#0D11111A</Color>       <!-- Refraction shadow 5% -->
 
+    <!-- ================================================================= -->
+    <!--              SEMANTIC BRUSHES (defaults before Apply)            -->
+    <!-- ThemeManager.Apply() overwrites every brush below at startup and -->
+    <!-- on every theme/accent change, so these are only the first-paint  -->
+    <!-- values and a safety net if Apply() is ever called too late.      -->
+    <!-- ================================================================= -->
+
+    <SolidColorBrush x:Key="LiquidGlassTextTertiaryBrush" Color="#64748B" />
+    <SolidColorBrush x:Key="LiquidGlassTextSecondaryBrush" Color="#94A3B8" />
+    <SolidColorBrush x:Key="LiquidGlassHoverHighlight" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#94A3B8" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#64748B" />
+    <SolidColorBrush x:Key="StatusSuccessBrush" Color="#00D68F" />
+    <SolidColorBrush x:Key="StatusWarningBrush" Color="#FFB020" />
+    <SolidColorBrush x:Key="StatusDangerBrush" Color="#FF4567" />
+    <SolidColorBrush x:Key="SuccessGreenBrush" Color="#00D68F" />
+    <SolidColorBrush x:Key="WarningAmberBrush" Color="#FFB020" />
+    <SolidColorBrush x:Key="ErrorRedBrush" Color="#FF4567" />
+    <SolidColorBrush x:Key="InfoBlueBrush" Color="#168CFF" />
+
 </ResourceDictionary>
