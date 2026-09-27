@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Отправляет подготовленный релиз Motion Commander в GitHub.
 
