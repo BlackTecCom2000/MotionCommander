@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = "3.8.21",
+    [string]$Version = "3.8.22",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -11,26 +11,13 @@ Set-Location $repoRoot
 
 if ($null -eq $Notes -or $Notes.Count -eq 0) {
     $Notes = @(
-        "CRITICAL FIX: moving a folder could delete it without copying anything. A single unreadable subfolder made the file list empty, which was reported as success, and the source was then deleted",
-        "CRITICAL FIX: sources are now only deleted after verifying that every file was actually copied and checked. Skipped files, cancelled copies and failed scans all keep their source",
-        "CRITICAL FIX: two files with the same name no longer overwrite each other. The second used to destroy the first, and moving then deleted both originals",
-        "CRITICAL FIX: existing files at the destination are never silently overwritten. A replaced file is kept with a timestamp suffix",
-        "CRITICAL FIX: copying now writes to a .partial file, verifies the length, and only then moves it into place. Cancelling no longer leaves a truncated file under the real name",
-        "CRITICAL FIX: junction and symlink loops caused infinite recursion and out-of-memory. The tree walk now detects them and the copy completes in under a second",
-        "CRITICAL FIX: the file copy loop no longer runs on the UI thread, which caused measurable input lag and reduced throughput on large files",
-        "CRITICAL FIX: 30 Hz transfer telemetry was executing on the UI thread for the whole transfer. This was the largest cause of freezes while copying",
-        "Progress could exceed 100 percent when a file was skipped. Skipping no longer inflates the byte counter",
-        "Copy speed history is no longer read while another thread rewrites it, which threw exceptions during rendering",
-        "Every external system utility (defrag, diskpart, wmic, fstrim, smartctl, VSS, uninstallers) now has a timeout. Previously a wedged utility hung the app forever",
-        "The Linux TRIM command no longer reports success when it actually failed",
-        "The VSS snapshot step is now really cancellable: the Cancel button in the migration wizard previously could not interrupt it",
-        "Close a window mid-scan no longer leaves a full-disk scan running in the background or crash on dead controls",
-        "Fixed cancellation token races: stopping a benchmark or disk wipe and immediately restarting left the new operation impossible to cancel",
-        "Fixed cancellation token source leaks in the transfer, archive, duplicate finder, tree analyzer and migration windows",
-        "Archive progress no longer passes a still-mutating object to the UI, and is throttled so large archives do not flood the dispatcher",
-        "Added self-tests: --theme-audit, --storage-audit, --copy-test and --download-test, which verify behaviour on real files rather than by inspection",
-        "Disk copying is verified end to end: byte-identical results, name collisions resolved, existing files preserved, no leftovers"
-    )}
+        "Fixed: the download manager no longer crashes on open. A progress bar was bound two-way to a read-only property, which threw a fatal error the moment the screen was shown",
+        "Fixed: invalid XAML in the download manager (unescaped braces in a format string) that would have broken the view",
+        "Added --view-audit: creates and lays out all 17 screens and reports binding and markup errors instead of crashing, so this class of defect is caught in automation",
+        "The new audit populates lists with real data, because an empty collection never applies item templates and therefore never activates the bindings inside them",
+        "Data-loss prevention, bounded process waits and UI-thread offload, as described in 3.8.21"
+    )
+}
 
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "   Motion Commander: Publish Release v$Version            " -ForegroundColor Yellow
