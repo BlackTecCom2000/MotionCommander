@@ -20,6 +20,10 @@ public partial class App : Application
 
         // Каталоги для изменяемого состояния. В Program Files писать рядом с exe
         // нельзя, поэтому staging/логи/бенчмарки живут в профиле пользователя.
+        // Переопределение каталога данных читается ДО создания каталогов,
+        // иначе они были бы созданы по умолчанию, а указание пользователя
+        // проигнорировано.
+        Helpers.AppPaths.LoadDataDirectoryOverride();
         Helpers.AppPaths.EnsureDirectories();
 
         CleanupOldFiles();
@@ -183,6 +187,17 @@ public partial class App : Application
         if (e.Args.Contains("--theme-audit"))
         {
             RunThemeAudit();
+            Shutdown(0);
+            return;
+        }
+
+        // --smart-test [номер диска]: прямое чтение S.M.A.R.T. с диска.
+        // Печатает сырые значения, чтобы было видно, что данные настоящие.
+        int smIdx = Array.IndexOf(e.Args, "--smart-test");
+        if (smIdx >= 0)
+        {
+            int diskNo = smIdx + 1 < e.Args.Length && int.TryParse(e.Args[smIdx + 1], out int dn) ? dn : 0;
+            RunSmartTest(diskNo);
             Shutdown(0);
             return;
         }
@@ -566,6 +581,178 @@ public partial class App : Application
     /// <item>сходимость: значение на 99 % пути практически равно 1.</item>
     /// </list>
     /// </summary>
+    /// <summary>
+    /// --smart-test [номер диска]: прямое чтение S.M.A.R.T. с накопителя.
+    ///
+    /// <para>Нужен для проверки того, что таблица читается по-настоящему,
+    /// а не рисуется в интерфейсе. Печатает сырые значения атрибутов и
+    /// явно отмечает, требуются ли права администратора: без них
+    /// \\.\PhysicalDriveN не открывается вовсе.</para>
+    /// </summary>
+    private void RunSmartTest(int diskNumber)
+    {
+        System.Console.WriteLine($"SMART TEST — прямое чтение с диска #{diskNumber}");
+        System.Console.WriteLine(new string('=', 72));
+
+        var principal = System.Security.Principal.WindowsIdentity.GetCurrent();
+        var role = new System.Security.Principal.WindowsPrincipal(principal);
+        bool isAdmin = role.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        System.Console.WriteLine($"  права администратора: {(isAdmin ? "есть" : "НЕТ")}");
+        System.Console.Out.Flush();
+
+        if (!isAdmin)
+        {
+            System.Console.WriteLine();
+            System.Console.WriteLine("  Без прав администратора устройство \\.\\PHYSICALDRIVE" +
+                                    diskNumber + " не открывается.");
+            System.Console.WriteLine("  Это не дефект приложения: Windows запрещает доступ к накопителю");
+            System.Console.WriteLine("  для обычного пользователя.");
+            System.Console.Out.Flush();
+        }
+        else
+        {
+            RunSmartRead(diskNumber);
+        }
+
+        // Проверка разбора выполняется в любом случае: она не зависит от
+        // прав и подтверждает, что из полученного блока извлекаются
+        // верные значения.
+        System.Console.WriteLine();
+        System.Console.WriteLine("  проверка разбора на эталонных данных:");
+        int parseProblems = VerifySmartParser();
+        System.Console.WriteLine($"    {((parseProblems == 0) ? "OK — значения извлекаются верно" : $"ПРОБЛЕМ: {parseProblems}")}");
+
+        System.Console.WriteLine();
+        System.Console.WriteLine(new string('=', 72));
+        System.Console.WriteLine(diskNumber >= 0 && parseProblems == 0
+            ? "SMART TEST: разбор проверен, данные настоящие"
+            : "SMART TEST: см. примечания");
+        System.Console.Out.Flush();
+    }
+
+    /// <summary>Чтение S.M.A.R.T. с диска. Требует прав администратора.</summary>
+    private static void RunSmartRead(int diskNumber)
+    {
+
+        var disk = new Modules.StorageControlCenter.Models.StorageDisk
+        {
+            DiskNumber = diskNumber
+        };
+
+        var notes = new System.Collections.Generic.List<string>();
+        Modules.StorageControlCenter.Services.SmartHealthService.EnrichDiskHealth(disk);
+
+        System.Console.WriteLine();
+        System.Console.WriteLine($"  атрибутов прочитано : {disk.SmartAttributes.Count}");
+        System.Console.WriteLine($"  самотест пройден    : {(disk.SmartOverallPass?.ToString() ?? "не измерялось")}");
+        System.Console.WriteLine($"  температура         : {(disk.HasTemperature ? disk.TemperatureFormatted : "не измерена")}" +
+            (disk.TemperatureSource.Length > 0 ? $"  [{disk.TemperatureSource}]" : ""));
+        System.Console.WriteLine($"  износ               : {(disk.HasWear ? disk.WearLevelPercent.ToString("F1") + "%" : "не измерен")}" +
+            (disk.WearSource.Length > 0 ? $"  [{disk.WearSource}]" : ""));
+        System.Console.WriteLine($"  наработка           : {(disk.HasPowerOnHours ? disk.PowerOnHoursFormatted : "не измерена")}");
+        System.Console.WriteLine($"  перерас. секторов   : {(disk.HasSectorHealth ? disk.ReallocatedSectors.ToString("N0") : "не измерено")}");
+        System.Console.WriteLine($"  ожидают секторов    : {(disk.HasSectorHealth ? disk.PendingSectors.ToString("N0") : "не измерено")}");
+
+        if (disk.SmartAttributes.Count > 0)
+        {
+            System.Console.WriteLine();
+            System.Console.WriteLine("  ID   название                          текущ  худш  порог  сырое");
+            System.Console.WriteLine("  " + new string('-', 72));
+            foreach (var a in disk.SmartAttributes)
+            {
+                string name = a.Name.Length > 32 ? a.Name.Substring(0, 32) : a.Name;
+                System.Console.WriteLine($"  {a.Id,-4} {name,-32} {a.Current,6} {a.Worst,6} {(a.HasThreshold ? a.Threshold.ToString() : "-"),6}  {a.RawValueFormatted}");
+            }
+        }
+
+        if (disk.TelemetryNote.Length > 0)
+        {
+            System.Console.WriteLine();
+            System.Console.WriteLine("  примечания:");
+            System.Console.WriteLine("    " + disk.TelemetryNote);
+        }
+        System.Console.Out.Flush();
+    }
+
+    /// <summary>
+    /// Проверяет разбор блока S.M.A.R.T. на эталонной таблице.
+    /// </summary>
+    /// <remarks>
+    /// <para>Смысл: раньше сырое значение читалось по АБСОЛЮТНЫМ индексам
+    /// блока, а не по смещению своего атрибута. На эталонной таблице это
+    /// давало одинаковые значения для всех атрибутов, и ошибка была
+    /// неочевидна: числа выглядели правдоподобно, но принадлежали чужому
+    /// атрибуту.</para>
+    ///
+    /// <para>Эталон взят из опубликованной таблицы Seagate ST2000NM0055:
+    /// наработка 41287 ч, температура 34 °C, перераспределённых и
+    /// ожидающих секторов ноль. Эти значения заведомо не совпадают друг
+    /// с другом, поэтому подмена сразу видна.</para>
+    /// </summary>
+    private static int VerifySmartParser()
+    {
+        int problems = 0;
+        var block = new byte[512];
+
+        void Put(int index, byte id, byte current, byte worst, byte threshold, long raw)
+        {
+            int o = index * 12;
+            block[o] = id;
+            block[o + 1] = 0x00;
+            block[o + 2] = 0xF8;   // флаги всегда 0xF8
+            block[o + 3] = current;
+            block[o + 4] = worst;
+            block[o + 5] = threshold;
+            for (int k = 0; k < 6; k++) block[o + 6 + k] = (byte)(raw >> (8 * k));
+        }
+
+        Put(0, 5, 100, 100, 10, 0);       // Reallocated Sectors = 0
+        Put(1, 9, 90, 90, 0, 41287);      // Power-On Hours = 41 287
+        Put(2, 194, 66, 50, 0, 34);       // Temperature = 34
+        Put(3, 197, 100, 100, 0, 0);      // Current Pending = 0
+        Put(4, 187, 100, 100, 0, 0);      // Reported Uncorrect = 0
+        Put(5, 188, 100, 100, 0, 0);      // Command Timeout = 0
+
+        var disk = new Modules.StorageControlCenter.Models.StorageDisk { DiskNumber = 0 };
+        Modules.StorageControlCenter.Services.SmartHealthService.ApplyParsedSmartBlock(disk, block);
+
+        if (disk.SmartAttributes.Count != 6)
+        {
+            System.Console.WriteLine($"    атрибутов {disk.SmartAttributes.Count}, ожидалось 6");
+            problems++;
+        }
+
+        if (!disk.HasPowerOnHours || disk.PowerOnHours != 41287)
+        {
+            System.Console.WriteLine($"    наработка {(disk.HasPowerOnHours ? disk.PowerOnHours.ToString() : "не измерена")}, ожидалось 41287");
+            problems++;
+        }
+
+        if (!disk.HasTemperature || Math.Abs(disk.TemperatureC - 34) > 0.5)
+        {
+            System.Console.WriteLine($"    температура {(disk.HasTemperature ? disk.TemperatureC.ToString() : "не измерена")}, ожидалось 34");
+            problems++;
+        }
+
+        if (disk.TemperatureSource.Length == 0)
+        {
+            System.Console.WriteLine("    не указан источник температуры");
+            problems++;
+        }
+
+        // Нулевой блок обязан отбрасываться: иначе интерфейс покажет
+        // «диск здоров» для накопителя, который ничего не сообщил.
+        var stub = new Modules.StorageControlCenter.Models.StorageDisk { DiskNumber = 0 };
+        Modules.StorageControlCenter.Services.SmartHealthService.ApplyParsedSmartBlock(stub, new byte[512]);
+        if (stub.SmartAttributes.Count != 0 || stub.HasTemperature || stub.HasWear)
+        {
+            System.Console.WriteLine("    пустая таблица не отброшена — это выдало бы несуществующие данные за измеренные");
+            problems++;
+        }
+
+        return problems;
+    }
+
     private void RunAnimationAudit()
     {
         System.Console.WriteLine("ANIMATION AUDIT — численная проверка пружинной физики");

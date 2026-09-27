@@ -199,9 +199,46 @@
                                 </ListView.View>
                             </ListView>
 
+                            <!-- Итоговая оценка накопителя.
+
+                                 Собирается ИЗ ПРОЧИТАННЫХ атрибутов S.M.A.R.T.
+                                 Ничего не вычисляется «на глаз»: каждый
+                                 показатель ссылается на конкретный атрибут,
+                                 а если атрибута нет, строка не показывается.
+
+                                 Скрыта, когда данные недоступны, — выдуманная
+                                 оценка была бы тем же обманом, от которого
+                                 этот экран избавлен. -->
+                            <Border x:Name="SmartVerdictBorder"
+                                    Visibility="Collapsed"
+                                    Background="{DynamicResource ChipBackgroundBrush}"
+                                    CornerRadius="6"
+                                    Padding="10,8"
+                                    Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Состояние по данным S.M.A.R.T."
+                                               FontSize="11" FontWeight="SemiBold"
+                                               Style="{StaticResource MutedText}"/>
+                                    <TextBlock x:Name="SmartVerdictText"
+                                               Text=""
+                                               FontSize="11.5"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"
+                                               Margin="0,5,0,0"/>
+                                    <TextBlock x:Name="SmartVerdictSourceText"
+                                               Text=""
+                                               FontSize="10"
+                                               TextWrapping="Wrap"
+                                               Style="{StaticResource MutedText}"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Честное сообщение вместо выдуманной таблицы S.M.A.R.T.
                                  Раньше здесь всегда рисовался список с Current=100 и
-                                 Status="Good", даже если контроллер ничего не отдавал. -->
+                                 Status="Good", даже если контроллер ничего не отдавал.
+                                 Текст уточняется по причине: нет прав, контроллер
+                                 не отдаёт данные или контроллер вернул пустышку. -->
                             <TextBlock x:Name="SmartEmptyText"
                                        Visibility="Collapsed"
                                        Text="S.M.A.R.T. недоступен"

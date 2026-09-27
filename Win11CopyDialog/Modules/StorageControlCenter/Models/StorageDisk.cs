@@ -106,6 +106,14 @@ public sealed class StorageDisk
     public bool HasErrorCounts { get; set; }
     public bool HasTrimInfo { get; set; }
     public bool HasFragmentation { get; set; }
+
+    /// <summary>
+    /// Прочитана ли таблица S.M.A.R.T.
+    /// <para>Признак «прочитано» хранится явно, а не вычисляется из
+    /// наличия атрибутов: пустой список бывает и при настоящем
+    /// неподдерживаемом контроллере, и при неудачном чтении. Разница
+    /// принципиальна для честного отчёта пользователю.</para>
+    /// </summary>
     public bool HasSmartAttributes { get; set; }
     public bool HasSectorAlignment { get; set; }
 
@@ -146,6 +154,50 @@ public sealed class StorageDisk
     public List<StoragePartition> Partitions { get; set; } = new();
     public List<SmartAttribute> SmartAttributes { get; set; } = new();
     public StorageScore Score { get; set; } = new();
+
+    /// <summary>
+    /// Итог самотеста S.M.A.R.T. по данным самого диска.
+    /// null — тест не выполнялся, значение не измерено.
+    /// </summary>
+    public bool? SmartOverallPass { get; set; }
+
+    /// <summary>
+    /// Требуются ли права администратора для чтения S.M.A.R.T.
+    /// <para>Показывается интерфейсом как конкретное действие, а не как
+    /// «данные недоступны»: пользователь знает, что делать.</para>
+    /// </summary>
+    public bool SmartNeedsAdministrator { get; set; }
+
+    /// <summary>Откуда взята температура, поимённо.</summary>
+    public string TemperatureSource { get; set; } = "";
+
+    /// <summary>Откуда взят износ, поимённо.</summary>
+    public string WearSource { get; set; } = "";
+
+    /// <summary>
+    /// Перераспределённые сектора из S.M.A.R.T. атрибута 5.
+    /// <para>Важно: 0 здесь означает «измерено и равно нулю», а не
+    /// «нет данных». Признак отсутствия измерения —
+    /// <see cref="HasSectorHealth"/>.</para>
+    /// </summary>
+    public long ReallocatedSectors { get; set; }
+
+    /// <summary>
+    /// Сектора, ожидающие переприсвоения (атрибут 197).
+    /// <para>Ненулевое значение — достоверный признак начинающейся
+    /// деградации: система уже не может прочитать эти блоки.</para>
+    /// </summary>
+    public long PendingSectors { get; set; }
+
+    /// <summary>
+    /// Сектора с неустранимой ошибкой (S.M.A.R.T. атрибут 187 или 198).
+    /// <para>Ненулевое значение означает реальную потерю данных.</para>
+    /// </summary>
+    public long UncorrectableSectors { get; set; }
+
+    /// <summary>Измерялись ли счётчики состояния секторов.</summary>
+    public bool HasSectorHealth =>
+        SmartAttributes.Any(a => a.Id is 5 or 197 or 187 or 198);
 
     // ── Форматирование с учётом доступности ──────────────────────────────────
 

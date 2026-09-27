@@ -625,19 +625,44 @@ public partial class StorageControlCenterView : UserControl
         {
             SmartAttributesList.ItemsSource = disk.SmartAttributes;
             if (SmartEmptyText != null) SmartEmptyText.Visibility = Visibility.Collapsed;
+
+            // Итог самотеста и состояние секторов — это выводы из тех же
+            // прочитанных атрибутов, а не отдельный запрос.
+            RenderSmartVerdict(disk);
         }
         else
         {
             SmartAttributesList.ItemsSource = null;
 
-            // Явно объясняем пользователю, почему данных нет.
             if (SmartEmptyText != null)
             {
                 SmartEmptyText.Visibility = Visibility.Visible;
-                SmartEmptyText.Text = disk.TelemetryNote.Length > 0
-                    ? "S.M.A.R.T. недоступен.\n" + disk.TelemetryNote
-                    : "S.M.A.R.T. недоступен: контроллер не публикует предиктивные данные.";
+
+                // Текст различается по ПРИЧИНЕ отсутствия данных. Раньше
+                // во всех случаях писалось одно и то же, поэтому
+                // невозможность чтения выглядела как отсутствие данных
+                // на диске.
+                if (disk.SmartNeedsAdministrator)
+                {
+                    SmartEmptyText.Text =
+                        "Не удалось прочитать S.M.A.R.T.: нужны права администратора.\n\n" +
+                        "S.M.A.R.T. читается напрямую с накопителя командой ATA, а Windows " +
+                        "запрещает открывать накопитель обычному пользователю.\n\n" +
+                        "Запустите Motion Commander от имени администратора — данные появятся.";
+                }
+                else if (disk.TelemetryNote.Length > 0)
+                {
+                    SmartEmptyText.Text = "S.M.A.R.T. недоступен.\n" + disk.TelemetryNote;
+                }
+                else
+                {
+                    SmartEmptyText.Text =
+                        "S.M.A.R.T. недоступен: контроллер не публикует предиктивные данные.\n" +
+                        "Остальные показатели накопителя измерены настоящим образом.";
+                }
             }
+
+            if (SmartVerdictBorder != null) SmartVerdictBorder.Visibility = Visibility.Collapsed;
         }
 
         // Рекомендации Storage AI Advisor
@@ -656,6 +681,102 @@ public partial class StorageControlCenterView : UserControl
 
         // Оптимизатор
         OptimizerDriveTypeText.Text = $"Обнаружен накопитель: {disk.Model} [{disk.MediaTypeString} • {disk.BusTypeString}]";
+    }
+
+    /// <summary>
+    /// Показывает вывод о состоянии накопителя, собранный ИЗ ПРОЧИТАННЫХ
+    /// атрибутов S.M.A.R.T.
+    /// </summary>
+    /// <remarks>
+    /// <para>Каждая строка ссылается на конкретный атрибут: 5 —
+    /// перераспределённые секторы, 197 — ожидающие, 187 и 198 —
+    /// неустранимые, 199 — ошибки интерфейса, 194 — температура,
+    /// 9 — наработка. Если атрибута нет, строка не выводится вовсе.</para>
+    ///
+    /// <para>Раньше буква оценки и её цвет подставлялись по умолчанию даже
+    /// без единого измеренного параметра, что читалось как «диск здоров»
+    /// на накопителе, о котором ничего не известно.</para>
+    /// </remarks>
+    private void RenderSmartVerdict(StorageDisk disk)
+    {
+        if (SmartVerdictBorder == null) return;
+
+        var attrs = disk.SmartAttributes;
+        if (attrs.Count == 0)
+        {
+            SmartVerdictBorder.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        SmartVerdictBorder.Visibility = Visibility.Visible;
+
+        SmartAttribute? Find(int id) => attrs.FirstOrDefault(a => a.Id == id);
+
+        var parts = new List<string>();
+
+        // Итог самотеста — команда RETURN STATUS, отдельная от таблицы
+        // атрибутов, поэтому может быть неизвестен даже при успешном чтении.
+        if (disk.SmartOverallPass == true)
+            parts.Add("Самотест пройден: накопитель не сообщает о неисправностях.");
+        else if (disk.SmartOverallPass == false)
+            parts.Add("ВНИМАНИЕ: самотест не пройден. Требуется замена накопителя.");
+
+        // Перераспределённые секторы: главный признак износа носителя.
+        var realloc = Find(5);
+        if (realloc != null)
+        {
+            long v = realloc.RawValue & 0xFFFFFFFF;
+            parts.Add(v == 0
+                ? "Перераспределённых секторов нет, носитель не деградировал."
+                : $"Перераспределено секторов: {v:N0}. Ненулевое значение означает износ.");
+        }
+
+        // Ожидающие секторы: система уже не может их прочитать.
+        var pending = Find(197);
+        if (pending != null)
+        {
+            long v = pending.RawValue & 0xFFFFFFFF;
+            if (v > 0)
+                parts.Add($"Секторов ожидают переприсвоения: {v:N0}, данные на них не читаются.");
+        }
+
+        // Неустранимые секторы: фактическая потеря данных.
+        var unc = attrs.FirstOrDefault(a => a.Id is 187 or 198);
+        if (unc != null)
+        {
+            long v = unc.RawValue & 0xFFFFFFFF;
+            if (v > 0)
+                parts.Add($"Некорректируемых секторов: {v:N0}. Возможна потеря данных.");
+        }
+
+        // Ошибки интерфейса указывают на кабель, а не на носитель.
+        var crc = Find(199);
+        if (crc != null)
+        {
+            long v = crc.RawValue & 0xFFFFFFFF;
+            if (v > 0)
+                parts.Add($"Ошибок интерфейса (CRC): {v:N0}. Проверьте кабель SATA или NVMe.");
+        }
+
+        if (disk.HasTemperature)
+            parts.Add($"Температура {disk.TemperatureFormatted}.");
+        if (disk.HasPowerOnHours)
+            parts.Add($"Наработка {disk.PowerOnHoursFormatted}.");
+        if (disk.HasWear)
+            parts.Add($"Износ ресурса {disk.WearLevelPercent:F1}%.");
+
+        SmartVerdictText.Text = parts.Count > 0
+            ? string.Join("  ", parts)
+            : "Атрибуты прочитаны, но ни один не относится к оценке состояния носителя.";
+
+        // Откуда взяты данные — обязательно: пользователь должен видеть,
+        // что значения прочитаны с накопителя, а не вычислены.
+        var sources = new List<string>();
+        if (disk.TemperatureSource.Length > 0) sources.Add(disk.TemperatureSource);
+        if (disk.WearSource.Length > 0) sources.Add(disk.WearSource);
+        SmartVerdictSourceText.Text = sources.Count > 0
+            ? string.Join("  |  ", sources.Distinct())
+            : "Источник: таблица S.M.A.R.T., прочитанная напрямую с накопителя.";
     }
 
     private void PopulateAdvisorRecommendations()

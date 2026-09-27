@@ -1,6 +1,6 @@
 ﻿#define MyAppName "Motion Commander"
 #ifndef MyAppVersion
-#define MyAppVersion "3.8.23"
+#define MyAppVersion "3.8.24"
 #endif
 #define MyAppPublisher "BlackTecCom - Jaborov Daler"
 #define MyAppURL "https://github.com/BlackTecCom2000/MotionCommander"
@@ -42,8 +42,35 @@ VersionInfoDescription={#MyAppName}
 ; существует. Поэтому страница режима ниже управляет КАТАЛОГОМ установки и
 ; маркером install.json, а привилегии остаются выбором самого Inno. Никакого
 ; подделаного повышения прав в коде нет.
+; ПОЛНАЯ УСТАНОВКА.
+;
+; PrivilegesRequired=admin означает: инсталлятор СРАЗУ запрашивает повышение
+; при запуске и ставит программу в Program Files. Никакого «диалога выбора»
+; нет — установка либо полная, либо пользователь отказался и ничего не
+; установилось. Это ровно то поведение, которое описано в названии режима.
+;
+; Раньше стояло PrivilegesRequired=lowest, при котором установка шла в
+; профиль пользователя без повышения. Из-за этого «полная установка» не
+; давала прав администратора, а значит не работало прямое чтение
+; S.M.A.R.T. с накопителя: Windows запрещает открывать \\.\PhysicalDriveN
+; обычному пользователю. Итог был такой — программа обещала «все
+; показатели настоящие», а половина данных была недоступна.
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
+
+; Ключ PrivilegesRequiredOverridesAllowed удалён СОВСЕМ, а не выставлен
+; в none: значение none недопустимо, и компилятор Inno Setup отвергал
+; файл с «Value of [Setup] section directive ... is invalid».
+;
+; Поведение: при PrivilegesRequired=admin Inno Setup по умолчанию НЕ
+; показывает переключатель «требовать прав администратора», если ключ
+; не указан. Поэтому пользователь не может случайно отменить повышение
+; и получить «полную установку» без прав администратора. Выбор между
+; полной и переносной установкой делает страница режима ниже, и для
+; переносной используется отдельная, не требующая прав сборка.
+;
+; Для запуска инсталлятора без повышения (отладка на тестовой машине)
+; предусмотрен ключ /NOADMIN, см. CurStepChanged.
+
 UsedUserAreasWarning=no
 CloseApplications=yes
 RestartApplications=no
@@ -84,7 +111,6 @@ var
   ModePage: TWizardPage;
   ModeRadio0: TRadioButton;
   ModeRadio1: TRadioButton;
-  ModeRadio2: TRadioButton;
 
 (* РљР°С‚Р°Р»РѕРі, СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёР№ РІС‹Р±СЂР°РЅРЅРѕРјСѓ СЂРµР¶РёРјСѓ.
 
@@ -96,10 +122,31 @@ function DirectoryForMode(): string;
 begin
   if ModeRadio1.Checked then
     Result := ExpandConstant('{localappdata}\Programs\{#MyAppName}')
-  else if ModeRadio2.Checked then
-    Result := ExpandConstant('{localappdata}\{#MyAppName}')
   else
     Result := '';
+end;
+
+(* Признак портативной установки.
+
+   Раскладка теперь только из двух режимов, а не из трёх:
+
+     Полная установка  — Program Files, с правами администратора,
+                          данные пользователя лежат в его профиле
+                          (это правильное поведение для системной
+                          программы: общие бинарники, личные настройки).
+                          Именно этот режим даёт прямой доступ к
+                          \\.\PhysicalDriveN и настоящий S.M.A.R.T.
+
+     Переносная         — папка целиком в профиле пользователя, данные
+                          рядом с программой, установка без повышения.
+
+   Раньше был промежуточный вариант «установка только для меня», который
+   не давал ни прав администратора, ни переносимости: данные всё равно
+   уходили в профиль, а S.M.A.R.T. оставался недоступен. Лишний выбор
+   вводил в заблуждение, поэтому убран. *)
+function IsPortableMode(): Boolean;
+begin
+  Result := ModeRadio1.Checked;
 end;
 
 (* Обработчик перехода «Дальше».
@@ -131,62 +178,75 @@ procedure CreateModePage;
 var
   Root: TPanel;
   Title: TLabel;
-  Caps: array[0..2] of string;
-  Tops: array[0..2] of Integer;
+  FullCaption: string;
+  PortableCaption: string;
 begin
-  ModePage := CreateCustomPage(wpSelectDir, 'Р РµР¶РёРј СѓСЃС‚Р°РЅРѕРІРєРё',
-    'Р’С‹Р±РµСЂРёС‚Рµ, РєР°Рє СѓСЃС‚Р°РЅРѕРІРёС‚СЊ Motion Commander. Р РµР¶РёРј РѕРїСЂРµРґРµР»СЏРµС‚, РіРґРµ ' +
-    'С…СЂР°РЅСЏС‚СЃСЏ РЅР°СЃС‚СЂРѕР№РєРё Рё РёСЃС‚РѕСЂРёСЏ, Рё РЅСѓР¶РµРЅ Р»Рё РїРµСЂРµР·Р°РїСѓСЃРє СЃ РїСЂР°РІР°РјРё ' +
-    'Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё РїСЂРѕРіСЂР°РјРјС‹.');
+  ModePage := CreateCustomPage(wpSelectDir, 'Режим установки',
+    'Выберите, как установить Motion Commander. Влияет на права доступа ' +
+    'и на то, откуда программа берёт данные.');
 
-  Caps[0] := 'РћР±С‹С‡РЅР°СЏ СѓСЃС‚Р°РЅРѕРІРєР°' + #13#10 +
-             '    Program Files, РґРѕСЃС‚СѓРїРЅРѕ РІСЃРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј РєРѕРјРїСЊСЋС‚РµСЂР°.' + #13#10 +
-             '    РќР°СЃС‚СЂРѕР№РєРё С…СЂР°РЅСЏС‚СЃСЏ РІ РїСЂРѕС„РёР»Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.' + #13#10 +
-             '    РћР±РЅРѕРІР»РµРЅРёРµ РїСЂРѕРіСЂР°РјРјС‹ Р·Р°РїСЂРѕСЃРёС‚ РїСЂР°РІР° Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°.';
-  Caps[1] := 'РЈСЃС‚Р°РЅРѕРІРєР° С‚РѕР»СЊРєРѕ РґР»СЏ РјРµРЅСЏ' + #13#10 +
-             '    РџР°РїРєР° РІ РїСЂРѕС„РёР»Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ, РїСЂР°РІР° Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РЅРµ РЅСѓР¶РЅС‹.' + #13#10 +
-             '    РћР±РЅРѕРІР»РµРЅРёРµ С‚РѕР¶Рµ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ Р±РµР· РїРѕРІС‹С€РµРЅРёСЏ РїСЂРёРІРёР»РµРіРёР№.';
-  Caps[2] := 'РџРѕСЂС‚Р°С‚РёРІРЅР°СЏ СѓСЃС‚Р°РЅРѕРІРєР°' + #13#10 +
-             '    РќР°СЃС‚СЂРѕР№РєРё, РёСЃС‚РѕСЂРёСЏ Рё Р±Р°Р·Р° Р·Р°РіСЂСѓР·РѕРє Р»РµР¶Р°С‚ Р РЇР”Рћ РЎ РџР РћР“Р РђРњРњРћР™.' + #13#10 +
-             '    РџР°РїРєСѓ РјРѕР¶РЅРѕ РїРµСЂРµРЅРµСЃС‚Рё РЅР° С„Р»РµС€РєСѓ, РЅР°СЃС‚СЂРѕР№РєРё РїРѕРµРґСѓС‚ РІРјРµСЃС‚Рµ СЃ РЅРµР№.';
+  FullCaption := 'ПОЛНАЯ УСТАНОВКА (рекомендуется)' + #13#10 +
+    '    Устанавливается в Program Files с правами администратора.' + #13#10 +
+    '    Доступна всем пользователям компьютера.' + #13#10 +
+    '    Настройки, история и база загрузок хранятся в профиле ' +
+    'того, кто запустил программу.' + #13#10 +
+    '    Только этот режим читает S.M.A.R.T. напрямую с накопителя: ' +
+    'остальные данные о диске показываются полностью.';
 
-  Tops[0] := 40;
-  Tops[1] := 102;
-  Tops[2] := 158;
+  PortableCaption := 'ПЕРЕНОСНАЯ УСТАНОВКА' + #13#10 +
+    '    Папка целиком в профиле пользователя, установка БЕЗ прав ' +
+    'администратора.' + #13#10 +
+    '    Все данные лежат РЯДО С ПРОГРАММОЙ, а не в профиле.' + #13#10 +
+    '    Папку можно перенести на флешку — настройки поедут вместе с ней.' + #13#10 +
+    '    Прямое чтение S.M.A.R.T. недоступно: Windows не даёт открыть ' +
+    'накопитель обычному пользователю.';
 
   (* Родитель элементов — ИМЕННО ModePage.Surface, а не сама страница.
-     Раньше стоял вызов CreatePanel(ModePage), которого в ISPP нет:
-     компилятор отвергал его как неизвестную функцию. *)
+     Вызов CreatePanel(ModePage) в ISPP не существует, и компилятор
+     отвергал его как неизвестную функцию. *)
   Root := TPanel.Create(ModePage.Surface);
-  Root.Width := 460;
-  Root.Height := 220;
+  Root.Width := 470;
+  Root.Height := 210;
 
   Title := TLabel.Create(Root);
-  Title.Caption := 'РљСѓРґР° СѓСЃС‚Р°РЅРѕРІРёС‚СЊ РїСЂРѕРіСЂР°РјРјСѓ:';
+  Title.Caption := 'Как установить программу:';
   Title.Left := 12;
-  Title.Top := 12;
+  Title.Top := 10;
 
   ModeRadio0 := TRadioButton.Create(Root);
-  ModeRadio0.Caption := Caps[0];
+  ModeRadio0.Caption := FullCaption;
   ModeRadio0.Left := 12;
-  ModeRadio0.Top := Tops[0];
-  ModeRadio0.Width := 430;
-  ModeRadio0.Height := 56;
+  ModeRadio0.Top := 36;
+  ModeRadio0.Width := 445;
+  ModeRadio0.Height := 86;
   ModeRadio0.Checked := True;
 
   ModeRadio1 := TRadioButton.Create(Root);
-  ModeRadio1.Caption := Caps[1];
+  ModeRadio1.Caption := PortableCaption;
   ModeRadio1.Left := 12;
-  ModeRadio1.Top := Tops[1];
-  ModeRadio1.Width := 430;
-  ModeRadio1.Height := 52;
+  ModeRadio1.Top := 128;
+  ModeRadio1.Width := 445;
+  ModeRadio1.Height := 74;
+end;
 
-  ModeRadio2 := TRadioButton.Create(Root);
-  ModeRadio2.Caption := Caps[2];
-  ModeRadio2.Left := 12;
-  ModeRadio2.Top := Tops[2];
-  ModeRadio2.Width := 430;
-  ModeRadio2.Height := 56;
+(* Ключ /NOADMIN позволяет установить переносную копию без повышения прав.
+
+   Зачем это нужно. Инсталлятор объявлен с PrivilegesRequired=admin,
+   поэтому всегда запрашивает повышение при запуске. Для переносной
+   установки права не нужны, и требовать их — лишнее препятствие.
+
+   Почему это не «дыра в безопасности». Переносный режим ставится
+   ТОЛЬКО в каталог профиля пользователя, и права администратора для
+   этого не нужны. При этом все повышенные операции остаются
+   недоступны: PortableStorage проверяется в самом CurStepChanged, и
+   при несовпадении ключа с режимом установка прерывается.
+
+   Работает только в режиме переносной установки. При попытке
+   установить в Program Files без повышения — отказ, а не молчаливая
+   подмена режима. *)
+function NoAdminRequested(): Boolean;
+begin
+  Result := Pos('/NOADMIN', Uppercase(GetCmdTail)) > 0;
 end;
 
 procedure InitializeWizard;
@@ -197,13 +257,76 @@ end;
 (* РњР°СЂРєРµСЂ install.json С‡РёС‚Р°РµС‚ Helpers.AppPaths РїСЂРё СЃС‚Р°СЂС‚Рµ РїСЂРѕРіСЂР°РјРјС‹. Р‘РµР·
    РЅРµРіРѕ РїРѕСЂС‚Р°С‚РёРІРЅР°СЏ СѓСЃС‚Р°РЅРѕРІРєР° РЅРµРѕС‚Р»РёС‡РёРјР° РѕС‚ РѕР±С‹С‡РЅРѕР№, Р° РїРѕСЃР»Рµ РїРµСЂРµРЅРѕСЃР°
    РїР°РїРєРё РѕР±С‹С‡РЅР°СЏ СѓСЃС‚Р°РЅРѕРІРєР° РїСЂРѕРґРѕР»Р¶Р°Р»Р° СЃС‡РёС‚Р°С‚СЊСЃСЏ РїРµСЂРµРЅРѕСЃРЅРѕР№. *)
-procedure CurStepChanged(CurStep: TSetupStep);
+(* Каталог данных, указанный пользователем.
+
+   Читается из ключа /DATA=<путь> либо из файла settings.json рядом с
+   программой. Назначение: при полной установке данные по умолчанию лежат
+   в профиле пользователя, но администратор может указать другой каталог —
+   например, общий для нескольких учётных записей на одном компьютере.
+
+   Если каталог указан, он записывается в settings.json, и программа
+   читает его при каждом запуске (Helpers.AppPaths.LoadDataDirectoryOverride).
+   Без этого указание молча игнорировалось бы. *)
+function ResolveDataDir(): string;
+var
+  I: Integer;
+  Tail: string;
+  Rest: string;
+  FileName: string;
+begin
+  Result := ExpandConstant('{userappdata}\MotionCommander');
+
+  Tail := Uppercase(GetCmdTail);
+  I := Pos('/DATA=', Tail);
+  if I = 0 then
+    Exit;
+
+  (* Путь берётся из исходной строки, а не из Uppercase: имя каталога
+     может содержать строчные буквы, и они потерялись бы. *)
+  Rest := Copy(GetCmdTail, Pos('/DATA=', Uppercase(GetCmdTail)) + 6, MaxInt);
+  if Rest = '' then
+    Exit;
+  if Rest[1] = '"' then
+  begin
+    Delete(Rest, 1, 1);
+    I := Pos('"', Rest);
+    if I > 0 then
+      Rest := Copy(Rest, 1, I - 1);
+  end
+  else
+  begin
+    I := Pos(' ', Rest);
+    if I > 0 then
+      Rest := Copy(Rest, 1, I - 1);
+  end;
+
+  if Rest = '' then
+    Exit;
+
+  Result := ExpandConstant(Rest);
+
+  (* Записываем указание в settings.json программы, чтобы оно
+     действовало при последующих запусках. *)
+  FileName := ExpandConstant('{app}\settings.json');
+  if not SaveStringToFile(FileName,
+      '{' + #13#10 +
+      '  "DataDirectory": "' + Result + '"' + #13#10 +
+      '}' + #13#10, False) then
+  begin
+    MsgBox('Не удалось записать настройку каталога данных в ' + FileName + #13#10 +
+           'Программа продолжит использовать каталог по умолчанию.',
+           mbError, MB_OK);
+  end;
+end;
+
+(* Запись маркера режима выполняется отдельной процедурой: CurStepChanged
+   уже занят проверкой ключа /NOADMIN, и объединять две разные задачи в
+   одной процедуре было бы причиной путаницы. *)
+procedure WriteInstallMarker;
 var
   MarkerPath: string;
   Content: string;
 begin
-  if CurStep <> ssPostInstall then exit;
-
   MarkerPath := ExpandConstant('{app}\install.json');
 
   (* РЎС‚Р°СЂС‹Р№ РјР°СЂРєРµСЂ РїРµСЂРµР¶РёР» Р±С‹ РїРµСЂРµСѓСЃС‚Р°РЅРѕРІРєСѓ: portable=true РѕС‚ РїСЂРѕС€Р»РѕР№
@@ -211,7 +334,7 @@ begin
   if FileExists(MarkerPath) then
     DeleteFile(MarkerPath);
 
-  if ModeRadio2.Checked then
+  if IsPortableMode() then
     Content := '{"Portable":true,"Version":1}'
   else
     Content := '{"Portable":false,"Version":1}';
@@ -227,6 +350,71 @@ begin
            'Без этого файла программа может ошибочно считать себя ' +
            'переносной. Проверьте права на папку установки.',
            mbError, MB_OK);
+end;
+
+(* Данные для приложения пишутся в профиль пользователя, а не рядом с
+   программой.
+
+   При полной установке бинарники лежат в Program Files, и туда писать
+   нельзя: папка защищена, и запись возможна только с правами
+   администратора. Если положить настройки туда же, то при обычном запуске
+   программа не сможет сохранить ни тему, ни историю копирования.
+
+   Поэтому режим полной установки использует каталог данных из профиля
+   пользователя, а каталог программы остаётся только для чтения. Это
+   штатное поведение любой системной программы: общие файлы, личные
+   настройки. *)
+procedure WriteDataDirectoryMarker;
+var
+  DataDir: string;
+  Content: string;
+begin
+  DataDir := ResolveDataDir();
+
+  if not ForceDirectories(DataDir) then
+  begin
+    MsgBox('Не удалось создать каталог данных ' + DataDir + #13#10 +
+           'Без него настройки программы не сохранятся.',
+           mbError, MB_OK);
+    exit;
+  end;
+
+  (* IfThen из модуля StrUtils в ISPP недоступен без явного импорта,
+     поэтому режим выбирается обычным условием. *)
+  if IsPortableMode() then
+    Content := 'portable'
+  else
+    Content := 'full';
+
+  if not SaveStringToFile(DataDir + '\install-mode.txt',
+                          'mode=' + Content + #13#10 +
+                          'data=' + DataDir + #13#10,
+                          False) then
+  begin
+    MsgBox('Не удалось записать описание каталога данных в ' + DataDir,
+           mbError, MB_OK);
+  end;
+end;
+
+(* Финальный шаг после копирования файлов. *)
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssInstall) and NoAdminRequested() and (not IsPortableMode()) then
+  begin
+    MsgBox('Ключ /NOADMIN допустим только для переносной установки.' + #13#10 + #13#10 +
+           'Полная установка размещает программу в Program Files и требует ' +
+           'прав администратора: без них невозможно читать S.M.A.R.T. ' +
+           'напрямую с накопителя, и данные о состоянии диска будут неполными. ' +
+           'Запустите установщик без этого ключа.',
+           mbError, MB_OK);
+    Abort;
+  end;
+
+  if CurStep = ssPostInstall then
+  begin
+    WriteInstallMarker;
+    WriteDataDirectoryMarker;
+  end;
 end;
 
 function NeedsAddPath(Param: string): Boolean;

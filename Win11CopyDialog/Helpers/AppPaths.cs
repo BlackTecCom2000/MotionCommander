@@ -195,6 +195,11 @@ public static class AppPaths
 
     private static string ResolveDataDirectory()
     {
+        // Явное указание пользователем важнее автоматики: иначе
+        // переопределение из настроек просто игнорировалось бы.
+        if (!string.IsNullOrEmpty(_configuredDataDirectory))
+            return _configuredDataDirectory;
+
         if (IsPortable && IsDirectoryWritable(BaseDirectory))
             return BaseDirectory;
         return UserDataDirectory;
@@ -231,9 +236,63 @@ public static class AppPaths
     /// <summary>Все каталоги создаются сразу, чтобы не спотыкаться о FileNotFound в разных местах.</summary>
     public static void EnsureDirectories()
     {
+        // Каталог данных указывается явно, чтобы администратор мог его
+        // заранее создать и положить туда, например, переносную базу.
+        EnsureDir(ConfiguredDataDirectory);
         EnsureDir(WritableDataDirectory);
         foreach (var d in new[] { StagingDirectory, BenchmarkDirectory, ReportsDirectory, LogsDirectory, CacheDirectory })
             EnsureDir(d);
+    }
+
+    /// <summary>
+    /// Каталог данных, указанный пользователем в настройках, либо пустая строка.
+    /// </summary>
+    /// <remarks>
+    /// Хранится в settings.json, поэтому работает и для обычного запуска
+    /// программы, и для инсталлятора (через ключ /DATA=). Пустое значение
+    /// означает «использовать каталог по умолчанию», то есть профиль
+    /// пользователя для обычной установки и папку программы для переносной.
+    /// </remarks>
+    public static string ConfiguredDataDirectory
+    {
+        get => _configuredDataDirectory ?? "";
+        set
+        {
+            _configuredDataDirectory = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+    }
+
+    private static string? _configuredDataDirectory;
+
+    /// <summary>
+    /// Читает переопределение каталога данных из файла настроек.
+    /// </summary>
+    /// <remarks>
+    /// Вызывается один раз при старте. Раньше такой возможности не было
+    /// вовсе: путь к данным определялся только автоматически по признаку
+    /// переносной установки, и указать другой каталог было нечем.
+    /// </remarks>
+    public static void LoadDataDirectoryOverride()
+    {
+        try
+        {
+            string file = Path.Combine(UserDataDirectory, "settings.json");
+            if (!File.Exists(file)) return;
+
+            using var doc = System.Text.Json.JsonDocument.Parse(
+                File.ReadAllText(file),
+                new System.Text.Json.JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip });
+
+            if (doc.RootElement.TryGetProperty("DataDirectory", out var el))
+            {
+                string? v = el.GetString();
+                if (!string.IsNullOrWhiteSpace(v)) _configuredDataDirectory = v.Trim();
+            }
+        }
+        catch
+        {
+            // Повреждённый файл настроек не должен мешать запуску программы.
+        }
     }
 
     public static void EnsureDir(string path)

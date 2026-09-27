@@ -1,3 +1,4 @@
+using Win11CopyDialog.Helpers;
 using System.Diagnostics;
 using System.Globalization;
 using System.Management;
@@ -37,28 +38,303 @@ public static class SmartHealthService
     {
         var notes = new List<string>();
 
-        // 1. Реальные счётчики надёжности (температура, износ, наработка, ошибки).
+        bool gotRaw = false;
+
+        // 1. ПРЯМОЕ чтение S.M.A.R.T. с самого диска через IOCTL.
+        //
+        //    Это единственный источник, который работает там, где штатные
+        //    счётчики Windows молчат. Проверено на этой машине: класс
+        //    MSFT_StorageReliabilityCounter существует, но возвращает НОЛЬ
+        //    экземпляров, а классов MSStorageDriver_FailurePredictData в
+        //    root\wmi нет вообще. Поэтому порядок именно такой: сначала
+        //    настоящий диск, и только потом запасные источники.
+        //
+        //    Проверка прав идёт ДО чтения, иначе при каждом обновлении
+        //    списка накопителей в интерфейсе появлялось бы сообщение
+        //    «запустите от имени администратора» — вводит в заблуждение,
+        //    потому что программа обычно запускается с повышенными правами.
+        if (!SuperAdminPrivilegeHelper.IsAdministrator())
+        {
+            disk.SmartNeedsAdministrator = true;
+            notes.Add("Чтение S.M.A.R.T. напрямую с накопителя требует прав администратора. " +
+                      "Запустите Motion Commander от имени администратора.");
+        }
+        else
+        {
+            gotRaw = TryReadDirectSmart(disk, notes);
+        }
+
+        // 2. Реальные счётчики надёжности (температура, износ, наработка, ошибки).
         bool gotReliability = TryQueryReliabilityCounter(disk, notes);
 
-        // 2. Настоящая таблица S.M.A.R.T.
+        // 3. Настоящая таблица S.M.A.R.T. через WMI, когда он есть.
         bool gotSmart = TryReadSmartAttributes(disk, notes);
 
-        // 3. Реальное состояние TRIM.
+        // 4. Реальное состояние TRIM.
         TryQueryTrimState(disk, notes);
 
-        // 4. Фиксируем источник данных.
-        disk.Source = gotSmart ? TelemetrySource.Smart
+        // 5. Фиксируем источник данных. Прямое чтение с диска — самый
+        //    достоверный уровень, поэтому приоритет у него наивысший.
+        disk.Source = gotRaw || gotSmart ? TelemetrySource.Smart
                      : gotReliability ? TelemetrySource.Wmi
                      : TelemetrySource.Unavailable;
 
-        if (!disk.HasRealTelemetry && notes.Count > 0)
+        if (notes.Count > 0)
         {
             disk.TelemetryNote = string.Join(" ", notes);
         }
-        else if (notes.Count > 0)
+    }
+
+    /// <summary>
+    /// Читает S.M.A.R.T. напрямую с накопителя и разносит значения по полям.
+    ///
+    /// <para>Температура, износ и наработка берутся из конкретных атрибутов
+    /// S.M.A.R.T. по их идентификаторам. Ничего не вычисляется «примерно»:
+    /// если атрибута нет, поле остаётся не измеренным, и интерфейс покажет
+    /// «н/д» вместо правдоподобного числа.</para>
+    /// </summary>
+    private static bool TryReadDirectSmart(StorageDisk disk, List<string> notes)
+    {
+        try
         {
-            disk.TelemetryNote = string.Join(" ", notes);
+            var raw = SmartRawReader.Read(disk.DiskNumber, out var failure);
+            if (raw == null)
+            {
+                if (failure != null)
+                {
+                    // Отказ в доступе — это не «диск не поддерживает», а
+                    // «нет прав». Разница принципиальна: в первом случае
+                    // подсказывать перезапуск с повышенными правами.
+                    if (failure.NeedsAdministrator)
+                    {
+                        disk.SmartNeedsAdministrator = true;
+                        notes.Add("S.M.A.R.T. читается напрямую с диска и требует прав администратора. " +
+                                  "Запустите Motion Commander от имени администратора.");
+                    }
+                    else
+                    {
+                        notes.Add(failure.Reason);
+                    }
+                }
+                return false;
+            }
+
+            if (!raw.IsPlausible)
+            {
+                // Контроллер вернул пустышку (типично для RAID и виртуальных
+                // дисков). Показывать нули как «диск здоров» нельзя.
+                notes.Add("Накопитель вернул пустую таблицу S.M.A.R.T. — так бывает у RAID-контроллеров и виртуальных дисков. Данные не выдуманы.");
+                return false;
+            }
+
+            ApplyParsedSmartBlock(disk, raw.Data512);
+            disk.SmartOverallPass = raw.OverallPass;
+            return disk.SmartAttributes.Count > 0;
         }
+        catch (Exception ex)
+        {
+            notes.Add($"Прямое чтение S.M.A.R.T. не удалось: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Разбирает блок 512 байт S.M.A.R.T. и заполняет накопитель.
+    /// </summary>
+    /// <remarks>
+    /// <para>Вынесено отдельно, чтобы разбор можно было проверить на
+    /// эталонных данных без физического доступа к диску. Раньше проверка
+    /// требовала настоящего накопителя с правами администратора, то есть
+    /// на практике не выполнялась — и ошибка в разборе жила незамеченной.</para>
+    ///
+    /// <para>Если блок оказывается пустышкой (RAID, виртуальный диск),
+    /// накопитель остаётся без данных: подставлять правдоподобные
+    /// значения вместо неизмеренных нельзя.</para>
+    /// </remarks>
+    public static void ApplyParsedSmartBlock(StorageDisk disk, byte[] block)
+    {
+        disk.SmartAttributes.Clear();
+
+        if (!SmartRawParser.HasPlausibleAttributes(block))
+            return;
+
+        var attrs = ParseRawAttributes(block);
+        disk.SmartAttributes = attrs;
+        disk.HasSmartAttributes = attrs.Count > 0;
+
+        ApplyDerivedHealthValues(disk, attrs, new List<string>());
+    }
+
+    /// <summary>
+    /// Разбирает блок 512 байт в список атрибутов.
+    /// </summary>
+    /// <remarks>
+    /// Разметка записи по 12 байт: [0] идентификатор, [3] текущее значение,
+    /// [4] худшее, [5] порог, [6..11] сырое значение (младшие байты первыми).
+    /// </remarks>
+    private static List<SmartAttribute> ParseRawAttributes(byte[] block)
+    {
+        var result = new List<SmartAttribute>();
+
+        for (int offset = 0; offset + 11 < block.Length && offset < 30 * 12; offset += 12)
+        {
+            byte id = block[offset];
+            if (id == 0) continue;
+
+            byte current = block[offset + 3];
+            byte worst = block[offset + 4];
+            byte threshold = block[offset + 5];
+
+            // Нормализованное значение вне 1..253 — признак заглушки.
+            if (current == 0 || current == 0xFF) continue;
+
+            // Смещение offset обязательно: сырое значение лежит в блоке
+            // [offset+6 .. offset+11] своего атрибута. Без него читались
+            // байты первого атрибута для всех остальных, и наработка,
+            // температура и состояние секторов показывались бы чужыми
+            // значениями.
+            long rawValue = 0;
+            for (int b = 11; b >= 6; b--) rawValue = (rawValue << 8) | block[offset + b];
+
+            bool hasThreshold = threshold > 0 && threshold < 0xFF;
+
+            var attr = new SmartAttribute
+            {
+                Id = id,
+                Name = SmartAttributeCatalog.GetName(id),
+                Description = SmartAttributeCatalog.GetDescription(id),
+                Current = current,
+                Worst = worst,
+                Threshold = threshold,
+                HasThreshold = hasThreshold,
+                RawValue = rawValue,
+                RawValueFormatted = SmartAttributeCatalog.FormatRawValue(id, rawValue)
+            };
+
+            attr.Status = SmartAttribute.StatusFromThreshold(current, threshold, hasThreshold);
+            attr.IsCritical = attr.Status == "Critical" && SmartAttributeCatalog.IsCriticalAttribute(id);
+
+            // Атрибут без названия и без данных пользователю не нужен.
+            if (attr.Name.Length > 0 || hasThreshold || rawValue > 0)
+                result.Add(attr);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Выводит температуру, износ и наработку из конкретных атрибутов S.M.A.R.T.
+    /// </summary>
+    /// <remarks>
+    /// Идентификаторы соответствуют спецификации S.M.A.R.T.:
+    /// 5 — Reallocated Sectors (перераспределённые сектора),
+    /// 9 — Power-On Hours (наработка в часах),
+    /// 194 — Temperature (температура, обычно в градусах Цельсия),
+    /// 197 — Current Pending Sector (сектора ожидающие переприсвоения),
+    /// 231/233 — износ SSD: оставшийся ресурс в процентах,
+    /// 202 — Percent Lifetime Used, где меньше значит лучше.
+    /// </remarks>
+    private static void ApplyDerivedHealthValues(
+        StorageDisk disk, List<SmartAttribute> attrs, List<string> notes)
+    {
+        // Температура.
+        //
+        // Атрибут 194 (Temperature_Celsius) хранит градусы Цельсия
+        // непосредственно, а 190 (Airflow_Temperature) и 235 (NVMe) — в
+        // десятых долях. Раньше оба случая обрабатывались одинаково и
+        // брался младший байт, из-за чего 34 °C превращались в 3 °C.
+        var t194 = attrs.FirstOrDefault(x => x.Id == 194);
+        if (t194 != null)
+        {
+            long celsius = t194.RawValue & 0xFF;
+            if (celsius is >= 5 and <= 120)
+            {
+                disk.TemperatureC = celsius;
+                disk.HasTemperature = true;
+                disk.TemperatureSource = $"S.M.A.R.T. атрибут 194 «{t194.Name}», прочитан с диска";
+            }
+        }
+
+        if (!disk.HasTemperature)
+        {
+            var t190 = attrs.FirstOrDefault(x => x.Id == 190);
+            if (t190 != null)
+            {
+                double celsius = t190.RawValue / 10.0;
+                if (celsius is >= 1 and <= 120)
+                {
+                    disk.TemperatureC = celsius;
+                    disk.HasTemperature = true;
+                    disk.TemperatureSource = $"S.M.A.R.T. атрибут 190 «{t190.Name}», прочитан с диска";
+                }
+            }
+        }
+
+        if (!disk.HasTemperature)
+        {
+            var t235 = attrs.FirstOrDefault(x => x.Id == 235);
+            if (t235 != null)
+            {
+                double celsius = t235.RawValue / 10.0;
+                if (celsius is >= 1 and <= 120)
+                {
+                    disk.TemperatureC = celsius;
+                    disk.HasTemperature = true;
+                    disk.TemperatureSource = $"S.M.A.R.T. атрибут 235 «{t235.Name}», прочитан с диска";
+                }
+            }
+        }
+
+        // Износ SSD. Атрибут 202 — «сколько ресурса израсходовано»
+        // (меньше значит лучше), а 231 и 233 — «сколько осталось»
+        // (больше значит лучше). Путать их нельзя: значение из
+        // противоположного атрибута выглядело бы правдоподобно и
+        // показывало бы износ наоборот.
+        var used = attrs.FirstOrDefault(x => x.Id == 202);
+        if (used != null && used.Current is > 0 and < 255)
+        {
+            disk.WearLevelPercent = used.Current;
+            disk.HasWear = true;
+            disk.WearSource = $"S.M.A.R.T. атрибут 202 «{used.Name}», прочитан с диска";
+        }
+        else
+        {
+            var remaining = attrs.FirstOrDefault(x => x.Id is 231 or 233);
+            if (remaining != null && remaining.Current is > 0 and < 255)
+            {
+                disk.WearLevelPercent = 100.0 - remaining.Current;
+                disk.HasWear = true;
+                disk.WearSource = $"S.M.A.R.T. атрибут {remaining.Id} «{remaining.Name}», прочитан с диска";
+            }
+        }
+
+        // Наработка в часах берётся из сырого значения атрибута 9, а не
+        // из нормализованного: часы хранятся именно в сыром поле.
+        // Нормализованное значение 253 означает «предварительный подсчёт»,
+        // при котором счётчик часов ещё не накопился.
+        var poh = attrs.FirstOrDefault(x => x.Id == 9);
+        if (poh != null)
+        {
+            long hours = poh.RawValue & 0xFFFFFFFF;
+            if (hours > 0 && poh.Current < 253)
+            {
+                disk.PowerOnHours = hours;
+                disk.HasPowerOnHours = true;
+            }
+        }
+
+        // Состояние секторов — прямой признак начинающейся деградации.
+        var realloc = attrs.FirstOrDefault(x => x.Id == 5);
+        if (realloc != null && realloc.Current is > 0 and < 100)
+            disk.ReallocatedSectors = realloc.RawValue & 0xFFFFFFFF;
+
+        var pending = attrs.FirstOrDefault(x => x.Id == 197);
+        if (pending != null && pending.Current is > 0 and < 100)
+            disk.PendingSectors = pending.RawValue & 0xFFFFFFFF;
+
+        var uncorrectable = attrs.FirstOrDefault(x => x.Id is 187 or 198);
+        if (uncorrectable != null && uncorrectable.Current is > 0 and < 100)
+            disk.UncorrectableSectors = uncorrectable.RawValue & 0xFFFFFFFF;
     }
 
     /// <summary>
@@ -257,7 +533,7 @@ public static class SmartHealthService
                         long rawValue = 0;
                         for (int b = 11; b >= 6; b--)
                         {
-                            rawValue = (rawValue << 8) | raw[b];
+                            rawValue = (rawValue << 8) | raw[offset + b];
                         }
 
                         bool hasThreshold = thresholds.TryGetValue(id, out int thr) || threshold > 0;
