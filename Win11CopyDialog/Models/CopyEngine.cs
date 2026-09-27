@@ -25,11 +25,61 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     private double _wavePhase;
 
     public ObservableCollection<CopyItem> Items { get; } = new();
-    public List<double> SpeedHistory { get; } = new(); // байт/с, последние 90 сэмплов
+
+    /// <summary>
+    /// История скоростей, байт/с.
+    ///
+    /// <para>Раньше это была обычная List&lt;double&gt;, в которую писал
+    /// поток конвейера (PushHistory), а UI-поток читал её в OnRender и
+    /// RefreshUi: сначала считывали Count, затем индексировали. RemoveAt(0)
+    /// сдвигает массив, поэтому между этими двумя действиями индекс мог
+    /// выйти за границу — ArgumentOutOfRangeException прямо во время
+    /// отрисовки, и повторялся каждый кадр.</para>
+    ///
+    /// <para>Теперь доступ синхронизирован, а снимок для отрисовки
+    /// берётся атомарно в виде массива.</para>
+    /// </summary>
+    private readonly List<double> _speedHistory = new();
+    private readonly object _historyLock = new();
     public const int MaxHistory = 90;
+
+    /// <summary>Потокобезопасный снимок истории для отрисовки.</summary>
+    public double[] SpeedHistorySnapshot()
+    {
+        lock (_historyLock) return _speedHistory.ToArray();
+    }
+
+    /// <summary>Максимум истории без копирования — для одиночных запросов.</summary>
+    public double SpeedHistoryMax
+    {
+        get { lock (_historyLock) return _speedHistory.Count == 0 ? 0 : _speedHistory.Max(); }
+    }
+
+    public int SpeedHistoryCount
+    {
+        get { lock (_historyLock) return _speedHistory.Count; }
+    }
+
+    public double SpeedHistoryAt(int index)
+    {
+        lock (_historyLock) return _speedHistory[index];
+    }
 
     public long TotalBytes { get; private set; }
     public bool IsRealMode { get; private set; }
+
+    /// <summary>
+    /// Что делать с уже существующим файлом назначения.
+    /// По умолчанию — создать уникальное имя: это единственный режим,
+    /// который не может привести к потере данных.
+    /// </summary>
+    public OverwritePolicy DestinationPolicy { get; set; } = OverwritePolicy.AutoRename;
+
+    /// <summary>
+    /// Текст последней ошибки операции. Показывается пользователю, потому
+    /// что раньше сбой перечисления или копирования был полностью немым.
+    /// </summary>
+    public string OperationError { get; private set; } = "";
 
     /// <summary>Базовая скорость симуляции, байт/с. Меняется слайдером.</summary>
     public double BaseSpeedBytesPerSec { get; set; } = 150 * 1024 * 1024;
@@ -37,9 +87,24 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     private long _copiedBytes;
     public long CopiedBytes
     {
-        get => _copiedBytes;
-        private set { _copiedBytes = value; OnChanged(); OnChanged(nameof(OverallProgress)); OnChanged(nameof(RemainingBytes)); }
+        get => Interlocked.Read(ref _copiedBytes);
+        private set
+        {
+            Interlocked.Exchange(ref _copiedBytes, value);
+            OnChanged();
+            OnChanged(nameof(OverallProgress));
+            OnChanged(nameof(RemainingBytes));
+        }
     }
+
+    /// <summary>
+    /// Прибавление байт потокобезопасно.
+    /// Раньше в телеметрии было `CopiedBytes += delta`, а в SkipCurrent —
+    /// `CopiedBytes += cur.RemainingBytes` с UI-потока. Это неатомарное
+    /// чтение-изменение-запись, из-за чего счётчик терял обновления и
+    /// прогресс мог идти назад.
+    /// </summary>
+    private void AddCopiedBytes(long delta) => Interlocked.Add(ref _copiedBytes, delta);
 
     private double _currentSpeed;
     public double CurrentSpeed
@@ -159,7 +224,19 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
 
     // ---------- Real copy ----------
 
+    /// <summary>
+    /// Оставлено для совместимости. Раньше здесь был единственный перебор
+    /// источников, и он глотал ошибки перечисления.
+    ///
+    /// <para>Старая реализация удалена в CopySourceExpander, потому что
+    /// невозможно было сообщить вызывающему коду, что папка НЕ была
+    /// прочитана. Именно это приводило к удалению исходников: пустой
+    /// список -> Finish(completed: true) -> Directory.Delete(source, true).</para>
+    /// </summary>
     public static List<(string sourceFile, string destFile)> ExpandSourcesToFiles(IEnumerable<(string source, string dest)> inputs)
+        => CopySourceExpander.Expand(inputs, OverwritePolicy.AutoRename).Pairs;
+
+    private static List<(string sourceFile, string destFile)> ExpandSourcesToFilesLegacyUnused(IEnumerable<(string source, string dest)> inputs)
     {
         var result = new List<(string sourceFile, string destFile)>();
         foreach (var (src, dst) in inputs)
@@ -252,8 +329,33 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
         IsRealMode = true;
         _realCts = CancellationTokenSource.CreateLinkedTokenSource(outer);
 
-        var filePairs = ExpandSourcesToFiles(files);
-        foreach (var (s, d) in filePairs)
+        // Развёртка теперь сообщает об ошибках, а не молчит о них.
+        // Раньше падение перечисления (например, один запрещённый подкаталог)
+        // давало пустой список -> Finish(completed: true) -> вызывающий код
+        // удалял исходную папку целиком.
+        var expansion = CopySourceExpander.Expand(files, DestinationPolicy);
+
+        if (expansion.HasFailures)
+        {
+            IsRealMode = true;
+            foreach (var f in expansion.FailedSources)
+                Items.Add(new CopyItem(Path.GetFileName(f), 0, f, "") { Status = CopyItemStatus.Error });
+
+            OperationError = expansion.FailedSources.Count > 0
+                ? "Не удалось прочитать источник: " + string.Join("; ", expansion.FailedSources.Take(5))
+                  + (expansion.FailedSources.Count > 5 ? $" и ещё {expansion.FailedSources.Count - 5}" : "")
+                  + ". Исходные файлы НЕ удалены."
+                : expansion.EnumerationError + " Исходные файлы НЕ удалены.";
+
+            if (expansion.SkippedReparsePoints > 0)
+                OperationError += $" Пропущено каталогов-ссылок: {expansion.SkippedReparsePoints}.";
+
+            OnChanged(nameof(OperationError));
+            Finish(completed: false);
+            return;
+        }
+
+        foreach (var (s, d) in expansion.Pairs)
         {
             long size = 0;
             try { size = new FileInfo(s).Length; } catch { }
@@ -267,7 +369,11 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
 
         if (Items.Count == 0)
         {
-            Finish(completed: true);
+            // Пустой список файлов — это не «успех». Раньше здесь стояло
+            // Finish(completed: true), что приводило к удалению исходников.
+            OperationError = "Не найдено ни одного файла для копирования.";
+            OnChanged(nameof(OperationError));
+            Finish(completed: false);
             return;
         }
 
@@ -295,16 +401,40 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
                 OnChanged(nameof(Eta));
                 ProgressTick?.Invoke(this, EventArgs.Empty);
             }
+
+            // Отчёт об успехе только если действительно всё скопировано.
+            var notDone = Items.Where(i => i.Status != CopyItemStatus.Done && i.Status != CopyItemStatus.Skipped).ToList();
+            if (notDone.Count > 0)
+            {
+                OperationError = $"Не все файлы скопированы: {notDone.Count}. Исходные файлы оставлены на месте.";
+                OnChanged(nameof(OperationError));
+                Finish(completed: false);
+                return;
+            }
+
             Finish(completed: true);
         }
         catch (OperationCanceledException)
         {
+            // Отменённый файл остаётся в статусе Copying, из-за чего
+            // CurrentItem навсегда указывал на него, а интерфейс показывал
+            // «Копирование…» без прогресса. Помечаем явно.
+            var cur = Items.FirstOrDefault(i => i.Status == CopyItemStatus.Copying);
+            if (cur != null) cur.Status = CopyItemStatus.Error;
+
+            OperationError = "Копирование отменено. Исходные файлы оставлены на месте.";
+            OnChanged(nameof(OperationError));
+            OnChanged(nameof(CurrentItem));
             Finish(completed: false, cancelled: true);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            var cur = CurrentItem;
+            var cur = Items.FirstOrDefault(i => i.Status == CopyItemStatus.Copying);
             if (cur != null) cur.Status = CopyItemStatus.Error;
+
+            OperationError = "Ошибка копирования: " + ex.Message + " Исходные файлы оставлены на месте.";
+            OnChanged(nameof(OperationError));
+            OnChanged(nameof(CurrentItem));
             Finish(completed: false);
         }
     }
@@ -325,7 +455,7 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
                 if (delta > 0)
                 {
                     lastBytes = telemetry.BytesTransferred;
-                    CopiedBytes += delta;
+                    AddCopiedBytes(delta);
                 }
                 item.CopiedBytes = telemetry.BytesTransferred;
                 if (telemetry.InstantThroughputBytesPerSec > 0)
@@ -343,7 +473,44 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
             _pauseGate,
             ct);
 
+        // Проверка целостности. Раньше здесь стояло безусловное
+        // item.CopiedBytes = item.SizeBytes — то есть 100% показывалось
+        // независимо от того, записано ли что-нибудь. Теперь результат
+        // сверяется с фактическим размером файла на диске.
+        if (!VerifyDestination(item))
+        {
+            item.Status = CopyItemStatus.Error;
+            throw new IOException(
+                $"Файл «{Path.GetFileName(item.SourcePath)}» скопирован с повреждением: " +
+                $"ожидалось {item.SizeBytes} байт.");
+        }
+
         item.CopiedBytes = item.SizeBytes;
+    }
+
+    /// <summary>
+    /// Проверяет, что файл назначения существует и его длина совпадает
+    /// с исходной. Без этой проверки «успешное» копирование означало лишь
+    /// то, что цикл записи завершился без исключения.
+    /// </summary>
+    private bool VerifyDestination(CopyItem item)
+    {
+        try
+        {
+            if (!File.Exists(item.DestPath)) return false;
+
+            long actual = new FileInfo(item.DestPath).Length;
+            long expected;
+            try { expected = new FileInfo(item.SourcePath).Length; }
+            catch { return true; }   // источник исчез: длину сверить не с чем
+
+            // Допуск 1 КБ на округление размера блока при переносе.
+            return Math.Abs(actual - expected) <= 1024;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // ---------- Управление ----------
@@ -381,14 +548,97 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
         IsRunning = false;
     }
 
+    /// <summary>
+    /// Пропустить текущий файл.
+    ///
+    /// <para>Раньше здесь стояло <c>CopiedBytes += cur.RemainingBytes</c>,
+    /// но идущее копирование НЕ останавливалось: телеметрия продолжала
+    /// прибавлять те же байты, и прогресс доходил до 150%. Кроме того,
+    /// пропущенный файл попадал в Finish(completed: true), а вызывающий
+    /// код удалял исходники — то есть удалялось то, что не копировалось.</para>
+    ///
+    /// <para>Теперь счётчик не трогается: пропущенный файл просто не
+    /// учитывается, и прогресс не может превысить фактически
+    /// скопированный объём. Отдельный флаг пропуска позволяет вызывающему
+    /// коду НЕ удалять исходник пропущенного файла.</para>
+    /// </summary>
     public void SkipCurrent()
     {
         var cur = CurrentItem;
         if (cur == null || cur.IsFinished) return;
-        CopiedBytes += cur.RemainingBytes; // пропущенное засчитываем как обработанное
-        cur.CopiedBytes = cur.SizeBytes;
+
         cur.Status = CopyItemStatus.Skipped;
-        if (CopiedBytes >= TotalBytes) Finish(completed: true);
+        cur.CopiedBytes = 0;
+        cur.WasSkipped = true;
+
+        OnChanged(nameof(CopiedBytes));
+        OnChanged(nameof(OverallProgress));
+        OnChanged(nameof(CurrentItem));
+    }
+
+    /// <summary>
+    /// Файлы, которые действительно скопированы и проверены.
+    /// Только их исходники можно безопасно удалять при «перемещении».
+    /// </summary>
+    public List<CopyItem> VerifiedItems =>
+        Items.Where(i => i.Status == CopyItemStatus.Done).ToList();
+
+    /// <summary>Был ли хоть один файл помечен пропущенным.</summary>
+    public bool AnySkipped => Items.Any(i => i.WasSkipped);
+
+    /// <summary>
+    /// Можно ли удалить исходник после «перемещения».
+    ///
+    /// <para><b>Это защита от безвозвратной потери данных.</b> Раньше вызывающий
+    /// код удалял исходник по одному лишь признаку IsCompleted, а тот
+    /// выставлялся даже когда: перечисление папки упало на
+    /// запрещённом подкаталоге (список оказывался пустым), пользователь
+    /// пропустил файл, или копирование прервалось. Итог: «Переместить
+    /// папку» превращалось в «Удалить папку».</para>
+    ///
+    /// <para>Здесь исходник разрешается удалять только если выполнены ВСЕ
+    /// условия: копирование действительно завершено, не было отмены,
+    /// под этот путь не попал ни один файл со статусом Error или
+    /// Skipped, и есть хотя бы один проверенный файл внутри.</para>
+    /// </summary>
+    public bool CanDeleteSource(string sourcePath)
+    {
+        if (!IsCompleted || IsCancelled) return false;
+        if (string.IsNullOrWhiteSpace(sourcePath)) return false;
+
+        // Для файла: он должен быть среди проверенных и не пропущенным.
+        if (File.Exists(sourcePath))
+        {
+            string full = SafeFull(sourcePath);
+            var item = Items.FirstOrDefault(i =>
+                string.Equals(SafeFull(i.SourcePath), full, StringComparison.OrdinalIgnoreCase));
+            return item != null && item.Status == CopyItemStatus.Done && !item.WasSkipped;
+        }
+
+        // Для папки: ВСЕ раскрытые файлы внутри должны быть проверены.
+        if (Directory.Exists(sourcePath))
+        {
+            string root = SafeFull(sourcePath);
+            string prefix = root.EndsWith(Path.DirectorySeparatorChar.ToString())
+                ? root
+                : root + Path.DirectorySeparatorChar;
+
+            var inside = Items
+                .Where(i => SafeFull(i.SourcePath).StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (inside.Count == 0) return false;
+            if (inside.Any(i => i.Status != CopyItemStatus.Done || i.WasSkipped)) return false;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string SafeFull(string path)
+    {
+        try { return Path.GetFullPath(path); }
+        catch { return path; }
     }
 
     private void Finish(bool completed, bool cancelled = false)
@@ -403,21 +653,32 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
         OnChanged(nameof(Eta));
     }
 
+    /// <summary>
+    /// Добавление сэмпла скорости под блокировкой.
+    /// Список читали UI-потоки во время отрисовки графика, поэтому
+    /// обращение к нему из потока конвейера было гонкой данных.
+    /// </summary>
     private void PushHistory(double v)
     {
-        SpeedHistory.Add(v);
-        if (SpeedHistory.Count > MaxHistory) SpeedHistory.RemoveAt(0);
+        lock (_historyLock)
+        {
+            _speedHistory.Add(v);
+            if (_speedHistory.Count > MaxHistory) _speedHistory.RemoveAt(0);
+        }
     }
 
     private void Reset()
     {
         _tick.Stop();
         _realCts?.Cancel();
+        _realCts?.Dispose();
         _realCts = null;
         Items.Clear();
-        SpeedHistory.Clear();
+        lock (_historyLock) _speedHistory.Clear();
         TotalBytes = 0;
         CopiedBytes = 0;
+        OperationError = "";
+        OnChanged(nameof(OperationError));
         CurrentSpeed = 0;
         _smoothedSpeed = 0;
         _wavePhase = 0;
@@ -427,15 +688,21 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
         IsRunning = false;
         IsCompleted = false;
         IsCancelled = false;
-        _pauseGate.Set();
+        // Управляющий элемент мог быть уже освобождён предыдущим Dispose().
+        try { _pauseGate.Set(); } catch (ObjectDisposedException) { }
     }
 
     public void Dispose()
     {
         _tick.Stop();
         _realCts?.Cancel();
+        // Порядок важен: сначала отменяем, потом освобождаем управляющий
+        // элемент. Иначе работающие потоки конвейера получают
+        // ObjectDisposedException на pauseGate.Wait(ct).
+        try { _pauseGate.Set(); } catch (ObjectDisposedException) { }
         _pauseGate.Dispose();
         _realCts?.Dispose();
+        _realCts = null;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

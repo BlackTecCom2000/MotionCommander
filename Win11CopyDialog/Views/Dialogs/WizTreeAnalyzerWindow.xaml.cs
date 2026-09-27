@@ -130,7 +130,7 @@ public partial class WizTreeAnalyzerWindow : Window
                 if (now - lastUiUpdateTicks < UiUpdateIntervalTicks) return;
                 lastUiUpdateTicks = now;
 
-                Dispatcher.BeginInvoke(() => StatusText.Text = $"Сканирование: {p}");
+                Dispatcher.Post(() => StatusText.Text = $"Сканирование: {p}");
             }), ct);
 
             sw.Stop();

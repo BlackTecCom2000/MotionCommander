@@ -190,6 +190,15 @@ public partial class App : Application
             return;
         }
 
+        // --copy-test <src> <dst>: реальное копирование с проверкой
+        // целостности, коллизий имён и отсутствия остаточных .partial.
+        int cpIdx = Array.IndexOf(e.Args, "--copy-test");
+        if (cpIdx >= 0 && cpIdx + 2 < e.Args.Length)
+        {
+            _ = RunCopyTestAsync(e.Args[cpIdx + 1], e.Args[cpIdx + 2]);
+            return;
+        }
+
         // --selftest: конструктор + классика + motion, прогнать 5 с, закрыться (exit 0).
         // Любая ошибка XAML/движка уронит процесс — это и есть проверка.
         if (e.Args.Contains("--selftest"))
@@ -696,6 +705,58 @@ public partial class App : Application
         // не завершался — процесс оставался жив и тест упирался в таймаут.
         int code = item.Status == Modules.Utilities.DownloadManager.Models.DownloadStatus.Completed && fileOk ? 0 : 1;
         await Dispatcher.InvokeAsync(() => Shutdown(code));
+    }
+
+    /// <summary>
+    /// Сквозная проверка движка копирования на реальных файлах.
+    /// Проверяет то, что нельзя увидеть в коде: сохранность содержимого,
+    /// разрешение коллизий имён, отсутствие затирания существующих файлов
+    /// и отсутствие остаточных .partial.
+    /// </summary>
+    private async Task RunCopyTestAsync(string srcDir, string dstDir)
+    {
+        var outp = System.Console.Out;
+        outp.WriteLine("COPY TEST");
+        outp.WriteLine(new string('=', 60));
+        outp.WriteLine($"  источник : {srcDir}");
+        outp.WriteLine($"  назначение: {dstDir}");
+
+        var engine = new Models.CopyEngine();
+        try
+        {
+            await engine.StartRealCopyAsync(new[] { (srcDir, dstDir) }).ConfigureAwait(false);
+
+            outp.WriteLine("");
+            outp.WriteLine($"  IsCompleted : {engine.IsCompleted}");
+            outp.WriteLine($"  IsCancelled : {engine.IsCancelled}");
+            outp.WriteLine($"  ошибка     : {(string.IsNullOrEmpty(engine.OperationError) ? "нет" : engine.OperationError)}");
+            outp.WriteLine($"  файлов     : {engine.Items.Count}");
+            outp.WriteLine($"  проверено  : {engine.VerifiedItems.Count}");
+            outp.WriteLine($"  пропущено  : {engine.Items.Count(x => x.WasSkipped)}");
+            outp.WriteLine($"  ошибок     : {engine.Items.Count(x => x.Status == Models.CopyItemStatus.Error)}");
+            outp.WriteLine($"  байт       : {engine.CopiedBytes} из {engine.TotalBytes}");
+
+            outp.WriteLine("");
+            outp.WriteLine("  по файлам:");
+            foreach (var it in engine.Items.Take(20))
+                outp.WriteLine($"    {it.Status,-10} {it.FileName}");
+
+            bool ok = engine.IsCompleted && engine.Items.Count > 0 && !engine.AnySkipped
+                      && engine.Items.All(i => i.Status == Models.CopyItemStatus.Done);
+            outp.WriteLine("");
+            outp.WriteLine(ok ? "ДВИЖОК: OK" : "ДВИЖОК: ПРОВАЛ");
+            outp.Flush();
+
+            engine.Dispose();
+            await Dispatcher.InvokeAsync(() => Shutdown(ok ? 0 : 1));
+        }
+        catch (Exception ex)
+        {
+            outp.WriteLine("ИСКЛЮЧЕНИЕ: " + ex);
+            outp.Flush();
+            try { engine.Dispose(); } catch { }
+            await Dispatcher.InvokeAsync(() => Shutdown(1));
+        }
     }
 
     private void CleanupOldFiles()

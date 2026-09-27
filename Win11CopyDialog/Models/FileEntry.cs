@@ -340,20 +340,59 @@ public static class FileService
         });
     }
 
-    private static async Task CopyDirectoryAsync(string srcDir, string destDir, IProgress<CopyProgress> progress, CancellationToken ct)
+    /// <summary>
+    /// Рекурсивное копирование папки.
+    ///
+    /// <para><b>Здесь была безвозвратная потеря данных.</b> Рекурсия вызывалась
+    /// как CopyDirectoryAsync(dir, Path.Combine(destDir, Path.GetDirectoryName(dir)!), ...).
+    /// Path.GetDirectoryName возвращает АБСОЛУТНЫЙ путь к родителю, а
+    /// Path.Combine при абсолютном втором аргументе ПОЛНОСТЬЮ ИГНОРИРУЕТ первый.
+    /// В итоге вложенные файлы копировались обратно в ИСХОДНУЮ папку, где
+    /// FileMode.Create затирал оригиналы, а в папку назначения из подпапок
+    /// не попадало ничего.</para>
+    ///
+    /// <para>Правильно: имя подпапки, а не её абсолютный путь. Дополнительно
+    /// добавлены защита от точек повторного входа (иначе junction на предка
+    /// даёт бесконечную рекурсию) и предел глубины.</para>
+    /// </summary>
+    private static async Task CopyDirectoryAsync(
+        string srcDir, string destDir,
+        IProgress<CopyProgress> progress, CancellationToken ct,
+        int depth = 0,
+        HashSet<string>? visited = null)
     {
+        // Глубина и циклы по точкам повторного входа.
+        if (depth > 64) return;
+        visited ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string key;
+        try { key = Path.GetFullPath(srcDir); } catch { return; }
+        if (!visited.Add(key)) return;
+
         Directory.CreateDirectory(destDir);
-        
+
         foreach (var file in Directory.GetFiles(srcDir))
         {
             ct.ThrowIfCancellationRequested();
             await CopyFileAsync(file, Path.Combine(destDir, Path.GetFileName(file)), progress, ct);
         }
-        
+
         foreach (var dir in Directory.GetDirectories(srcDir))
         {
             ct.ThrowIfCancellationRequested();
-            await CopyDirectoryAsync(dir, Path.Combine(destDir, Path.GetDirectoryName(dir)!), progress, ct);
+
+            // junction/symlink не обходим: цикл даёт бесконечную рекурсию.
+            try
+            {
+                if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) continue;
+            }
+            catch { continue; }
+
+            // ИМЯ подпапки. Раньше здесь было Path.GetDirectoryName(dir),
+            // то есть абсолютный путь, который полностью отменял destDir.
+            string subName = Path.GetFileName(dir.TrimEnd('\\', '/'));
+            if (string.IsNullOrEmpty(subName)) continue;
+
+            await CopyDirectoryAsync(dir, Path.Combine(destDir, subName), progress, ct, depth + 1, visited);
         }
     }
 }

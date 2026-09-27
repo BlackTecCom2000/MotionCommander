@@ -32,7 +32,18 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
 
         public async Task StartDownloadAsync(DownloadItem item)
         {
-            _cancellationTokenSource = new CancellationTokenSource();
+            var cts = new CancellationTokenSource();
+            var previous = Interlocked.Exchange(ref _cancellationTokenSource, cts);
+            previous?.Dispose();
+
+            // Локальная ссылка на токен. Раньше фоновые циклы обращались к
+            // полю _cancellationTokenSource, которое finally обнулял ДО их
+            // завершения. Разбуженный через Task.Delay цикл обращался к null
+            // и ронял NullReferenceException ВНУТРИ неотслеживаемой задачи,
+            // то есть исключение просто исчезало. Это происходило на каждом
+            // успешно завершённом скачивании.
+            var token = cts.Token;
+
             item.Status = DownloadStatus.Downloading;
             item.ErrorMessage = null;  // ErrorMessage теперь string?
             await _dbService.SaveDownloadAsync(item);
@@ -55,43 +66,55 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                 var tasks = new List<Task>();
                 foreach (var segment in item.Segments.Where(s => s.Status != SegmentStatus.Completed))
                 {
-                    tasks.Add(segmentManager.DownloadSegmentAsync(segment, _cancellationTokenSource.Token));
+                    tasks.Add(segmentManager.DownloadSegmentAsync(segment, token));
                 }
 
                 // High-performance smooth UI Update Throttler (approx 30fps update rate)
                 var progressTask = Task.Run(async () =>
                 {
                     long lastBytes = item.BytesDownloaded;
-                    while (!_cancellationTokenSource.IsCancellationRequested && item.Status == DownloadStatus.Downloading)
+                    while (!token.IsCancellationRequested && item.Status == DownloadStatus.Downloading)
                     {
-                        await Task.Delay(33); // ~30 fps
-                        
+                        await Task.Delay(33, token).ConfigureAwait(false);
+
                         long currentBytes = item.BytesDownloaded;
                         long delta = currentBytes - lastBytes;
                         lastBytes = currentBytes;
 
                         // Calculate speed per second (delta is over 33ms, so multiply by 30)
-                        item.Speed = delta * (1000.0 / 33.0); 
+                        item.Speed = delta * (1000.0 / 33.0);
 
                         // Trigger UI updates safely
                         item.OnPropertyChanged(nameof(item.BytesDownloaded));
                         item.OnPropertyChanged(nameof(item.Progress));
-                        
+
                         ProgressChanged?.Invoke(this, item);
                     }
-                });
+                }, token);
 
                 // Periodically save state to DB
                 var dbSaveTask = Task.Run(async () =>
                 {
-                    while (!_cancellationTokenSource.IsCancellationRequested && item.Status == DownloadStatus.Downloading)
+                    while (!token.IsCancellationRequested && item.Status == DownloadStatus.Downloading)
                     {
-                        await Task.Delay(5000);
-                        await _dbService.SaveDownloadAsync(item);
+                        await Task.Delay(5000, token).ConfigureAwait(false);
+                        await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
                     }
-                });
+                }, token);
 
-                await Task.WhenAll(tasks);
+                try
+                {
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                finally
+                {
+                    // Фоновые циклы останавливаются ДО выхода из метода,
+                    // иначе они продолжают работать с уже завершённой загрузкой.
+                    cts.Cancel();
+                    try { await Task.WhenAll(progressTask, dbSaveTask).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { }
+                    catch { }
+                }
 
                 item.Status = DownloadStatus.Verifying;
                 item.Speed = 0;
@@ -122,18 +145,37 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
             }
             finally
             {
-                _cancellationTokenSource?.Dispose();
-                _cancellationTokenSource = null;
+                // Поле обнуляется только здесь, и только если оно всё ещё
+                // указывает на НАШ источник отмены. Иначе гонка: если
+                // PauseDownloadAsync успел заменить поле, старая ссылка
+                // освобождала бы уже используемый CTS.
+                cts.Cancel();
+                Interlocked.CompareExchange(ref _cancellationTokenSource, null, cts);
+                cts.Dispose();
             }
         }
 
-        public async Task PauseDownloadAsync()
+        /// <summary>
+        /// Приостанавливает передачу.
+        ///
+        /// <para>Раньше здесь был ObjectDisposedException, когда вызов приходил
+        /// после завершения: поле к этому моменту обнулялось, а если нет —
+        /// CTS уже освобождался в finally. Теперь ссылка берётся атомарно,
+        /// и отменяется только живой CTS.</para>
+        /// </summary>
+        public Task PauseDownloadAsync()
         {
-            if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+            var cts = Volatile.Read(ref _cancellationTokenSource);
+            if (cts == null) return Task.CompletedTask;
+            try
             {
-                _cancellationTokenSource.Cancel();
+                if (!cts.IsCancellationRequested) cts.Cancel();
             }
-            await Task.CompletedTask;
+            catch (ObjectDisposedException)
+            {
+                // Передача уже завершилась — ничего отменять не нужно.
+            }
+            return Task.CompletedTask;
         }
 
         private async Task<long> GetFileSizeAsync(string url)

@@ -45,24 +45,123 @@ public static class StreamingPipeline
         const FileOptions readOptions = FileOptions.Asynchronous | FileOptions.SequentialScan;
         const FileOptions writeOptions = FileOptions.Asynchronous;
 
-        // Открытие асинхронных файловых потоков
-        using var srcStream = new FileStream(
-            sourcePath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize,
-            readOptions);
+        // ── Копирование через временный файл ──────────────────────────────────
+        // Раньше здесь стоял FileMode.Create прямо на ИТОГОВОМ пути. Из-за
+        // этого отмена или ошибка записи оставляли на диске обрезанный файл
+        // ПОД СВОИМ ИМЕНЕМ: пользователь видел movie.mkv «готовое», хотя
+        // половина не была записана. Теперь пишем в "<имя>.partial",
+        // сверяем длину и только потом атомарно переносим на место.
+        string partialPath = destPath + ".partial";
+        bool committed = false;
 
-        using var dstStream = new FileStream(
-            destPath,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            bufferSize,
-            writeOptions);
+        try
+        {
+            using var srcStream = new FileStream(
+                sourcePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize,
+                readOptions);
 
-        // Канал глубиной 2 для обеспечения двухбуферного перекрывающегося I/O (double buffering)
+            long sourceLength = srcStream.Length;
+
+            await using (var dstStream = new FileStream(
+                partialPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize,
+                writeOptions))
+            {
+                await RunPipelineAsync(srcStream, dstStream, bufferSize, onTelemetry, pauseGate, ct);
+
+                // Принудительный сброс в ОС: FileStream.Dispose() пишет
+                // только в буфер ОС, а не вызывает FlushFileBuffers.
+                // Отключение питания сразу после «Готово» оставляло
+                // файлы правильной длины, но с недописанным хвостом.
+                await dstStream.FlushAsync(ct);
+            }
+
+            // Проверка целостности. Раньше её не было вовсе: считалось,
+            // что «цикл записи завершился» = «файл скопирован».
+            long actual = new FileInfo(partialPath).Length;
+            if (actual != sourceLength)
+                throw new IOException(
+                    $"Копирование неполное: записано {actual} из {sourceLength} байт " +
+                    $"({Path.GetFileName(sourcePath)}). Итоговый файл не создан.");
+
+            // Атомарный перенос на место.
+            Commit(partialPath, destPath);
+            committed = true;
+
+            // Сохранение временных меток исходного файла.
+            try
+            {
+                File.SetLastWriteTime(destPath, File.GetLastWriteTime(sourcePath));
+                File.SetCreationTime(destPath, File.GetCreationTime(sourcePath));
+            }
+            catch { /* метки не критичны для целостности */ }
+        }
+        finally
+        {
+            // Временный файл убирается в любом случае, чтобы не оставлять
+            // мусор рядом с данными пользователя.
+            if (!committed)
+            {
+                try { if (File.Exists(partialPath)) File.Delete(partialPath); } catch { }
+            }
+        }
+    }
+
+    /// <summary>Переносит проверенный временный файл на итоговый путь.</summary>
+    private static void Commit(string partialPath, string destPath)
+    {
+        if (!File.Exists(destPath))
+        {
+            File.Move(partialPath, destPath);
+            return;
+        }
+
+        // Файл назначения уже существует. Раньше он просто затирался
+        // (FileMode.Create) без предупреждения — это была безвозвратная
+        // потеря данных. Теперь предыдущий файл переименовывается, и
+        // пользователь может его найти.
+        string backup = destPath + ".replaced-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        try
+        {
+            File.Move(destPath, backup, overwrite: false);
+        }
+        catch (IOException)
+        {
+            // Не смогли освободить имя — не перезаписываем.
+            throw new IOException(
+                $"Файл «{Path.GetFileName(destPath)}» уже существует и не может быть заменён. " +
+                "Переименуйте его вручную либо удалите.");
+        }
+
+        try
+        {
+            File.Move(partialPath, destPath);
+        }
+        catch
+        {
+            // Возвращаем на место, чтобы не оставлять пользователя без файла.
+            try { File.Move(backup, destPath, overwrite: true); } catch { }
+            throw;
+        }
+    }
+
+    /// <summary>Собственно конвейер чтение→запись с двойной буферизацией.</summary>
+    private static async Task RunPipelineAsync(
+        Stream srcStream,
+        Stream dstStream,
+        int bufferSize,
+        Action<PipelineTelemetry>? onTelemetry,
+        ManualResetEventSlim? pauseGate,
+        CancellationToken ct)
+    {
+        // Канал глубиной 2 для двухбуферного перекрывающегося I/O.
         var channel = Channel.CreateBounded<PipelineBlock>(new BoundedChannelOptions(2)
         {
             SingleReader = true,
@@ -74,7 +173,6 @@ public static class StreamingPipeline
         double currentReadLatency = 0;
         double currentWriteLatency = 0;
 
-        // Поток-читатель (Producer)
         var readerTask = Task.Run(async () =>
         {
             try
@@ -87,11 +185,22 @@ public static class StreamingPipeline
                     }
 
                     var pBuffer = BufferPool.Rent(bufferSize);
-                    long readStart = Stopwatch.GetTimestamp();
 
-                    int read = await srcStream.ReadAsync(pBuffer.Memory, ct);
-                    double elapsedMs = (Stopwatch.GetTimestamp() - readStart) * 1000.0 / Stopwatch.Frequency;
-                    currentReadLatency = elapsedMs;
+                    int read;
+                    try
+                    {
+                        long readStart = Stopwatch.GetTimestamp();
+                        read = await srcStream.ReadAsync(pBuffer.Memory, ct);
+                        currentReadLatency = (Stopwatch.GetTimestamp() - readStart) * 1000.0 / Stopwatch.Frequency;
+                    }
+                    catch
+                    {
+                        // Без этого буфер УТЕКАЛ из пула при каждой отмене
+                        // копирования: пул истощался, давление на сборщик
+                        // росло, и на больших объёмах это доходило до OOM.
+                        pBuffer.Dispose();
+                        throw;
+                    }
 
                     if (read <= 0)
                     {
@@ -100,59 +209,86 @@ public static class StreamingPipeline
                     }
 
                     var block = new PipelineBlock(pBuffer, read);
-                    await channel.Writer.WriteAsync(block, ct);
+                    try
+                    {
+                        await channel.Writer.WriteAsync(block, ct);
+                    }
+                    catch
+                    {
+                        block.Buffer.Dispose();
+                        throw;
+                    }
                 }
+            }
+            catch
+            {
+                // Ошибка читателя ОБЯЗАНА разблокировать писателя.
+                // Раньше здесь стоял только channel.Writer.Complete() в
+                    // finally, а Complete() НЕ разблокирует уже ожидающий
+                // WriteAsync. При ошибке записи (диск заполнен, USB выдернут)
+                // писатель падал, читатель навсегда зависал на
+                // WriteAsync, и Task.WhenAll не возвращался — копирование
+                // «копировалось» вечно при замороженном проценте.
+                channel.Writer.TryComplete();
+                throw;
             }
             finally
             {
-                channel.Writer.Complete();
+                channel.Writer.TryComplete();
             }
         }, ct);
 
-        // Поток-писатель (Consumer)
         var writerTask = Task.Run(async () =>
         {
             long lastReportTime = Stopwatch.GetTimestamp();
             long bytesSinceReport = 0;
 
-            await foreach (var block in channel.Reader.ReadAllAsync(ct))
+            try
             {
-                using (block.Buffer)
+                await foreach (var block in channel.Reader.ReadAllAsync(ct))
                 {
-                    if (pauseGate != null && !pauseGate.IsSet)
+                    using (block.Buffer)
                     {
-                        pauseGate.Wait(ct);
-                    }
+                        // ПРИНЦИПИАЛЬНО: писатель НЕ встаёт на паузу.
+                        // Если бы пауза блокировала и писателя, канал
+                        // переполнялся бы, читатель вставал бы на
+                        // WriteAsync — и копирование зависало бы насмерть.
+                        // Пауза реализована на стороне читателя, то есть
+                        // в буфер уже пописано не более 2 × bufferSize.
+                        long writeStart = Stopwatch.GetTimestamp();
+                        await dstStream.WriteAsync(block.Buffer.Memory.Slice(0, block.Count), ct);
+                        currentWriteLatency = (Stopwatch.GetTimestamp() - writeStart) * 1000.0 / Stopwatch.Frequency;
 
-                    long writeStart = Stopwatch.GetTimestamp();
-                    await dstStream.WriteAsync(block.Buffer.Memory.Slice(0, block.Count), ct);
-                    double elapsedMs = (Stopwatch.GetTimestamp() - writeStart) * 1000.0 / Stopwatch.Frequency;
-                    currentWriteLatency = elapsedMs;
+                        totalCopied += block.Count;
+                        bytesSinceReport += block.Count;
 
-                    totalCopied += block.Count;
-                    bytesSinceReport += block.Count;
-
-                    long now = Stopwatch.GetTimestamp();
-                    double intervalSec = (now - lastReportTime) / (double)Stopwatch.Frequency;
-                    if (intervalSec >= 0.1) // Каждые 100 мс передаем телеметрию
-                    {
-                        double speed = bytesSinceReport / intervalSec;
-                        bytesSinceReport = 0;
-                        lastReportTime = now;
-
-                        onTelemetry?.Invoke(new PipelineTelemetry
+                        long now = Stopwatch.GetTimestamp();
+                        double intervalSec = (now - lastReportTime) / (double)Stopwatch.Frequency;
+                        if (intervalSec >= 0.1)
                         {
-                            BytesTransferred = totalCopied,
-                            InstantThroughputBytesPerSec = speed,
-                            ReadLatencyMs = currentReadLatency,
-                            WriteLatencyMs = currentWriteLatency,
-                            QueueDepth = channel.Reader.Count
-                        });
+                            double speed = bytesSinceReport / intervalSec;
+                            bytesSinceReport = 0;
+                            lastReportTime = now;
+
+                            onTelemetry?.Invoke(new PipelineTelemetry
+                            {
+                                BytesTransferred = totalCopied,
+                                InstantThroughputBytesPerSec = speed,
+                                ReadLatencyMs = currentReadLatency,
+                                WriteLatencyMs = currentWriteLatency,
+                                QueueDepth = channel.Reader.Count
+                            });
+                        }
                     }
                 }
             }
+            catch
+            {
+                // Ошибка писателя должна разблокировать читателя.
+                channel.Writer.TryComplete(new IOException("Запись не удалась"));
+                throw;
+            }
 
-            // Финальный сброс телеметрии
             onTelemetry?.Invoke(new PipelineTelemetry
             {
                 BytesTransferred = totalCopied,
@@ -164,13 +300,5 @@ public static class StreamingPipeline
         }, ct);
 
         await Task.WhenAll(readerTask, writerTask);
-
-        // Сохранение временных меток и атрибутов исходного файла
-        try
-        {
-            File.SetLastWriteTime(destPath, File.GetLastWriteTime(sourcePath));
-            File.SetCreationTime(destPath, File.GetCreationTime(sourcePath));
-        }
-        catch { }
     }
 }

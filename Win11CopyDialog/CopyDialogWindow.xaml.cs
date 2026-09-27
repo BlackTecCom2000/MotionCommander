@@ -34,12 +34,14 @@ public partial class CopyDialogWindow : Window
     {
         InitializeComponent();
         FilesList.ItemsSource = Engine.Items;
-        Graph.Values = Engine.SpeedHistory;
+        // Снимок под блокировкой: список скоростей пишет поток конвейера,
+        // а раньше UI читал его напрямую во время отрисовки графика.
+        Graph.Values = Engine.SpeedHistorySnapshot();
 
         // НЕБЛОКИРУЮЩИЙ маршалинг: ProgressTick приходит с потока, который пишет
         // байты на диск. Dispatcher.Invoke здесь замедлял само копирование.
-        _progressTickHandler = (_, _) => Dispatcher.BeginInvoke(RefreshUi);
-        _completedHandler = (_, _) => Dispatcher.BeginInvoke(OnCompleted);
+        _progressTickHandler = (_, _) => Dispatcher.Post(RefreshUi);
+        _completedHandler = (_, _) => Dispatcher.Post(OnCompleted);
 
         Engine.ProgressTick += _progressTickHandler;
         Engine.Completed += _completedHandler;
@@ -48,7 +50,7 @@ public partial class CopyDialogWindow : Window
         {
             if (e.PropertyName == nameof(ThemeManager.AccentColor))
             {
-                Dispatcher.BeginInvoke(Graph.InvalidateVisual);
+                Dispatcher.Post(Graph.InvalidateVisual);
             }
         };
         ThemeManager.Instance.PropertyChanged += _themeChangedHandler;
@@ -135,7 +137,7 @@ public partial class CopyDialogWindow : Window
         // кратковременного пика шкала оставалась завышенной навсегда, и весь
         // дальнейший сигнал выглядел плоским. Теперь масштаб мягко
         // сжимается обратно, когда фактический пик заметно ниже текущего Max.
-        double observedPeak = Engine.SpeedHistory.DefaultIfEmpty(0).Max() * 1.15;
+        double observedPeak = Engine.SpeedHistoryMax * 1.15;
         if (observedPeak > Graph.Max)
         {
             Graph.Max = observedPeak;

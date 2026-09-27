@@ -26,6 +26,17 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
         public int Index { get; set; }
         public long StartPosition { get; set; }
         public long EndPosition { get; set; }
+
+        /// <summary>
+        /// Загрузка, которой принадлежит сегмент.
+        /// Нужна, чтобы добавить сегмент в коллекцию, привязанную к
+        /// интерфейсу, из фонового потока: раньше для этого приходилось
+        /// разыменовывать App.Current и вызывать Dispatcher.Invoke, что
+        /// на завершении приложения приводило к вечной блокировке.
+        /// Игнорируется при сохранении в базу.
+        /// </summary>
+        [Ignore]
+        public DownloadItem? OwnerDownloadItem { get; set; }
         
         public long BytesDownloaded 
         { 

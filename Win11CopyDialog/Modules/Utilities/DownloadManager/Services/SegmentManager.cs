@@ -24,28 +24,62 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
             _downloadItem = downloadItem;
         }
 
+        /// <summary>
+        /// Создаёт сегменты загрузки.
+        ///
+        /// <para>Раньше коллекция, привязанная к интерфейсу, изменялась через
+        /// App.Current.Dispatcher.Invoke. Это синхронная блокировка потока
+        /// без проверки на завершение приложения: если окно уже закрывалось,
+        /// Invoke ждал на диспетчере, который больше не обрабатывал очередь,
+        /// и загрузка зависала навсегда. Кроме того, App.Current
+        /// разыменовывался без проверки на null.</para>
+        /// </summary>
         public async Task InitializeSegmentsAsync(int numberOfSegments)
         {
             if (_downloadItem.Segments.Any())
                 return;
 
+            if (numberOfSegments < 1) numberOfSegments = 1;
             long segmentSize = _downloadItem.TotalBytes / numberOfSegments;
+            if (segmentSize <= 0) segmentSize = Math.Max(1, _downloadItem.TotalBytes);
 
             for (int i = 0; i < numberOfSegments; i++)
             {
                 var segment = new DownloadSegment
                 {
                     DownloadItemId = _downloadItem.Id,
+                    OwnerDownloadItem = _downloadItem,
                     Index = i,
                     StartPosition = i * segmentSize,
                     EndPosition = (i == numberOfSegments - 1) ? _downloadItem.TotalBytes - 1 : (i + 1) * segmentSize - 1,
                     Status = SegmentStatus.Pending,
                     BytesDownloaded = 0
                 };
-                
-                App.Current.Dispatcher.Invoke(() => _downloadItem.Segments.Add(segment));
-                await _dbService.SaveSegmentAsync(segment);
+
+                await AddSegmentToUiAsync(segment).ConfigureAwait(false);
+                await _dbService.SaveSegmentAsync(segment).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Добавляет сегмент в коллекцию, привязанную к интерфейсу.
+        /// Безопасная альтернатива Dispatcher.Invoke: при завершении
+        /// приложения операция просто пропускается, а не блокирует поток.
+        /// </summary>
+        private static Task AddSegmentToUiAsync(DownloadSegment segment)
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+                return Task.CompletedTask;
+
+            if (dispatcher.CheckAccess())
+            {
+                segment.OwnerDownloadItem?.Segments.Add(segment);
+                return Task.CompletedTask;
+            }
+
+            return dispatcher.InvokeAsync(() => segment.OwnerDownloadItem?.Segments.Add(segment))
+                             .Task;
         }
 
         public async Task DownloadSegmentAsync(DownloadSegment segment, CancellationToken cancellationToken)
@@ -65,14 +99,19 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                 using var stream = await response.Content.ReadAsStreamAsync();
                 
                 var segmentFilePath = $"{_downloadItem.SavePath}.part{segment.Index}";
-                
-                // Optimized file stream
-                using var fileStream = new FileStream(segmentFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
-                
-                if (segment.BytesDownloaded > 0)
-                {
-                    fileStream.Seek(segment.BytesDownloaded, SeekOrigin.Begin);
-                }
+
+                // РЕЖИМ ОТКРЫТИЯ ВАЖЕН ДЛЯ ЦЕЛОСТНОСТИ ФАЙЛА.
+                // Раньше стоял FileMode.OpenOrCreate: при продолжении
+                // загрузки, если сегмент от прошлой попытки длиннее
+                // текущего, в файле оставался мусорный хвост, который
+                // попадал в итоговый файл после склейки сегментов.
+                //  - начать с нуля  -> Create (файл обрезается до нуля)
+                //  - продолжить     -> Open с переходом на нужную позицию
+                using var fileStream = segment.BytesDownloaded > 0
+                    ? new FileStream(segmentFilePath, FileMode.Open, FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous)
+                    : new FileStream(segmentFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
+
+                fileStream.Seek(segment.BytesDownloaded, SeekOrigin.Begin);
 
                 // Zero-allocation buffering
                 byte[] buffer = ArrayPool<byte>.Shared.Rent(131072);

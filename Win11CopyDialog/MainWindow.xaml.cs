@@ -883,19 +883,25 @@ public partial class MainWindow : Window
         {
             await motion.StartRealTransferAsync(sources, _currentPath);
 
-            if (isCut && motion.Engine.IsCompleted)
+            if (isCut)
             {
-                foreach (var s in sources)
+                // Удаляются только те исходники, копирование которых реально
+                // подтверждено. Раньше удаление шло по одному признаку
+                // IsCompleted, который выставлялся даже после сбоя
+                // перечисления папки, а значит «перемещение» могло удалить
+                // папку целиком, ничего не скопировав.
+                var keptSources = DeleteVerifiedSources(motion.Engine, sources);
+                if (keptSources.Count > 0)
                 {
-                    try
-                    {
-                        if (File.Exists(s)) File.Delete(s);
-                        else if (Directory.Exists(s)) Directory.Delete(s, true);
-                    }
-                    catch { }
+                    // Часть исходников сохранена: буфер обмена чистить нельзя,
+                    // иначе пользователь потеряет возможность повторить операцию.
+                    HapticAudio.PlayClick();
                 }
-                _clipboardPaths.Clear();
-                _clipboardIsCut = false;
+                else
+                {
+                    _clipboardPaths.Clear();
+                    _clipboardIsCut = false;
+                }
             }
         }
         catch (Exception ex)
@@ -978,17 +984,11 @@ public partial class MainWindow : Window
         {
             await motion.StartRealTransferAsync(sList, dst);
 
-            if (isCut && motion.Engine.IsCompleted)
+            if (isCut)
             {
-                foreach (var s in sList)
-                {
-                    try
-                    {
-                        if (File.Exists(s)) File.Delete(s);
-                        else if (Directory.Exists(s)) Directory.Delete(s, true);
-                    }
-                    catch { }
-                }
+                var kept = DeleteVerifiedSources(motion.Engine, sList);
+                if (kept.Count > 0)
+                    HapticAudio.PlayClick();
             }
             HapticAudio.PlaySuccess();
         }
@@ -1810,7 +1810,7 @@ public partial class MainWindow : Window
             // НЕБЛОКИРУЮЩИЙ маршалинг: ProgressTick приходит с потока, который
             // пишет байты на диск. Синхронный Dispatcher.Invoke замедлял копирование
             // и создавал риск дедлока при UI-сталлах (модальные окна, ShowDialog).
-            Dispatcher.BeginInvoke(() =>
+            Dispatcher.Post(() =>
             {
                 double speedMb = motion.Engine.CurrentSpeed / (1024.0 * 1024.0);
                 _currentSpeedMb = speedMb;
@@ -2121,4 +2121,55 @@ public partial class MainWindow : Window
     // перестали вызываться из XAML, но остались в коде. Мёртвые заглушки
     // вводили в заблуждение при чтении и маскировали реальные обработчики
     // настроек, которые живут в SettingsWindow.
+    /// <summary>
+    /// Удаляет исходники после «перемещения» — но только те, копирование
+    /// которых реально подтверждено, и сообщает о каждом сохранённом.
+    ///
+    /// <para>Раньше здесь стояло удаление по одному лишь признаку
+    /// IsCompleted. Из-за этого: падение перечисления папки на
+    /// запрещённом подкаталоге давало пустой список файлов и
+    /// Finish(completed: true), пропущенный пользователем файл удалялся
+    /// не скопированным, а прерванное копирование всё равно удаляло
+    /// исходники. Один запрещённый подкаталог превращал «переместить папку»
+    /// в «удалить папку».</para>
+    ///
+    /// <returns>Список исходников, которые НЕ удалены и остались на месте.</returns>
+    private static List<string> DeleteVerifiedSources(CopyEngine engine, IEnumerable<string> sources)
+    {
+        var kept = new List<string>();
+        if (engine == null || !engine.IsCompleted)
+        {
+            kept.AddRange(sources);
+            return kept;
+        }
+
+        if (!string.IsNullOrEmpty(engine.OperationError))
+        {
+            // Ошибка в ходе операции — не рискуем исходниками целиком.
+            kept.AddRange(sources);
+            return kept;
+        }
+
+        foreach (var s in sources)
+        {
+            if (!engine.CanDeleteSource(s))
+            {
+                kept.Add(s);
+                continue;
+            }
+
+            try
+            {
+                if (File.Exists(s)) File.Delete(s);
+                else if (Directory.Exists(s)) Directory.Delete(s, true);
+            }
+            catch
+            {
+                // Не смогли удалить — это не повод молчать: файл остаётся,
+                // и пользователь должен знать об этом.
+                kept.Add(s);
+            }
+        }
+        return kept;
+    }
 }

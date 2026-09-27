@@ -40,12 +40,12 @@ public partial class MotionCopyWindow : Window
     {
         InitializeComponent();
         FilesList.ItemsSource = Engine.Items;
-        WaveGraph.Values = Engine.SpeedHistory;
+        WaveGraph.Values = Engine.SpeedHistorySnapshot();
 
         // НЕБЛОКИРУЮЩИЙ маршалинг. ProgressTick приходит с потока, который пишет
         // байты на диск — Dispatcher.Invoke здесь замедлял само копирование.
-        _progressTickHandler = (_, _) => Dispatcher.BeginInvoke(RefreshTargets);
-        _completedHandler = (_, _) => Dispatcher.BeginInvoke(OnCompleted);
+        _progressTickHandler = (_, _) => Dispatcher.Post(RefreshTargets);
+        _completedHandler = (_, _) => Dispatcher.Post(OnCompleted);
         Engine.ProgressTick += _progressTickHandler;
         Engine.Completed += _completedHandler;
 
@@ -176,7 +176,7 @@ public partial class MotionCopyWindow : Window
         FluidBar.IsIndeterminate = !Engine.IsRunning && !Engine.IsCompleted && !Engine.IsCancelled && Engine.Items.Count == 0;
 
         double refMax = Math.Max(Engine.BaseSpeedBytesPerSec * 1.25,
-            Engine.SpeedHistory.DefaultIfEmpty(0).Max() * 1.1);
+            Engine.SpeedHistoryMax * 1.1);
         if (refMax < 1) refMax = 1;
         HeroFlow.SpeedNorm = Engine.CurrentSpeed / refMax;
         WaveGraph.Max = refMax;
@@ -228,8 +228,8 @@ public partial class MotionCopyWindow : Window
         StatEta.Text = Engine.IsCompleted ? Formatters.Elapsed(Engine.Elapsed)
             : Engine.IsCancelled ? "—" : Formatters.Eta(Engine.Eta);
 
-        WavePeak.Text = Engine.SpeedHistory.Count > 1
-            ? $"пик {Formatters.Speed(Engine.SpeedHistory.Max())}" : "";
+        WavePeak.Text = Engine.SpeedHistoryCount > 1
+            ? $"пик {Formatters.Speed(Engine.SpeedHistoryMax)}" : "";
 
         TaskbarInfo.ProgressValue = p / 100.0;
         TaskbarInfo.ProgressState = Engine.IsCancelled ? System.Windows.Shell.TaskbarItemProgressState.Error

@@ -40,6 +40,14 @@ public sealed class CopyItem : INotifyPropertyChanged
     public string SizeText => Helpers.Formatters.Bytes(SizeBytes);
     public bool IsFinished => Status is CopyItemStatus.Done or CopyItemStatus.Skipped or CopyItemStatus.Error;
 
+    /// <summary>
+    /// Файл был помечен пропущенным пользователем.
+    /// <para>Нужен, чтобы вызывающий код при «перемещении» НЕ удалял
+    /// исходник пропущенного файла: он не копировался, и удаление
+    /// означало бы потерю данных.</para>
+    /// </summary>
+    public bool WasSkipped { get; set; }
+
     public string StatusGlyph => Status switch
     {
         CopyItemStatus.Done => "✔",
