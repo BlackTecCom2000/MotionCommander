@@ -10,6 +10,53 @@ public static class StorageDiscoveryService
     private static List<StorageDisk>? _cachedDisks;
     private static DateTime _lastScanTime = DateTime.MinValue;
 
+    /// <summary>
+    /// Включает пошаговый вывод времени каждой стадии обнаружения.
+    /// Нужен для диагностики: GetAllDisks синхронный и вызывается из UI,
+    /// поэтому любая зависшая внешняя команда (defrag, fsutil, smartctl)
+    /// подвешивает всё окно безвозвратно.
+    /// </summary>
+    public static bool TraceEnabled { get; set; }
+
+    private static void Trace(string stage, long elapsedMs)
+    {
+        if (!TraceEnabled) return;
+        System.Console.WriteLine($"    [{stage}] {elapsedMs} мс");
+        System.Console.Out.Flush();
+    }
+
+    /// <summary>
+    /// Буква диска может содержать NUL (так отдаёт MSFT_Partition для системных
+    /// разделов), и такой символ в выводе ломает разбор. Показываем точку.
+    /// </summary>
+    private static string Escape(string s) =>
+        string.Concat(s.Select(ch => char.IsControl(ch) ? '·' : ch));
+
+    /// <summary>
+    /// Приводит значение DriveLetter из WMI к чистой букве диска.
+    ///
+    /// <para>MSFT_Partition отдаёт DriveLetter как <c>char</c>, и для разделов
+    /// без буквы (системных, восстановления, OEM) это символ NUL ('\0'), а не
+    /// пустая строка. Из-за этого <c>string.IsNullOrEmpty</c> считал такой
+    /// раздел «имеющим букву диска», и приложение пыталось работать с
+    /// путём вида "\0" — то есть с заведомо несуществующим томом.</para>
+    ///
+    /// <para>String.Trim() здесь не помогает: NUL не является пробельным
+    /// символом по правилам .NET, поэтому он оставался.</para>
+    /// </summary>
+    private static string NormalizeDriveLetter(object? raw)
+    {
+        string s = raw?.ToString() ?? "";
+        var sb = new System.Text.StringBuilder(2);
+        foreach (char ch in s)
+        {
+            if (char.IsControl(ch)) continue;   // NUL и прочие управляющие
+            if (char.IsWhiteSpace(ch)) continue;
+            sb.Append(char.ToUpperInvariant(ch));
+        }
+        return sb.ToString();
+    }
+
     public static List<StorageDisk> GetAllDisks(bool forceRefresh = false)
     {
         lock (_lock)
@@ -20,42 +67,53 @@ public static class StorageDiscoveryService
             }
 
             var disks = new List<StorageDisk>();
+            var sw = System.Diagnostics.Stopwatch.StartNew();
 
             try
             {
                 // Попытка 1: Современный Windows Storage Management API (MSFT_Disk & MSFT_Partition)
                 disks = QueryStorageNamespace();
+                Trace("WMI storage namespace", sw.ElapsedMilliseconds);
             }
             catch
             {
                 // Попытка 2: Fallback на WMI Win32_DiskDrive и DriveInfo
                 disks = QueryWmiFallback();
+                Trace("WMI fallback", sw.ElapsedMilliseconds);
             }
 
             if (disks.Count == 0)
             {
                 disks = QueryWmiFallback();
+                Trace("WMI fallback (пусто)", sw.ElapsedMilliseconds);
             }
 
             // Дополняем данные SMART и здоровьем накопителя.
             // Всё берётся из реальных измерений; недоступное остаётся
             // помеченным как «Нет данных», а не заполняется константами.
+            sw.Restart();
             foreach (var d in disks)
             {
                 SmartHealthService.EnrichDiskHealth(d);
+                Trace($"SMART #{d.DiskNumber}", sw.ElapsedMilliseconds);
+                sw.Restart();
             }
 
-            // Реальная фрагментация через defrag /A.
-            // Раньше AnalyzeFragmentationAsync вообще не вызывался, а вместо
-            // него в модель писалась константа 4.8% (HDD) / 0.5% (SSD).
-            AnalyzeRealFragmentation(disks);
+            // Фрагментация НЕ измеряется здесь намеренно.
+            // `defrag /A` — медленный внешний процесс, который к тому же
+            // зависает при запуске из GUI-процесса без консоли. Раньше он
+            // вызывался синхронно внутри GetAllDisks и намертво подвешивал
+            // вкладку «Накопители». Теперь измерение запускается отдельно,
+            // в фоне, через AnalyzeFragmentationAsync.
 
             // Фрагментация не влияет на сам балл, но влияет на рекомендации,
             // поэтому пересчитываем оценку после того, как она измерена.
+            sw.Restart();
             foreach (var d in disks)
             {
                 StorageAdvisorService.EvaluateScore(d);
             }
+            Trace("оценка", sw.ElapsedMilliseconds);
 
             _cachedDisks = disks;
             _lastScanTime = DateTime.Now;
@@ -66,39 +124,56 @@ public static class StorageDiscoveryService
     /// <summary>
     /// Измеряет реальную фрагментацию через системный дефрагментатор.
     ///
-    /// <para>Раньше фрагментация была константой: 4.8% для HDD и 0.5% для SSD
-    /// (SmartHealthService.CheckTrimAndAlignment), при том что готовый
-    /// анализатор <c>DiskOptimizerService.AnalyzeFragmentationAsync</c> был
-    /// написан, но не вызывался ни разу.</para>
+    /// <para><b>ВАЖНО: этот метод НЕ вызывается из GetAllDisks.</b>
+    /// `defrag /A` — это медленный внешний процесс, и он зависает намертво,
+    /// когда запускается из GUI-процесса без присоединённой консоли:
+    /// WaitForExit не возвращается, и отмена токена не помогает. Так как
+    /// GetAllDisks синхронный и вызывается из UI-потока, это намертво
+    /// подвешивало вкладку «Накопители» при каждом открытии.</para>
     ///
     /// <para>Измерение выполняется только для томов с буквой диска и только
     /// для HDD. Если дефрагментатор не ответил — флаг HasFragmentation
-    /// остаётся снятым, и интерфейс показывает «Нет данных».</para>
+    /// остаётся снятым, и интерфейс показывает «Нет данных», а не 0%.</para>
+    ///
+    /// <para>Вызывать нужно из фонового потока (метод асинхронный), а
+    /// результат применять к дискам на UI-потоке.</para>
     /// </summary>
-    private static void AnalyzeRealFragmentation(List<StorageDisk> disks)
+    public static async System.Threading.Tasks.Task AnalyzeFragmentationAsync(
+        List<StorageDisk> disks,
+        IProgress<string>? progress = null,
+        CancellationToken ct = default)
     {
         foreach (var disk in disks)
         {
+            ct.ThrowIfCancellationRequested();
+
             // Для SSD фрагментация не имеет практического значения,
             // а defrag /A на SSD всё равно ничего полезного не сообщает.
             if (disk.MediaType != StoragePhysicalMedia.HDD) continue;
 
             foreach (var part in disk.Partitions)
             {
+                if (ct.IsCancellationRequested) return;
                 if (string.IsNullOrEmpty(part.DriveLetter)) continue;
 
+                progress?.Report($"Измерение фрагментации {Escape(part.DriveLetter)}: ...");
                 try
                 {
-                    double? pct = DiskOptimizerService
-                        .AnalyzeFragmentationAsync(part.DriveLetter)
-                        .GetAwaiter().GetResult();
+                    double? pct = await DiskOptimizerService
+                        .AnalyzeFragmentationAsync(part.DriveLetter, ct)
+                        .ConfigureAwait(false);
 
                     if (pct.HasValue)
                     {
                         disk.FragmentationPercent = pct.Value;
                         disk.HasFragmentation = true;
+                        progress?.Report($"Фрагментация {Escape(part.DriveLetter)}: {pct.Value:F1}%");
                         break;   // достаточно одного тома на диск
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    return;   // отмена — не ошибка
                 }
                 catch
                 {
@@ -258,7 +333,7 @@ public static class StorageDiscoveryService
             using var collVol = searcherVol.Get();
             foreach (ManagementObject obj in collVol)
             {
-                string letter = obj["DriveLetter"]?.ToString() ?? "";
+                string letter = NormalizeDriveLetter(obj["DriveLetter"]);
                 if (string.IsNullOrEmpty(letter)) continue;
 
                 string label = obj["FileSystemLabel"]?.ToString() ?? "";
@@ -279,7 +354,7 @@ public static class StorageDiscoveryService
                 if (diskNum < 0 || !diskDict.TryGetValue(diskNum, out var targetDisk)) continue;
 
                 int partNum = Convert.ToInt32(obj["PartitionNumber"] ?? 0);
-                string letter = obj["DriveLetter"]?.ToString() ?? "";
+                string letter = NormalizeDriveLetter(obj["DriveLetter"]?.ToString());
                 long size = Convert.ToInt64(obj["Size"] ?? 0);
                 string gptType = obj["GptType"]?.ToString() ?? "";
                 bool isSys = Convert.ToBoolean(obj["IsSystem"] ?? false);
@@ -447,7 +522,7 @@ public static class StorageDiscoveryService
                 disks[0].Partitions.Add(new StoragePartition
                 {
                     DiskNumber = disks[0].DiskNumber,
-                    DriveLetter = d.Name.TrimEnd('\\', ':'),
+                    DriveLetter = NormalizeDriveLetter(d.Name),
                     VolumeLabel = d.VolumeLabel,
                     FileSystem = d.DriveFormat,
                     SizeBytes = d.TotalSize,

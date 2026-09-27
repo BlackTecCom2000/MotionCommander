@@ -126,6 +126,27 @@ public static class StorageAdvisorService
     {
         var s = disk.Score;
 
+        // Списки очищаются перед расчётом.
+        // Раньше они только дописывались, поэтому при повторной оценке
+        // (она вызывается и при обнаружении, и после измерения фрагментации)
+        // одни и те же предупреждения накапливались по нескольку копий,
+        // и пользователь видел «Нет измеренных данных» два-три раза подряд.
+        s.Warnings.Clear();
+        s.Optimizations.Clear();
+
+        // Все под-оценки сбрасываются: иначе при повторном расчёте остались бы
+        // значения от предыдущего измерения, которого больше не существует.
+        s.HealthScore = 0;
+        s.TemperatureScore = 0;
+        s.SpaceScore = 0;
+        s.LatencyScore = 0;
+        s.WearScore = 0;
+        s.HasHealth = false;
+        s.HasTemperature = false;
+        s.HasSpace = false;
+        s.HasLatency = false;
+        s.HasWear = false;
+
         double weightSum = 0;
         double weightedSum = 0;
 
@@ -186,6 +207,10 @@ public static class StorageAdvisorService
         }
 
         // ── Свободное место: реальные данные разделов ─────────────────────
+        // ВАЖНО: это справочная величина, она НЕ входит в оценку состояния.
+        // Раньше здесь стоял Add(s.SpaceScore, 0.25, true), и диск без единого
+        // сигнала здоровья получал 100/100 «A+» только за наличие свободного
+        // места. Заполненность диска ничего не говорит о состоянии носителя.
         if (disk.TotalSizeBytes > 0 && disk.Partitions.Count > 0)
         {
             s.SpaceScore = disk.FreeSpacePercent switch
@@ -196,7 +221,6 @@ public static class StorageAdvisorService
                 _ => 35
             };
             s.HasSpace = true;
-            Add(s.SpaceScore, 0.25, true);
         }
 
         // ── Задержка: только если есть реальная телеметрия нагрузки ───────
@@ -229,7 +253,16 @@ public static class StorageAdvisorService
         if (!s.IsCalculated)
         {
             s.TotalScore = 0;
-            s.Warnings.Add("Нет измеренных данных для расчёта оценки состояния.");
+            s.Warnings.Add("Нет измеренных данных для расчёта оценки состояния. " +
+                           "Свободное место и ёмкость не являются показателями здоровья носителя.");
+        }
+        else if (s.MeasuredComponentCount == 1)
+        {
+            // Один сигнал из четырёх — вердикт обнадёжен слабо, и говорить
+            // об этом нужно прямо, а не молча ставить «A+».
+            s.Warnings.Add(
+                $"Оценка основана только на одном показателе ({s.BasisDescription.TrimStart("На основе: ".ToCharArray())}). " +
+                "Для полной картины нужны данные S.M.A.R.T. и датчика температуры.");
         }
         else if (weightSum < 1.0)
         {

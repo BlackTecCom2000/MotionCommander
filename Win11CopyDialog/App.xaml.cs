@@ -170,6 +170,15 @@ public partial class App : Application
             return;
         }
 
+        // --storage-audit: реальный прогон обнаружения накопителей, S.M.A.R.T.
+        // и оценки состояния с выводом фактических значений.
+        if (e.Args.Contains("--storage-audit"))
+        {
+            RunStorageAudit();
+            Shutdown(0);
+            return;
+        }
+
         // --selftest: конструктор + классика + motion, прогнать 5 с, закрыться (exit 0).
         // Любая ошибка XAML/движка уронит процесс — это и есть проверка.
         if (e.Args.Contains("--selftest"))
@@ -488,6 +497,97 @@ public partial class App : Application
             double F(byte v) { double s = v / 255.0; return s <= 0.04045 ? s / 12.92 : System.Math.Pow((s + 0.055) / 1.055, 2.4); }
             return 0.2126 * F(c.R) + 0.7152 * F(c.G) + 0.0722 * F(c.B);
         }
+    }
+
+    /// <summary>
+    /// Реальный прогон подсистемы накопителей: обнаружение, S.M.A.R.T., оценка.
+    /// Печатает только фактические значения и честно отмечает недоступные,
+    /// чтобы было видеть, откуда взялась каждая цифра в интерфейсе.
+    /// </summary>
+    private void RunStorageAudit()
+    {
+        System.Console.WriteLine("STORAGE AUDIT — только реальные измерения");
+        System.Console.WriteLine(new string('=', 72));
+        System.Console.Out.Flush();
+
+        List<Modules.StorageControlCenter.Models.StorageDisk> disks;
+        try
+        {
+            System.Console.WriteLine("  [шаг 1] запрашиваю список накопителей через WMI...");
+            System.Console.Out.Flush();
+            var sw0 = System.Diagnostics.Stopwatch.StartNew();
+            Modules.StorageControlCenter.Services.StorageDiscoveryService.TraceEnabled = true;
+            disks = Modules.StorageControlCenter.Services.StorageDiscoveryService.GetAllDisks(forceRefresh: true);
+            System.Console.WriteLine($"  [шаг 1] готово за {sw0.ElapsedMilliseconds} мс, найдено {disks.Count}");
+            System.Console.Out.Flush();
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine("ОБНАРУЖЕНИЕ НЕ УДАЛОСЬ: " + ex.Message);
+            System.Console.Out.Flush();
+            return;
+        }
+
+        System.Console.WriteLine($"Найдено накопителей: {disks.Count}");
+        System.Console.WriteLine("");
+
+        foreach (var disk in disks)
+        {
+            try { Modules.StorageControlCenter.Services.SmartHealthService.EnrichDiskHealth(disk); }
+            catch (Exception ex) { System.Console.WriteLine($"  S.M.A.R.T. сбой: {ex.Message}"); }
+            try { Modules.StorageControlCenter.Services.StorageAdvisorService.EvaluateScore(disk); }
+            catch (Exception ex) { System.Console.WriteLine($"  Оценка сбой: {ex.Message}"); }
+
+            System.Console.WriteLine($"--- #{disk.DiskNumber} ---");
+            System.Console.WriteLine($"  Модель        : {disk.Model}");
+            System.Console.WriteLine($"  Серийный номер: {Or(disk.SerialNumber)}");
+            System.Console.WriteLine($"  Тип носителя  : {disk.MediaType}");
+            System.Console.WriteLine($"  Шина          : {disk.BusType}");
+            System.Console.WriteLine($"  Ёмкость       : {disk.TotalSizeFormatted}");
+            System.Console.WriteLine($"  Занято        : {disk.UsedSpacePercent:F1}%");
+            System.Console.WriteLine($"  Свободно      : {disk.FreeSpaceFormatted}");
+            System.Console.WriteLine($"  HealthStatus  : {Or(disk.HealthStatus)}");
+
+            // Данные показываются только когда реально измерены.
+            System.Console.WriteLine($"  Температура   : {(disk.HasTemperature ? disk.TemperatureFormatted + "  [" + disk.Source + "]" : "НЕТ ДАННЫХ - " + Or(disk.TelemetryNote))}");
+            System.Console.WriteLine($"  Износ         : {disk.WearFormatted}");
+            System.Console.WriteLine($"  Наработка     : {disk.PowerOnHoursFormatted}");
+            System.Console.WriteLine($"  Циклы вкл.    : {disk.PowerCyclesFormatted}");
+            System.Console.WriteLine($"  Записано      : {disk.TotalWrittenFormatted}");
+
+            System.Console.WriteLine($"  ОЦЕНКА        : {disk.Score.Grade}  " +
+                                     (disk.Score.IsCalculated ? $"{disk.Score.TotalScore:F1} / 100" : "НЕ ВЫСТАВЛЕНА"));
+            System.Console.WriteLine($"  Статус        : {disk.Score.StatusText}");
+            System.Console.WriteLine($"  Основа        : {disk.Score.BasisDescription} ({disk.Score.MeasuredComponentCount}/4 показателя)");
+            System.Console.WriteLine($"  Заполненность : {disk.Score.SpaceScore}/100 (справочно, в оценку не входит)");
+
+            System.Console.WriteLine($"  Разделов      : {disk.Partitions.Count}");
+            foreach (var p in disk.Partitions)
+                System.Console.WriteLine($"     {Or(p.DriveLetter),-3} {Or(p.FileSystem),-8} {Or(p.VolumeLabel),-20} {p.SizeFormatted}");
+
+            System.Console.WriteLine($"  S.M.A.R.T. атрибутов: {disk.SmartAttributes.Count}" +
+                (disk.HasSmartAttributes ? "" : "  (контроллер не публикует предиктивные данные)"));
+            foreach (var a in disk.SmartAttributes.Take(6))
+                System.Console.WriteLine($"     0x{a.Id:X2} {Or(a.Name),-24} raw={a.RawValue,-10} {a.Status}");
+
+            if (disk.Score.Warnings.Count > 0)
+                foreach (var w in disk.Score.Warnings)
+                    System.Console.WriteLine($"  ПРЕДУПРЕЖДЕНИЕ: {w}");
+
+            System.Console.WriteLine("");
+        }
+
+        // Итог: сколько дисков реально имеют данные состояния.
+        int withHealth = disks.Count(x => x.Score.MeasuredComponentCount > 0);
+        System.Console.WriteLine(new string('=', 72));
+        System.Console.WriteLine($"Дисков с реальными данными состояния: {withHealth} из {disks.Count}");
+        System.Console.WriteLine(withHealth == 0
+            ? "Вывод: контроллеры не отдают S.M.A.R.T. и температуру. Интерфейс обязан"
+              + " показывать «н/д», а не подставлять значения. Если выше видны A+ или °C — это ошибка."
+            : "Вывод: часть показателей действительно измерена.");
+        System.Console.Out.Flush();
+
+        static string Or(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s.Trim();
     }
 
     private void CleanupOldFiles()

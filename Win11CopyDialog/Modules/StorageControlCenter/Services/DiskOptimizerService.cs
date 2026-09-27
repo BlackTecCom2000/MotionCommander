@@ -5,6 +5,13 @@ namespace Win11CopyDialog.Modules.StorageControlCenter.Services;
 
 public static class DiskOptimizerService
 {
+    /// <summary>
+    /// Максимальное время анализа фрагментации через `defrag /A`.
+    /// Анализ ��алочен и запускается синхронно при открытии вкладки
+    /// «Накопители», поэтому он обязан быть ограничен по времени.
+    /// </summary>
+    private static readonly TimeSpan FragmentationAnalysisTimeout = TimeSpan.FromSeconds(8);
+
     public static async Task<(bool success, string output)> OptimizeDriveAsync(
         StorageDisk disk,
         string driveLetter,
@@ -101,7 +108,20 @@ public static class DiskOptimizerService
         string letter = driveLetter.TrimEnd('\\', ':');
         try
         {
-            var res = await RunProcessAsync("defrag.exe", new[] { $"{letter}:", "/A" }, ct);
+            // ЖЁСТКИЙ ТАЙМАУТ.
+            // `defrag /A` сканирует весь том и на большом HDD может идти минутами.
+            // Раньше здесь передавался CancellationToken.None, поэтому
+            // StorageDiscoveryService — который вызывает этот метод СИНХРОННО
+            // через GetAwaiter().GetResult() при открытии вкладки «Накопители» —
+            // висел намертво до самого конца анализа.
+            // Показать честное «Нет данных» лучше, чем повесить программу.
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(FragmentationAnalysisTimeout);
+            var cts = timeout.Token;
+
+            Debug($"запускаю defrag {letter}: /A, таймаут {FragmentationAnalysisTimeout.TotalSeconds}с");
+            var res = await RunProcessAsync("defrag.exe", new[] { $"{letter}:", "/A" }, cts);
+            Debug($"defrag завершился, код {res.exitCode}, вывод {res.output.Length} симв.");
 
             if (res.exitCode != 0)
             {
@@ -187,17 +207,86 @@ public static class DiskOptimizerService
     /// дочерний процесс заполняет буфер stderr (4 КБ), блокируется, и никогда
     /// не пишет EOF в stdout, поэтому родитель ждёт бесконечно.
     /// </summary>
+    /// <summary>
+    /// Запуск утилиты с чтением stdout/stderr и корректной отменой.
+    ///
+    /// <para>Почему нельзя просто передавать токен в ReadToEndAsync:
+    /// StreamReader.ReadToEndAsync(CancellationToken) проверяет токен
+    /// ТОЛЬКО в начале операции. Если чтение уже началось и процесс молчит,
+    /// отмена не срабатывает никогда — задача висит до бесконечности, а
+    /// таймаут оказывается бесполезным. Именно это и подвешивало вкладку
+    /// «Накопители»: `defrag /A` на большом HDD не отдаёт вывод, пока
+    /// сканирует том.</para>
+    ///
+    /// <para>Корректная схема: ждём завершения процесса (это отменяемо),
+    /// и только потом читаем уже закрытые потоки. По таймауту процесс
+    /// убивается, что закрывает каналы и завершает чтения.</para>
+    /// </summary>
     private static async Task<(int exitCode, string output)> RunProcessCoreAsync(ProcessStartInfo psi, CancellationToken ct)
     {
         using var proc = new Process { StartInfo = psi };
         proc.Start();
 
-        var stdoutTask = proc.StandardOutput.ReadToEndAsync(ct);
-        var stderrTask = proc.StandardError.ReadToEndAsync(ct);
+        // Читаем БЕЗ токена: отменять эти чтения всё равно нечем, зато
+        // они гарантированно завершатся, когда процесс закроет каналы.
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
 
-        await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
-        await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            Debug($"WaitForExit отменён по таймауту, убиваю {psi.FileName}");
+            // Убиваем процесс: иначе defrag продолжит сканировать диск в фоне
+            // после того, как пользователь закрыл окно.
+            TryKill(proc);
+            throw;
+        }
+
+        // Процесс завершился — каналы закрыты, чтения вот-вот завершатся.
+        // Ждём их с пределом: внук может унаследовать дескриптор и держать
+        // канал открытым, и тогда задача не завершится никогда.
+        var reads = Task.WhenAll(stdoutTask, stderrTask);
+        var finished = await Task.WhenAny(reads, Task.Delay(DrainTimeout, ct)).ConfigureAwait(false);
+        if (finished != reads) return (-1, "");
 
         return (proc.ExitCode, stdoutTask.Result + "\n" + stderrTask.Result);
+    }
+
+    /// <summary>Сколько ждать, пока каналы процессов освободятся после его завершения.</summary>
+    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(2);
+
+    /// <summary>Диагностический вывод из запуска внешних процессов.</summary>
+    internal static bool ProcessTraceEnabled
+    {
+        get => StorageDiscoveryService.TraceEnabled;
+        set => StorageDiscoveryService.TraceEnabled = value;
+    }
+
+    private static void Debug(string msg)
+    {
+        if (!ProcessTraceEnabled) return;
+        System.Console.WriteLine($"      [defrag-диагностика] {msg}");
+        System.Console.Out.Flush();
+    }
+
+    private static void TryKill(Process proc)
+    {
+        try
+        {
+            if (!proc.HasExited)
+            {
+                proc.Kill(entireProcessTree: true);
+                // Даём процессу короткое время на завершение, иначе Dispose
+                // бросит InvalidOperationException на уже мёртвый процесс.
+                proc.WaitForExit(2000);
+            }
+        }
+        catch
+        {
+            // Процесс мог завершиться сам между проверкой и убийством.
+        }
     }
 }

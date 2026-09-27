@@ -152,6 +152,20 @@ public sealed class StorageDisk
     /// <summary>Температура или честное «Нет данных».</summary>
     public string TemperatureFormatted => HasTemperature ? $"{TemperatureC:F0} °C" : "Нет данных";
 
+    /// <summary>
+    /// Компактная надпись для карточки диска. Отдельное свойство, а не обрезанный
+    /// TemperatureFormatted, потому что в карточке формат «н/д» короче и читается
+    /// как «измерение отсутствует», а не как «ноль градусов».
+    /// </summary>
+    public string TemperatureDisplay => HasTemperature ? $"{TemperatureC:F0}°C" : "°C н/д";
+
+    /// <summary>Откуда взята температура — показывается в подсказке, чтобы было видно источник.</summary>
+    public string TemperatureSourceDescription => HasTemperature
+        ? $"Источник: {Source}." + (string.IsNullOrEmpty(TelemetryNote) ? "" : " " + TelemetryNote)
+        : (string.IsNullOrEmpty(TelemetryNote)
+            ? "Температура недоступна: контроллер диска не публикует данные датчика."
+            : "Температура недоступна. " + TelemetryNote);
+
     /// <summary>Ресурс или честное «Нет данных».</summary>
     public string WearFormatted =>
         HasWear ? $"{LifetimeRemainingPercent:F0}% (износ {WearLevelPercent:F0}%)" : "Нет данных";

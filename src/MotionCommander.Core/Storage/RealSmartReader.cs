@@ -188,6 +188,12 @@ public static class RealSmartReader
         return false;
     }
 
+    /// <summary>Сколько ждём завершения процесса smartctl.</summary>
+    private const int SmartctlTimeoutMs = 20_000;
+
+    /// <summary>Сколько ждём освобождения каналов после завершения smartctl.</summary>
+    private const int DrainTimeoutMs = 5_000;
+
     /// <summary>
     /// Читает реальные данные через smartctl (Linux) с разбором JSON-вывода.
     /// Возвращает false, если smartctl не установлен или не поддерживает -j.
@@ -198,6 +204,7 @@ public static class RealSmartReader
         try
         {
             var psi = new ProcessStartInfo
+
             {
                 FileName = "smartctl",
                 RedirectStandardOutput = true,
@@ -214,7 +221,23 @@ public static class RealSmartReader
 
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
-            Task.WaitAll(new Task[] { stdoutTask, stderrTask }, 20000);
+
+            // Раньше здесь стояло Task.WaitAll(..., 20000) БЕЗ проверки
+            // результата, после чего вызывался stdoutTask.Result. Если чтение
+            // не завершилось за 20 секунд, .Result блокировался навсегда —
+            // smartctl на SCSI/USB-мостах умеет молчать очень долго.
+            // Теперь процесс сначала дожидается завершения с таймаутом,
+            // и только потом читается вывод, гарантированно уже закрытый.
+            if (!proc.WaitForExit(SmartctlTimeoutMs))
+            {
+                try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+                return (false, null, null, null, null, null, "smartctl не ответил за 20 с.");
+            }
+
+            var reads = Task.WhenAll(stdoutTask, stderrTask);
+            if (!reads.Wait(DrainTimeoutMs))
+                return (false, null, null, null, null, null, "Вывод smartctl не был получен.");
+
             var output = stdoutTask.Result;
 
             if (string.IsNullOrWhiteSpace(output))

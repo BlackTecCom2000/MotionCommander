@@ -407,7 +407,15 @@ public static class SmartHealthService
     private static bool MediaSupportsTrim(StoragePhysicalMedia media) =>
         media is StoragePhysicalMedia.NVMeSSD or StoragePhysicalMedia.SataSSD;
 
-    /// <summary>Запуск утилиты с одновременным чтением stdout и stderr.</summary>
+    /// <summary>
+    /// Запуск утилиты с одновременным чтением stdout и stderr.
+    ///
+    /// <para>Раньше здесь стояло Task.WaitAll(..., 5000), а затем
+    /// stdoutTask.Result без проверки результата ожидания. Если чтение не
+    /// успевало завершиться, .Result блокировался НАВСЕГДА. Сейчас
+    /// используется WhenAny с пределом, и .Result вызывается только у
+    /// гарантированно завершённых задач.</para>
+    /// </summary>
     private static (int exitCode, string output) RunProcess(string exe, string[] args, int timeoutMs)
     {
         try
@@ -433,11 +441,14 @@ public static class SmartHealthService
 
             if (!proc.WaitForExit(timeoutMs))
             {
-                try { proc.Kill(); } catch { }
+                try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
                 return (-1, "");
             }
 
-            Task.WaitAll(new Task[] { stdoutTask, stderrTask }, 5000);
+            // Процесс завершился, каналы закрыты. Ждём освобождения буферов
+            // с пределом и НЕ блокируемся на .Result при незавершённой задаче.
+            var reads = Task.WhenAll(stdoutTask, stderrTask);
+            if (!reads.Wait(DrainTimeoutMs)) return (proc.ExitCode, "");
 
             return (proc.ExitCode, stdoutTask.Result + "\n" + stderrTask.Result);
         }
@@ -446,6 +457,9 @@ public static class SmartHealthService
             return (-1, "");
         }
     }
+
+    /// <summary>Предел ожидания освобождения каналов после завершения процесса.</summary>
+    private static readonly int DrainTimeoutMs = 5000;
 
     // ── Вспомогательные методы разбора значений ──────────────────────────────
 

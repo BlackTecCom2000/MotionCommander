@@ -112,8 +112,12 @@
                                 </Border>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="Storage Score" FontSize="11" Style="{StaticResource MutedText}"/>
-                                    <TextBlock x:Name="HealthScoreValueText" Text="— / 100" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                    <TextBlock x:Name="HealthScoreValueText" Text="н/д" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                                     <TextBlock x:Name="HealthScoreStatusText" Text="Ожидание измерения…" FontSize="10" Foreground="#10B981"/>
+                                    <!-- Показывает, на каких реальных измерениях основан вердикт.
+                                         Без этой строки «A+» выглядит как факт, хотя чаще всего
+                                         измерен только один параметр из четырёх. -->
+                                    <TextBlock x:Name="HealthScoreBasisText" Text="" FontSize="9" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </DockPanel>
                         </Border>

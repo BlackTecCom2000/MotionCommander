@@ -169,6 +169,74 @@ public partial class StorageControlCenterView : UserControl
         // Загрузка категорий очистки
         LoadCleanupCategories();
         MigrationWizardComponent.SetDisks(_disks);
+
+        // Фрагментация измеряется ОТДЕЛЬНО и в фоне.
+        // Раньше `defrag /A` запускался синхронно внутри GetAllDisks и
+        // подвешивал вкладку: процесс зависает при запуске из GUI без
+        // консоли, и отмена не помогает. Теперь это фоновая задача с
+        // результатом «Нет данных», если дефрагментатор не ответил.
+        _ = MeasureFragmentationInBackgroundAsync();
+    }
+
+    private CancellationTokenSource? _fragmentationCts;
+
+    /// <summary>
+    /// Фоновое измерение фрагментации. Диски обновляются на месте,
+    /// поэтому перерисовываем панель только по завершении.
+    /// </summary>
+    private async Task MeasureFragmentationInBackgroundAsync()
+    {
+        var disks = _disks;
+        if (disks == null || disks.Count == 0) return;
+
+        var cts = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _fragmentationCts, cts);
+        previous?.Cancel();
+        previous?.Dispose();
+
+        try
+        {
+            await StorageDiscoveryService.AnalyzeFragmentationAsync(disks, progress: null, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch
+        {
+            // Фрагментация — справочные данные; её отсутствие не должно
+            // ломать интерфейс. HasFragmentation остаётся снятым.
+            return;
+        }
+        finally
+        {
+            Interlocked.CompareExchange(ref _fragmentationCts, null, cts);
+        }
+
+        if (cts.IsCancellationRequested) return;
+        if (!IsLoaded) return;
+
+        // Результат применяем на UI-потоке.
+        await Dispatcher.InvokeAsync(() =>
+        {
+            if (_disks == null) return;
+            foreach (var d in _disks)
+            {
+                // Оценка пересчитывается, потому что фрагментация влияет
+                // на рекомендации, даже если не влияет на сам балл.
+                StorageAdvisorService.EvaluateScore(d);
+            }
+
+            DrivesStripPanel.Children.Clear();
+            foreach (var d in _disks)
+                DrivesStripPanel.Children.Add(CreateDiskCard(d));
+
+            if (_selectedDisk != null)
+            {
+                var again = _disks.FirstOrDefault(d => d.DiskNumber == _selectedDisk.DiskNumber);
+                if (again != null) SelectDisk(again);
+            }
+        });
     }
 
     private UIElement CreateDiskCard(StorageDisk disk)
@@ -228,7 +296,12 @@ public partial class StorageControlCenterView : UserControl
         var statusStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         DockPanel.SetDock(statusStack, Dock.Right);
 
-        // Индикатор здоровья
+        // Индикатор здоровья.
+        // Раньше здесь безусловно показывались буква оценки и её цвет, даже когда
+        // оценка не рассчитана (нет измеренных данных), а также «0°C» для
+        // непомеренной температуры. Пользователь видел «A+ 0°C» на диске,
+        // о котором приложение ничего не знает. Теперь при отсутствии данных
+        // показывается «н/д» нейтральным цветом, а не выдуманная оценка.
         var healthPill = new Border
         {
             Background = (Brush)FindResource("ChipBackgroundBrush"),
@@ -238,41 +311,77 @@ public partial class StorageControlCenterView : UserControl
             VerticalAlignment = VerticalAlignment.Center
         };
         var healthStack = new StackPanel { Orientation = Orientation.Horizontal };
+
+        bool scoreKnown = disk.Score.IsCalculated;
+        // Цвет точки: только если оценка реально посчитана, иначе нейтральный.
+        var dotColor = scoreKnown
+            ? (disk.Score.TotalScore >= 80 ? Color.FromRgb(16, 185, 129)
+             : disk.Score.TotalScore >= 60 ? Color.FromRgb(245, 158, 11)
+             : Color.FromRgb(239, 68, 68))
+            : Color.FromRgb(120, 130, 150);
+
         healthStack.Children.Add(new Ellipse
         {
             Width = 5,
             Height = 5,
-            Fill = disk.Score.TotalScore >= 80 ? new SolidColorBrush(Color.FromRgb(16, 185, 129)) : (disk.Score.TotalScore >= 60 ? new SolidColorBrush(Color.FromRgb(245, 158, 11)) : new SolidColorBrush(Color.FromRgb(239, 68, 68))),
+            Fill = new SolidColorBrush(dotColor),
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 3, 0)
         });
         healthStack.Children.Add(new TextBlock
         {
-            Text = $"{disk.Score.Grade}",
+            Text = scoreKnown ? disk.Score.Grade : "н/д",
             FontSize = 8.5,
             FontWeight = FontWeights.Bold,
-            Foreground = (Brush)FindResource("PrimaryTextBrush")
+            Foreground = scoreKnown
+                ? (Brush)FindResource("PrimaryTextBrush")
+                : (Brush)FindResource("SecondaryTextBrush"),
+            ToolTip = scoreKnown
+                ? $"Оценка {disk.Score.TotalScore:F0}/100 по измеренным параметрам"
+                : "Оценка не рассчитана: контроллер не отдаёт измеримые параметры"
         });
         healthPill.Child = healthStack;
         statusStack.Children.Add(healthPill);
 
-        // Температура
-        var tempBrush = new BrushConverter().ConvertFromString(disk.TemperatureColor) as Brush ?? (Brush)FindResource("PrimaryTextBrush");
-        var tempPill = new Border
+        // Температура: только если реально измерена.
+        if (disk.HasTemperature)
         {
-            Background = (Brush)FindResource("ChipBackgroundBrush"),
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(4, 1, 4, 1),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        tempPill.Child = new TextBlock
+            var tempBrush = new BrushConverter().ConvertFromString(disk.TemperatureColor) as Brush ?? (Brush)FindResource("PrimaryTextBrush");
+            var tempPill = new Border
+            {
+                Background = (Brush)FindResource("ChipBackgroundBrush"),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4, 1, 4, 1),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            tempPill.Child = new TextBlock
+            {
+                Text = disk.TemperatureDisplay,
+                FontSize = 8.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = tempBrush,
+                ToolTip = disk.TemperatureSourceDescription
+            };
+            statusStack.Children.Add(tempPill);
+        }
+        else
         {
-            Text = $"{disk.TemperatureC:F0}°C",
-            FontSize = 8.5,
-            FontWeight = FontWeights.Bold,
-            Foreground = tempBrush
-        };
-        statusStack.Children.Add(tempPill);
+            var tempPill = new Border
+            {
+                Background = (Brush)FindResource("ChipBackgroundBrush"),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4, 1, 4, 1),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            tempPill.Child = new TextBlock
+            {
+                Text = "°C: н/д",
+                FontSize = 8.5,
+                Foreground = (Brush)FindResource("SecondaryTextBrush"),
+                ToolTip = "Температура недоступна: контроллер диска не публикует датчик"
+            };
+            statusStack.Children.Add(tempPill);
+        }
 
         row0.Children.Add(statusStack);
         Grid.SetRow(row0, 0);
@@ -382,9 +491,18 @@ public partial class StorageControlCenterView : UserControl
         HealthScoreGradeText.Text = disk.Score.Grade;
         HealthScoreValueText.Text = disk.Score.IsCalculated
             ? $"{disk.Score.TotalScore:F0} / 100"
-            : "— / 100";
+            : "н/д";
         HealthScoreStatusText.Text = disk.Score.StatusText;
         HealthScoreStatusText.Foreground = new BrushConverter().ConvertFromString(disk.Score.StatusColor) as Brush;
+
+        // На чём именно основан вердикт. Без этой строки «A+» выглядит как
+        // факт, хотя зачастую измерен был один параметр из четырёх.
+        if (HealthScoreBasisText != null)
+        {
+            HealthScoreBasisText.Text = disk.Score.IsCalculated
+                ? $"{disk.Score.BasisDescription} · уверенность {disk.Score.MeasuredComponentCount}/4"
+                : "Ни один показатель состояния не измерен — оценка не выставляется";
+        }
 
         // ── Температура: только реальное измерение ──────────────────────────
         DiskTempValueText.Text = disk.TemperatureFormatted;
