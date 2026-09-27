@@ -71,4 +71,30 @@ public static class UiDispatcher
 
         dispatcher.Post(action);
     }
+
+    /// <summary>
+    /// Ищет ресурс по всей цепочке словарей приложения.
+    ///
+    /// <para>Application.Resources["Key"] НЕ ищет в объединённых словарях,
+    /// поэтому часть токенов молча возвращала null и код падал обратно на
+    /// запасной цвет. Индексатор словаря, наоборот, проходит по цепочке
+    /// MergedDictionaries — ровно как это делает {DynamicResource} в разметке.</para>
+    /// </summary>
+    public static object? LookupResource(ResourceDictionary dict, string key, int depth = 0)
+    {
+        if (dict is null || depth > 4) return null;
+        try
+        {
+            if (dict.Contains(key)) return dict[key];
+        }
+        catch { /* значение есть, но вычисление не удалось */ }
+
+        foreach (var merged in dict.MergedDictionaries)
+        {
+            if (merged == null) continue;
+            var v = LookupResource(merged, key, depth + 1);
+            if (v != null) return v;
+        }
+        return null;
+    }
 }

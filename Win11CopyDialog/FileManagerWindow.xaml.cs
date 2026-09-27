@@ -31,14 +31,32 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
         Loaded += FileManagerWindow_Loaded;
         Closed += FileManagerWindow_Closed;
+
+        // Раньше StartCopy() не вызывался НИ ОТКУДА: пункт «Копировать»
+        // наполнял внутренний буфер, а «Вставить» был пустым телом.
+        // То есть файловый менеджер выглядел полноценным, но не умел
+        // ничего переносить. Теперь вставка идёт в реальный движок.
+        FileList.PasteRequested += FileList_PasteRequested;
     }
 
     private async void FileManagerWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(280)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+        // Пружина вместо CubicEase. Окно «вырастает» с лёгким перелётом
+        // вместо разгона по начертанной кривой: реакция зависит от
+        // величины смещения, а не задана формой функции.
+        //
+        // В режиме «Эконом» пружина заменяется на Precise (без колебаний),
+        // а не отключается: исчезновение движения читается как ошибка
+        // отрисовки, а ровное появление — как штатное поведение.
+        var springKind = ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy
+            ? SpringEasing.SpringKind.Precise
+            : SpringEasing.SpringKind.Gentle;
+
+        var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(280))
+        { EasingFunction = new SpringEasing(springKind) };
         RootBorder.BeginAnimation(OpacityProperty, fade);
-        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, new DoubleAnimation(0.97, 1, TimeSpan.FromMilliseconds(280)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
-        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, new DoubleAnimation(0.97, 1, TimeSpan.FromMilliseconds(280)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, new DoubleAnimation(0.97, 1, TimeSpan.FromMilliseconds(280)) { EasingFunction = new SpringEasing(springKind) });
+        RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, new DoubleAnimation(0.97, 1, TimeSpan.FromMilliseconds(280)) { EasingFunction = new SpringEasing(springKind) });
 
         await FolderTree.LoadDrivesAsync();
         
@@ -345,12 +363,51 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
         win.Show();
     }
 
+    /// <summary>
+    /// Обработчик «Вставить». Копирует элементы буфера в текущий каталог
+    /// через тот же движок CopyEngine, что и главное окно.
+    ///
+    /// <para>Раньше здесь ничего не было: пункт «Вставить» был пустым телом,
+    /// а StartCopy() не вызывался ниоткуда. Копирование велось отдельным
+    /// наивным циклом по файлам, без защиты от одноимённых файлов, без
+    /// проверки целостности и без подтверждения перезаписи.</para>
+    /// </summary>
+    private async void FileList_PasteRequested(FileEntry[] entries, bool isCut)
+    {
+        if (entries.Length == 0) return;
+        if (string.IsNullOrEmpty(_currentPath)) return;
+
+        // Копирование папки в саму себя бессмысленно и опасно.
+        foreach (var e in entries)
+        {
+            if (string.Equals(
+                    System.IO.Path.GetFullPath(e.FullPath).TrimEnd('\\'),
+                    System.IO.Path.GetFullPath(_currentPath).TrimEnd('\\'),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Нельзя вставить объект в саму себя.", "Вставить",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+
+        await StartCopy(entries, _currentPath, isCut);
+    }
+
     // Copy with Motion progress overlay
-    public async void StartCopy(FileEntry[] sources, string destDir)
+    /// <param name="isCut">
+    /// true — после успешного копирования исходники удаляются, и только те,
+    /// чьё копирование подтверждено (см. CopyEngine.CanDeleteSource).
+    /// </param>
+    public async Task StartCopy(FileEntry[] sources, string destDir, bool isCut = false)
     {
         if (sources.Length == 0) return;
 
-        _copyCts = new CancellationTokenSource();
+        var cts = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _copyCts, cts);
+        previous?.Cancel();
+        previous?.Dispose();
+
         _isCopyPaused = false;
         _copyStart = DateTime.Now;
 
@@ -358,23 +415,85 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
         CopyOverlay.Opacity = 0;
         CopyOverlay.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200)));
 
-        var progress = new Progress<CopyProgress>(p => Dispatcher.Invoke(() => UpdateCopyUI(p)));
-        
+        // Движок с теми же гарантиями, что и в главном окне: коллизии имён
+        // разрешаются, файл дописывается через .partial с проверкой длины и
+        // (если включено) сверкой CRC-32.
+        var engine = new Models.CopyEngine();
+        var token = cts.Token;
+
+        // Обработчик объявлен ДО try, иначе его не видно в finally.
+        EventHandler onProgress = (_, _) => Dispatcher.Post(() =>
+        {
+            var total = engine.TotalBytes;
+            if (total > 0) CopyProgressBar.SetSafe(engine.CopiedBytes * 100.0 / total);
+            CopySpeedText.Text = Formatters.Speed(engine.CurrentSpeed);
+            CopyEtaText.Text = Formatters.Eta(TimeSpan.FromSeconds(engine.Eta.TotalSeconds));
+            CopyFileName.Text = engine.CurrentItem?.FileName ?? "";
+        });
+
         try
         {
-            foreach (var source in sources)
+            engine.ProgressTick += onProgress;
+
+            var pairs = sources
+                .Where(s => !string.IsNullOrWhiteSpace(s.FullPath))
+                .Select(s => (s.FullPath, destDir));
+
+            // Движок асинхронный, поэтому оборачиваем в async-делегат:
+            // иначе получается Task<Task> и await не разворачивает внутренний.
+            // Заодно уводим работу с UI-потока: конвейер и CRC-сверка
+            // блокировали бы интерфейс.
+            var run = Task.Run(async () => await engine.StartRealCopyAsync(pairs, token), token);
+            onProgress(null, EventArgs.Empty);
+            await run.ConfigureAwait(true);
+
+            engine.ProgressTick -= onProgress;
+
+            if (!engine.IsCompleted)
             {
-                _copyCts.Token.ThrowIfCancellationRequested();
-                await WaitIfPausedAsync();
-                
-                CopyFileName.Text = source.Name;
-                await FileService.CopyAsync(source, destDir, progress, _copyCts.Token);
+                StatusText.Text = string.IsNullOrEmpty(engine.OperationError)
+                    ? "Копирование не завершено"
+                    : engine.OperationError;
+                MessageBox.Show(StatusText.Text, "Копирование",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
-            
+
+            // «Вырезать»: удаляем ТОЛЬКО подтверждённые исходники.
+            if (isCut)
+            {
+                var kept = new List<string>();
+                foreach (var s in sources)
+                {
+                    if (!engine.CanDeleteSource(s.FullPath)) { kept.Add(s.Name); continue; }
+                    try
+                    {
+                        if (System.IO.File.Exists(s.FullPath)) System.IO.File.Delete(s.FullPath);
+                        else if (System.IO.Directory.Exists(s.FullPath)) System.IO.Directory.Delete(s.FullPath, true);
+                    }
+                    catch { kept.Add(s.Name); }
+                }
+
+                if (kept.Count > 0)
+                {
+                    StatusText.Text = $"Скопировано. Не удалось удалить исходники: {string.Join(", ", kept)}";
+                    MessageBox.Show(
+                        "Скопировано, но исходники остались на месте:\n" + string.Join("\n", kept),
+                        "Вставить", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                else
+                {
+                    StatusText.Text = "Перемещено";
+                }
+            }
+            else
+            {
+                StatusText.Text = "Копирование завершено";
+            }
+
             var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300));
             fadeOut.Completed += (_, _) => CopyOverlay.Visibility = Visibility.Collapsed;
             CopyOverlay.BeginAnimation(OpacityProperty, fadeOut);
-            StatusText.Text = "Копирование завершено";
             await LoadFolderAsync(_currentPath);
         }
         catch (OperationCanceledException)
@@ -386,6 +505,13 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
         {
             StatusText.Text = $"Ошибка: {ex.Message}";
             CopyOverlay.Visibility = Visibility.Collapsed;
+        }
+        finally
+        {
+            engine.ProgressTick -= onProgress;
+            engine.Dispose();
+            Interlocked.CompareExchange(ref _copyCts, null, cts);
+            cts.Dispose();
         }
     }
 

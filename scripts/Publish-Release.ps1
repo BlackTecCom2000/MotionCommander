@@ -136,6 +136,10 @@ if (-not $iscc) {
 }
 
 $issFile = "$repoRoot\installer\MotionCommander.iss"
+# Флаг реального наличия инсталлятора. Раньше setupExeUrl попадал в
+# манифест безусловно, и если ISCC.exe не установлен, приложение
+# предлагало пользователю скачать файл, которого в репозитории нет.
+$setupCreated = $false
 if ($iscc -and (Test-Path $issFile)) {
     & $iscc "/DMyAppVersion=$cleanVer" $issFile
     if ($LASTEXITCODE -eq 0) {
@@ -144,10 +148,18 @@ if ($iscc -and (Test-Path $issFile)) {
         if (Test-Path $setupExe) {
             Copy-Item $setupExe -Destination $latestSetup -Force
             $setupMb = [Math]::Round((Get-Item $setupExe).Length / 1MB, 2)
+            $setupCreated = $true
             Write-Host "Installer created: $setupExe ($setupMb MB)" -ForegroundColor Green
         }
     } else {
         Write-Warning "Inno Setup compilation exited with code $LASTEXITCODE"
+        # Скомпилированный ранее инсталлятор другой версии нельзя выдавать
+        # за текущий: он установил бы прежнюю сборку под новым именем.
+        $staleSetup = "$distDir\MotionCommander-v$cleanVer-Setup.exe"
+        if (Test-Path $staleSetup) {
+            Remove-Item $staleSetup -Force
+            Write-Warning "Removed stale installer: $staleSetup" -ForegroundColor Yellow
+        }
     }
 } else {
     Write-Warning "Inno Setup compiler (ISCC.exe) not found. Skipping installer generation."
@@ -167,7 +179,16 @@ $versionManifest = [ordered]@{
     patchSizeMb = $patchMb
     downloadUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
     installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
-    setupExeUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Setup.exe"
+}
+
+if ($setupCreated) {
+    # setupExeUrl добавляется ТОЛЬКО если инсталлятор действительно собран.
+    # Иначе приложение предложило бы скачать несуществующий файл.
+    $versionManifest["setupExeUrl"] = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Setup.exe"
+} else {
+    # Write-Warning в PowerShell 5.1 не принимает -ForegroundColor:
+    # передача ключа роняла весь скрипт с InvalidArgument.
+    Write-Warning "setupExeUrl omitted from version.json: installer was not built."
 }
 
 $jsonStr = $versionManifest | ConvertTo-Json -Depth 5

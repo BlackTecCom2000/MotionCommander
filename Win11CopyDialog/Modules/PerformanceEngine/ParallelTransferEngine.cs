@@ -199,7 +199,15 @@ public sealed class ParallelTransferEngine : IDisposable
             // 4. Выполнение передачи мелких файлов (адаптивный параллельный пул)
             if (smallFiles.Count > 0)
             {
-                int concurrency = scenario.RecommendedConcurrency;
+                // Число потоков: явная настройка пользователя имеет приоритет
+                // над автоматическим определением. Раньше поле
+                // ConcurrencyThreads записывалось в settings.json и не
+                // читалось никем, поэтому ползунок в настройках не влиял ни
+                // на что, а комментарий утверждал обратное.
+                int concurrency = IoSettings.Concurrency;
+                if (concurrency <= 0) concurrency = scenario.RecommendedConcurrency;
+                if (concurrency <= 0) concurrency = 1;
+
                 Interlocked.Exchange(ref _activeWorkers, concurrency);
 
                 var queue = new ConcurrentQueue<TransferTaskItem>(smallFiles);

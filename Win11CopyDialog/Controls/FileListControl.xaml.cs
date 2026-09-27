@@ -194,18 +194,95 @@ public sealed partial class FileListControl : UserControl, INotifyPropertyChange
 
     private void Paste()
     {
-        // Реализация вставки
+        // Раньше здесь стоял только комментарий «Реализация вставки».
+        // Копирование и вырезание наполняли буфер, но вставить было нечем,
+        // и буфер обмена молча устаревал.
+        //
+        // Само действие выполняет окно-владелец: только у него есть
+        // текущий каталог назначения и движок копирования.
+        if (_clipboard.Count == 0) return;
+
+        var entries = _clipboard.ToArray();
+        PasteRequested?.Invoke(entries, _clipboardIsCut);
     }
 
     private void Rename(FileEntry? entry)
     {
         if (entry == null) return;
-        // Инлайн редактирование имени
+
+        // Раньше здесь стоял комментарий «Инлайн редактирование имени».
+        string oldName = System.IO.Path.GetFileName(entry.FullPath);
+        string newName = Views.Dialogs.TextInputDialog.Ask(
+            System.Windows.Window.GetWindow(this),
+            "Переименовать",
+            "Новое имя для «" + oldName + "»:",
+            oldName,
+            "Переименовать");
+
+        if (string.IsNullOrWhiteSpace(newName)) return;
+        if (newName == oldName) return;
+
+        try
+        {
+            // Защита от выхода из своей папки и от пути-разделителя в имени.
+            if (newName.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0 ||
+                newName.Contains('/') || newName.Contains('\\'))
+            {
+                MessageBox.Show("Имя содержит недопустимые символы.", "Переименование",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (newName is "." or "..")
+            {
+                MessageBox.Show("Недопустимое имя.", "Переименование",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string dir = System.IO.Path.GetDirectoryName(entry.FullPath) ?? "";
+            string newPath = System.IO.Path.Combine(dir, newName);
+
+            if (System.IO.File.Exists(newPath) || System.IO.Directory.Exists(newPath))
+            {
+                MessageBox.Show("Объект с таким именем уже существует.", "Переименование",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (entry.Type == Models.FileEntryType.Folder)
+                System.IO.Directory.Move(entry.FullPath, newPath);
+            else
+                System.IO.File.Move(entry.FullPath, newPath);
+
+            entry.RenameTo(newPath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Не удалось переименовать: " + ex.Message, "Переименование",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
+
+    /// <summary>
+    /// Запрошено действие «вставить». Аргументы: элементы буфера и признак
+    /// «вырезано» (исходники удаляются после успешного копирования).
+    /// </summary>
+    public event Action<FileEntry[], bool>? PasteRequested;
 
     private void Delete(FileEntry? entry)
     {
         if (entry == null) return;
+
+        // Подтверждение. Раньше удаление выполнялось сразу по пункту меню,
+        // без вопроса, хотя операция необратима.
+        var result = MessageBox.Show(
+            $"Удалить «{entry.Name}»?\n\nДействие нельзя отменить.",
+            "Удаление",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (result != MessageBoxResult.Yes) return;
+
         try
         {
             if (entry.Type == Models.FileEntryType.Folder)

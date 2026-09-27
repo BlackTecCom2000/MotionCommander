@@ -38,7 +38,16 @@ public sealed class AppConfigData
     public bool NeonGlowEnabled { get; set; } = true;
     public bool HapticSoundsEnabled { get; set; } = true;
 
-    // ---------- Параметры I/O (реально читаются движками) ----------
+    // ---------- Параметры I/O ----------
+    //
+    // Комментарий здесь раньше утверждал «реально читаются движками», и это
+    // было неправдой: все пять полей сохранялись в settings.json и не
+    // читались НИ ОДНИМ движком. Пользователю обещалась проверка целостности
+    // по CRC-32, которой не существовало.
+    //
+    // Теперь единственный потребитель — Helpers.IoSettings, откуда значения
+    // читают CopyEngine, StreamingPipeline и ParallelTransferEngine. Правка
+    // флажка действует сразу, без перезапуска.
     public int DefaultBufferSizeKb { get; set; } = 1024;
     public int ConcurrencyThreads { get; set; } = 4;
     public bool DirectIoBypassCache { get; set; }
@@ -167,6 +176,7 @@ public partial class SettingsWindow : Window
         InitAnimationQuality();
         InitInstallMode();
         InitHaptics();
+        UpdateIoSettingsSummary();
         InitShellIntegration();
         LoadConfigToEditor();
         InitVersionDisplay();
@@ -443,6 +453,65 @@ public partial class SettingsWindow : Window
         else if (BackdropAcrylicRadio.IsChecked == true) bType = BackdropType.Acrylic;
 
         ThemeManager.Instance.BackdropOverride = bType == BackdropType.None ? null : bType;
+        SaveCurrentStateToConfig();
+    }
+
+    // ================= Параметры ввода-вывода =================
+
+    /// <summary>
+    /// Показывает фактически применяемые параметры копирования.
+    /// Без этого пользователь видел настройки, которые выглядели
+    /// рабочими, но не влияли ни на что: все пять параметров I/O
+    /// сохранялись в settings.json и не читались ни одним движком.
+    /// </summary>
+    private void UpdateIoSettingsSummary()
+    {
+        if (IoSettingsSummaryText == null) return;
+
+        // Значения берём из полей окна, а не из сохранённого конфига,
+        // чтобы сводка отражала то, что будет применено после сохранения.
+        int sector = IoSettings.SectorSize;
+        int bufKb = DefaultBufferCombo?.SelectedIndex switch
+        {
+            0 => 256, 1 => 512, 2 => 1024, 3 => 2048, 4 => 4096, 5 => 8192, _ => 1024
+        };
+        int threads = ThreadsCombo?.SelectedIndex switch
+        {
+            0 => 1, 1 => 2, 2 => 4, 3 => 8, 4 => 16, _ => 4
+        };
+        bool directIo = DirectIoCheck?.IsChecked == true;
+        bool seq = SequentialScanCheck?.IsChecked == true;
+        bool crc = VerifyCrcCheck?.IsChecked == true;
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"• Буфер копирования: {bufKb} КБ");
+        sb.Append($"\n• Параллельных потоков: {threads}");
+        sb.Append($"\n• Последовательное чтение: {(seq ? "включено" : "выключено")}");
+
+        if (directIo)
+        {
+            bool aligned = (bufKb * 1024) % sector == 0;
+            sb.Append(aligned
+                ? $"\n• Обход кэша при записи: включён (буфер кратен сектору {sector} байт)"
+                : $"\n• Обход кэша при записи: ВЫКЛЮЧЕН — буфер {bufKb} КБ не кратен сектору {sector} байт, Windows отклонил бы запрос");
+        }
+        else
+        {
+            sb.Append("\n• Обход кэша при записи: выключен");
+        }
+
+        sb.Append(crc
+            ? "\n• CRC-32 после копирования: файлы сверяются побайтно по контрольной сумме"
+            : "\n• CRC-32 после копирования: выключено (сверяется только размер)");
+
+        IoSettingsSummaryText.Text = sb.ToString();
+    }
+
+    /// <summary>Любое изменение параметров I/O обновляет сводку.</summary>
+    private void IoSetting_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_initializing) return;
+        UpdateIoSettingsSummary();
         SaveCurrentStateToConfig();
     }
 

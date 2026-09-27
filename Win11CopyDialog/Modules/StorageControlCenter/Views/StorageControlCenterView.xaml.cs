@@ -9,6 +9,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using Ellipse = System.Windows.Shapes.Ellipse;
 using Win11CopyDialog.Helpers;
+using Win11CopyDialog.Controls;
 using Win11CopyDialog.Modules.StorageControlCenter.Models;
 using Win11CopyDialog.Modules.StorageControlCenter.Services;
 
@@ -20,6 +21,12 @@ public partial class StorageControlCenterView : UserControl
     private StorageDisk? _selectedDisk;
     private StoragePartition? _selectedPartition;
     private readonly DispatcherTimer _telemetryTimer;
+
+    /// <summary>
+    /// «Живые» иконки карточек накопителей, ключ — номер диска.
+    /// Заполняются реальными значениями телеметрии при каждом опросе.
+    /// </summary>
+    private readonly Dictionary<int, LiveDiskIcon> _liveIcons = new();
     private CancellationTokenSource? _benchCts;
     private CancellationTokenSource? _wipeCts;
 
@@ -286,9 +293,20 @@ public partial class StorageControlCenterView : UserControl
                 StorageAdvisorService.EvaluateScore(d);
             }
 
+            // Словарь иконок очищается вместе с карточками: иначе он
+            // удерживал бы удалённые элементы и накапливал мусор при
+            // каждом обновлении списка накопителей.
+            _liveIcons.Clear();
             DrivesStripPanel.Children.Clear();
             foreach (var d in _disks)
                 DrivesStripPanel.Children.Add(CreateDiskCard(d));
+
+            // Каскад появления карточек. Без него все накопители
+            // возникают одновременно, и это читается как мигание.
+            // Проверка на видимость обязательна: иначе анимация
+            // запускается на скрытой панели и зря будит систему рендеринга.
+            if (IsVisible)
+                Stagger.AnimateEntrance(DrivesStripPanel, stepMs: 30, durationMs: 240);
 
             if (_selectedDisk != null)
             {
@@ -322,6 +340,23 @@ public partial class StorageControlCenterView : UserControl
 
         // --- ROW 0: Аппаратный бейдж шины + Здоровье S.M.A.R.T. + Температура ---
         var row0 = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+
+        // «Живая» иконка накопителя. Кольцо занятости, скорость вращения
+        // и стрелки чтения/записи питаются РЕАЛЬНЫМИ значениями из
+        // Win32_PerfFormattedData_PerfDisk_PhysicalDisk, а не декоративной
+        // анимацией: у простаивающего диска иконка неподвижна.
+        var liveIcon = new LiveDiskIcon
+        {
+            IconSize = 26,
+            ShowFlow = true,
+            Width = 26,
+            Height = 26,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 6, 0)
+        };
+        _liveIcons[disk.DiskNumber] = liveIcon;
+        DockPanel.SetDock(liveIcon, Dock.Left);
+        row0.Children.Add(liveIcon);
 
         (string typeLabel, Brush typeBrush, Brush typeBg) = disk.MediaType switch
         {
@@ -1824,6 +1859,20 @@ public partial class StorageControlCenterView : UserControl
         if (win != null && win.WindowState == WindowState.Minimized) return;
 
         StorageMonitorService.PollRealtimeTelemetry(_disks);
+
+        // Живые иконки получают те же реальные значения, что и текстовые
+        // поля. Раньше данные телеметрии попадали только в надписи, а
+        // индикаторы на карточках оставались декоративными.
+        foreach (var d in _disks)
+        {
+            if (_liveIcons.TryGetValue(d.DiskNumber, out var icon))
+            {
+                icon.Model.Update(
+                    d.CurrentReadSpeedMBps,
+                    d.CurrentWriteSpeedMBps,
+                    d.ActiveTimePercent);
+            }
+        }
 
         // Раньше здесь ТОЛЬКО опрашивались значения: ни один TextBlock и ни один
         // ProgressBar не обновлялись, а InvalidateVisual() не вызывался.

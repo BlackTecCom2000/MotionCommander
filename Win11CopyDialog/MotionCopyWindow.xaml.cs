@@ -55,10 +55,10 @@ public partial class MotionCopyWindow : Window
         {
             // появление окна: fade + scale (large, 320мс)
             var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(320))
-            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            { EasingFunction = new SpringEasing(SpringEasing.SpringKind.Snappy) };
             RootBorder.BeginAnimation(OpacityProperty, fade);
             var sc = new DoubleAnimation(0.965, 1, TimeSpan.FromMilliseconds(320))
-            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            { EasingFunction = new SpringEasing(SpringEasing.SpringKind.Snappy) };
             RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, sc);
             RootScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, sc);
 
@@ -269,7 +269,7 @@ public partial class MotionCopyWindow : Window
                 new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200)));
             FileSlide.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty,
                 new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(200))
-                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+                { EasingFunction = new SpringEasing(SpringEasing.SpringKind.Snappy) });
         };
         FileBlock.BeginAnimation(OpacityProperty, outAn);
         FileSlide.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, outX);
@@ -290,7 +290,7 @@ public partial class MotionCopyWindow : Window
                 new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(350)));
             CheckPath.BeginAnimation(System.Windows.Shapes.Path.StrokeDashOffsetProperty,
                 new DoubleAnimation(60, 0, TimeSpan.FromMilliseconds(700))
-                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+                { EasingFunction = new SpringEasing(SpringEasing.SpringKind.Snappy) });
             if (PlaySoundOnComplete)
             {
                 HapticAudio.PlaySuccess();

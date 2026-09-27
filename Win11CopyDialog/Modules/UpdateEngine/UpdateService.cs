@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows;
+using Win11CopyDialog.Helpers;
 
 namespace Win11CopyDialog.Modules.UpdateEngine;
 
@@ -272,10 +273,14 @@ public static class UpdateService
                         {
                             item.DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Portable.zip";
                         }
-                        if (string.IsNullOrEmpty(item.SetupExeUrl))
-                        {
-                            item.SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Setup.exe";
-                        }
+
+                        // setupExeUrl НЕ достраивается по шаблону.
+                        // Раньше здесь подставлялась ссылка вида
+                        // ...-Setup.exe независимо от того, собрал ли
+                        // инсталлятор релиз, и пользователю предлагалось
+                        // скачать файл, которого в репозитории нет (404).
+                        // Пустое значение означает «инсталлятора для этой
+                        // версии нет», и интерфейс предлагает portable-архив.
 
                         int cmp = CompareVersions(verNum, currentVer);
                         item.IsCurrent = cmp == 0;
@@ -406,17 +411,57 @@ public static class UpdateService
         return targetFilePath;
     }
 
+    /// <summary>
+    /// Распаковывает обновление во ВРЕМЕННЫЙ КАТАЛОГ ДАННЫХ, а не рядом с
+    /// программой.
+    ///
+    /// <para><b>Что было не так.</b> Каталог вычислялся как
+    /// <c>BaseDirectory/staging</c>, то есть внутри Program Files при обычной
+    /// установке. Записать туда может только процесс с правами
+    /// администратора, а обновление запускается из обычной сессии. Распаковка
+    /// падала с «Отказано в доступе» ДО начала обновления, и пользователь
+    /// не мог обновиться вовсе. Теперь используется
+    /// <see cref="AppPaths.StagingDirectory"/> — он по определению доступен
+    /// для записи.</para>
+    /// </summary>
     public static async Task<string> PrepareStagingAsync(string zipPath, CancellationToken ct = default)
     {
-        string currentDir = AppDomain.CurrentDomain.BaseDirectory;
-        string stagingDir = Path.Combine(currentDir, "staging");
-        if (Directory.Exists(stagingDir))
-        {
-            Directory.Delete(stagingDir, true);
-        }
-        Directory.CreateDirectory(stagingDir);
+        string stagingDir = AppPaths.StagingDirectory;
 
-        await Task.Run(() => System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, stagingDir, true), ct);
+        try
+        {
+            if (Directory.Exists(stagingDir))
+            {
+                // Каталог могли занять символической ссылкой или junction.
+                // Проверяем ReparsePoint, иначе удаление ушло бы наружу.
+                var info = new DirectoryInfo(stagingDir);
+                if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    throw new IOException(
+                        $"Каталог подготовки {stagingDir} является ссылкой. " +
+                        "Укажите другой каталог данных и повторите обновление.");
+                }
+                Directory.Delete(stagingDir, true);
+            }
+
+            Directory.CreateDirectory(stagingDir);
+            await Task.Run(() => System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, stagingDir, true), ct)
+                .ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new IOException(
+                $"Нет доступа к каталогу подготовки обновления: {stagingDir}. " +
+                "Проверьте права на папку данных приложения.", ex);
+        }
+
+        // Пустая распаковка — это не обновление, а повреждённый архив.
+        // Без этой проверки скрипт обновления стёр бы каталог программы
+        // и запустил её без единого обновлённого файла.
+        int staged = Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories).Length;
+        if (staged == 0)
+            throw new IOException("Архив обновления распакован, но не содержит ни одного файла.");
+
         return stagingDir;
     }
 
@@ -436,55 +481,85 @@ public static class UpdateService
         return false;
     }
 
+    /// <summary>
+    /// Готовит и запускает применение обновления после выхода программы.
+    /// </summary>
+    /// <exception cref="UACDeclinedException">Пользователь отказал в повышении прав.</exception>
     public static void ApplySeamlessUpdate(string stagingFolder, AppState currentState)
     {
         string currentDir = AppDomain.CurrentDomain.BaseDirectory;
-        string stateFilePath = Path.Combine(currentDir, "app_state.json");
-        string json = JsonSerializer.Serialize(currentState);
-        File.WriteAllText(stateFilePath, json);
 
-        // Write a bat-updater that runs AFTER this process exits
-        // This avoids all file-lock issues — we never touch running files
-        string newExePath = Path.Combine(currentDir, "Win11CopyDialog.exe");
-        string batPath = Path.Combine(Path.GetTempPath(), "mc_update.bat");
-        int currentPid = Process.GetCurrentProcess().Id;
+        // Путь исполняемого файла берётся у ЖИВОГО процесса, а не
+        // склеивается из имени: иначе после переименования или запуска из
+        // другой папки скрипт запустил бы несуществующий файл.
+        string? runningExe = Environment.ProcessPath;
+        string exePath = !string.IsNullOrEmpty(runningExe) && File.Exists(runningExe)
+            ? runningExe
+            : Path.Combine(currentDir, "Win11CopyDialog.exe");
+
+        // Состояние сохраняется в каталог ДАННЫХ. Раньше оно писалось в
+        // BaseDirectory, и при установке в Program Files без прав
+        // администратора File.WriteAllText падал с «Отказано в доступе»
+        // ДО запуска скрипта, то есть обновление не применялось вовсе.
+        string stateFilePath = AppPaths.AppStateFile;
+        try
+        {
+            string? stateDir = Path.GetDirectoryName(stateFilePath);
+            if (!string.IsNullOrEmpty(stateDir)) Directory.CreateDirectory(stateDir);
+            File.WriteAllText(stateFilePath, JsonSerializer.Serialize(currentState));
+        }
+        catch (Exception ex)
+        {
+            throw new IOException($"Не удалось сохранить состояние окна для передачи в обновлённую версию: {ex.Message}", ex);
+        }
+
+        var files = Directory.GetFiles(stagingFolder, "*", SearchOption.AllDirectories);
+        if (files.Length == 0)
+            throw new IOException("В подготовленном обновлении нет ни одного файла — применяться нечего.");
+
+        // Скрипт запускается ПОСЛЕ выхода процесса: так снимаются все
+        // блокировки на собственные исполняемые файлы.
+        string batPath = Path.Combine(AppPaths.StagingDirectory, "mc_update.bat");
+        int currentPid = Environment.ProcessId;
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("@echo off");
-        sb.AppendLine($"echo Waiting for Motion Commander to close...");
-        sb.AppendLine($":waitloop");
-        sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" 2>NUL | find /I \"{currentPid}\" >NUL");
-        sb.AppendLine($"if \"%ERRORLEVEL%\"==\"0\" (timeout /t 1 /nobreak >nul && goto waitloop)");
-        sb.AppendLine($"echo Copying update files...");
+        sb.AppendLine("chcp 65001 >nul");
+        sb.AppendLine("echo Waiting for Motion Commander to close...");
 
-        // Generate copy commands for each file in staging
-        foreach (var file in Directory.GetFiles(stagingFolder, "*", SearchOption.AllDirectories))
+        // Проверка живого процесса по CSV-выводу tasklist.
+        // Прежняя строка искала подстроку PID где угодно в строке, поэтому
+        // ожидание могло закончиться при живом процессе с другим PID,
+        // содержащим те же цифры (например, ожидая 56 при работающем 456).
+        sb.AppendLine(":waitloop");
+        sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" /NH /FO CSV 2>NUL | findstr /C:\"\"{currentPid}\"\" >NUL");
+        sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (timeout /t 1 /nobreak >nul & goto waitloop)");
+        sb.AppendLine("echo Copying update files...");
+
+        foreach (var file in files)
         {
-            string relative = file.Substring(stagingFolder.Length).TrimStart('\\', '/');
+            string relative = file[(stagingFolder.Length + 1)..];
             string dest = Path.Combine(currentDir, relative);
             string destDir = Path.GetDirectoryName(dest) ?? currentDir;
             sb.AppendLine($"if not exist \"{destDir}\" mkdir \"{destDir}\"");
-            sb.AppendLine($"copy /Y \"{file}\" \"{dest}\"");
+            sb.AppendLine($"copy /Y \"{file}\" \"{dest}\" >nul");
+
+            // Ошибка копирования фиксируется, а не теряется: иначе
+            // пользователь получал «обновление установлено», хотя часть
+            // файлов осталась прежней.
+            sb.AppendLine($"if errorlevel 1 echo WARNING: failed to copy {relative}");
         }
 
         sb.AppendLine($"echo Starting updated application...");
-        sb.AppendLine($"start \"\" \"{newExePath}\" --seamless-update \"{stateFilePath}\"");
+        sb.AppendLine($"start \"\" \"{exePath}\" --seamless-update \"{stateFilePath}\"");
         sb.AppendLine($"rd /s /q \"{stagingFolder}\" 2>nul");
-        sb.AppendLine($"del \"%~f0\""); // self-delete the bat
+        sb.AppendLine("exit /b 0");
 
         File.WriteAllText(batPath, sb.ToString(), System.Text.Encoding.ASCII);
 
-        bool needsElevation = false;
-        try
-        {
-            string probeFile = Path.Combine(currentDir, $"__perm_probe_{Guid.NewGuid():N}.tmp");
-            File.WriteAllText(probeFile, "test");
-            File.Delete(probeFile);
-        }
-        catch
-        {
-            needsElevation = true;
-        }
+        // Нужно ли повышение привилегий: проверяется реальной записью
+        // рядом с программой, а не предположением о пути установки.
+        bool needsElevation = !IsDirectoryWritable(currentDir);
 
         var psi = new ProcessStartInfo
         {
@@ -495,15 +570,60 @@ public static class UpdateService
             CreateNoWindow = true
         };
 
-        if (needsElevation)
+        if (needsElevation) psi.Verb = "runas";
+
+        try
         {
-            psi.Verb = "runas";
+            Process.Start(psi);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // Отказ в UAC приходит именно так, и это НЕ ошибка обновления:
+            // пользователь просто не дал права. Раньше вылетало
+            // «Отказано в доступе» без пояснения, и обновление выглядело сломанным.
+            if (ex.NativeErrorCode == 1223)
+            {
+                throw new UACDeclinedException(
+                    "Обновление установлено в Program Files, поэтому для его применения нужны права администратора. " +
+                    "Запустите Motion Commander от имени администратора и повторите обновление, " +
+                    "либо выберите при установке режим «только для меня».", ex);
+            }
+            throw new IOException($"Не удалось запустить применение обновления: {ex.Message}", ex);
         }
 
-        Process.Start(psi);
-
-        // Now safely close current application
+        // Закрываем приложение только после успешного запуска скрипта:
+        // иначе при отказе в UAC программа закрылась бы, а обновление не
+        // произошло бы — пользователь потерял бы окно с открытыми файлами.
         Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
+    }
+
+    /// <summary>
+    /// Проверяет возможность создать файл в каталоге.
+    ///
+    /// <para>Используется реальная запись, а не права доступа из ACL:
+    /// UAC, антивирус и дисковая квота могут запретить запись даже при
+    /// формально разрешённых правах, и только настоящая попытка это видит.</para>
+    /// </summary>
+    public static bool IsDirectoryWritable(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+            return false;
+
+        string probe = Path.Combine(directory, $"__perm_probe_{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose))
+            {
+                fs.WriteByte(0);
+            }
+            return true;
+        }
+        catch (UnauthorizedAccessException) { return false; }
+        catch (IOException) { return false; }
+        finally
+        {
+            try { if (File.Exists(probe)) File.Delete(probe); } catch { }
+        }
     }
 
     private static void CopyFilesRecursively(string sourcePath, string targetPath)

@@ -1,20 +1,23 @@
 ﻿{
-    "version":  "3.8.22",
-    "releaseDate":  "2026-09-27",
+    "version":  "3.8.23",
+    "releaseDate":  "2026-09-28",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Fixed: the download manager no longer crashes on open. A progress bar was bound two-way to a read-only property, which threw a fatal error the moment the screen was shown",
-                      "Fixed: invalid XAML in the download manager (unescaped braces in a format string) that would have broken the view",
-                      "Added --view-audit: creates and lays out all 17 screens and reports binding and markup errors instead of crashing, so this class of defect is caught in automation",
-                      "The new audit populates lists with real data, because an empty collection never applies item templates and therefore never activates the bindings inside them",
-                      "Data-loss prevention, bounded process waits and UI-thread offload, as described in 3.8.21"
+                      "Параметры ввода-вывода действительно применяются: размер буфера, число потоков, последовательное чтение, обход кэша и сверка CRC-32 подключены к движкам копирования. Раньше все пять полей сохранялись в настройках и не читались никем, а флажок CRC-32 обещал проверку целостности, которой не существовало.",
+                      "Файловый менеджер научился копировать: пункт «Вставить» был пустым телом, а StartCopy не вызывался ниоткуда. Переименование реализовано, удаление спрашивает подтверждение, копирование идёт через защищённый движок с разрешением коллизий имён.",
+                      "Исправлены четыре пункта контекстного меню списка файлов, которые не делали ничего: у них не было параметра команды, поэтому команда получала пустое значение и сразу выходила.",
+                      "Автообновление больше не падает при установке в Program Files: подготовка обновления и файл состояния писались внутрь папки программы, куда нет доступа. Отказ в повышении прав теперь распознаётся и объясняется, а не выглядит как поломка.",
+                      "Инсталлятор предлагает выбор режима установки и записывает маркер, который приложение читает при старте. Группа в меню «Пуск» создаётся всегда.",
+                      "Живые иконки накопителей привязаны к реальной телеметрии: у простаивающего накопителя индикатор неподвижен, а не мигает.",
+                      "Пружинная физика анимаций вместо произвольных кривых плавности: перелёт совпадает с теоретическим значением при нулевом расхождении, каскад ограничен 420 мс независимо от размера списка.",
+                      "Манифест релиза больше не содержит ссылку на инсталлятор, если он не был собран, и приложение не достраивает её само."
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.22-Patch.zip",
-    "patchSizeMb":  3.12,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.22-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.22-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.22-Setup.exe"
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.23-Patch.zip",
+    "patchSizeMb":  3.14,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.23-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.23-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.23-Setup.exe"
 }

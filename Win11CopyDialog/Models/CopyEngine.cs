@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows.Threading;
 using Win11CopyDialog.Modules.PerformanceEngine;
+using Win11CopyDialog.Helpers;
 
 namespace Win11CopyDialog.Models;
 
@@ -442,7 +443,20 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     private async Task CopyOneFileAsync(CopyItem item, CancellationToken ct)
     {
         var scenario = HardwareAnalyzer.AnalyzeTransferScenario(item.SourcePath, item.DestPath);
-        int buf = scenario.RecommendedBufferSize;
+
+        // Размер буфера берётся из НАСТРОЕК пользователя, а не только из
+        // аппаратного сценария. Раньше поле DefaultBufferSizeKb записывалось
+        // в settings.json и не читалось никем: движок всегда использовал
+        // собственную рекомендацию, а флажок в настройках ничего не менял.
+        int buf = IoSettings.BufferSizeBytes;
+        if (scenario.RecommendedBufferSize > 0)
+        {
+            // Пользовательская настройка — приоритет; автоопределение служит
+            // лишь разумным значением по умолчанию при стандартной настройке.
+            if (IoSettings.BufferSizeBytes == 4 * 1024 * 1024)
+                buf = scenario.RecommendedBufferSize;
+        }
+
         long lastBytes = 0;
 
         await StreamingPipeline.CopyStreamPipelineAsync(
@@ -483,6 +497,27 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
             throw new IOException(
                 $"Файл «{Path.GetFileName(item.SourcePath)}» скопирован с повреждением: " +
                 $"ожидалось {item.SizeBytes} байт.");
+        }
+
+        // Сверка CRC-32 — только если пользователь её включил.
+        // Раньше флажок «Автоматический расчёт CRC-32 на лету» просто
+        // записывался в настройки и не читался никем: обещанная защита
+        // от повреждений не существовала. Теперь она действительно работает.
+        if (IoSettings.VerifyCrc32)
+        {
+            OnChanged(nameof(CurrentItem));
+            var (match, detail) = await Crc32Verifier
+                .VerifyMatchAsync(item.SourcePath, item.DestPath, ct)
+                .ConfigureAwait(false);
+
+            if (!match)
+            {
+                item.Status = CopyItemStatus.Error;
+                throw new IOException(
+                    $"Файл «{Path.GetFileName(item.SourcePath)}» не прошёл проверку целостности: {detail}.");
+            }
+
+            item.VerifiedBy = "CRC-32 " + detail.Replace("CRC-32 ", "");
         }
 
         item.CopiedBytes = item.SizeBytes;

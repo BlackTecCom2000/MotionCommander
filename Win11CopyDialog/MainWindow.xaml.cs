@@ -1399,7 +1399,7 @@ public partial class MainWindow : Window
     {
         var anim = new System.Windows.Media.Animation.DoubleAnimation(0.3, 1.0, TimeSpan.FromMilliseconds(280))
         {
-            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            EasingFunction = new SpringEasing(SpringEasing.SpringKind.Snappy)
         };
         element.BeginAnimation(UIElement.OpacityProperty, anim);
     }

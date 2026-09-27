@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Channels;
+using Win11CopyDialog.Helpers;
 
 namespace Win11CopyDialog.Modules.PerformanceEngine;
 
@@ -42,8 +43,11 @@ public static class StreamingPipeline
         string? destDir = Path.GetDirectoryName(destPath);
         if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
 
-        const FileOptions readOptions = FileOptions.Asynchronous | FileOptions.SequentialScan;
-        const FileOptions writeOptions = FileOptions.Asynchronous;
+        // Флаги открытия берутся из настроек пользователя (Helpers.IoSettings).
+        // Раньше они были жёстко заданы и параметры «Последовательное чтение»
+        // и «Direct I/O» в настройках ни на что не влияли.
+        FileOptions readOptions = IoSettings.ReadOptions();
+        FileOptions writeOptions = IoSettings.WriteOptions();
 
         // ── Копирование через временный файл ──────────────────────────────────
         // Раньше здесь стоял FileMode.Create прямо на ИТОГОВОМ пути. Из-за

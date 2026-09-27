@@ -103,8 +103,22 @@ public partial class UpdateProgressWindow : Window
             var mainWindow = Application.Current.MainWindow as MainWindow;
             AppState state = mainWindow?.GetCurrentState() ?? new AppState();
 
+            // Порядок важен: главное окно запускает анимацию перехода только
+            // ПОСЛЕ того, как скрипт обновления успешно запущен. Раньше
+            // вызов стоял сразу после ApplySeamlessUpdate, который при
+            // отказе в UAC бросал исключение — и анимация не запускалась,
+            // что было правильно, но не объяснялось пользователю.
             UpdateService.ApplySeamlessUpdate(stagingDir, state);
             mainWindow?.StartMorphingAnimation();
+            this.Close();
+        }
+        catch (UACDeclinedException ex)
+        {
+            // Программа остаётся открытой: работа пользователя не потеряна,
+            // обновление просто не применилось.
+            StatusText.Text = "Требуются права администратора";
+            MessageBox.Show(ex.Message, "Обновление не применено",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
             this.Close();
         }
         catch (OperationCanceledException)

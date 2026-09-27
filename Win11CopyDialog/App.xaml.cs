@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using Win11CopyDialog.Models;
+using Win11CopyDialog.Helpers;
 
 namespace Win11CopyDialog;
 
@@ -182,6 +183,18 @@ public partial class App : Application
         if (e.Args.Contains("--theme-audit"))
         {
             RunThemeAudit();
+            Shutdown(0);
+            return;
+        }
+
+        // --anim-audit: численная проверка пружинных функций плавности.
+        // Проверяет, что кривые действительно пружинные (есть перелёт у
+        // колебательных, нет у апериодических), не содержат NaN и
+        // действительно доходят до 1. Математику нельзя публиковать,
+        // не убедившись численно, что она физическая, а не произвольная.
+        if (e.Args.Contains("--anim-audit"))
+        {
+            RunAnimationAudit();
             Shutdown(0);
             return;
         }
@@ -540,6 +553,140 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// Численная проверка пружинных функций плавности.
+    ///
+    /// <para>Проверяются свойства, которые обязаны выполняться у настоящей
+    /// пружины, а не просто «выглядит красиво»:</para>
+    /// <list type="bullet">
+    /// <item>f(0)=0 и f(1)=1 — точные границы;</item>
+    /// <item>нет NaN и бесконечностей на всём диапазоне;</item>
+    /// <item>колебательные (ζ&lt;1) дают перелёт выше 1;</item>
+    /// <item>апериодические (ζ≥1) НЕ дают перелёта;</item>
+    /// <item>монотонный рост на начальном участке — без «откатов назад»;</item>
+    /// <item>сходимость: значение на 99 % пути практически равно 1.</item>
+    /// </list>
+    /// </summary>
+    private void RunAnimationAudit()
+    {
+        System.Console.WriteLine("ANIMATION AUDIT — численная проверка пружинной физики");
+        System.Console.WriteLine(new string('=', 72));
+        System.Console.Out.Flush();
+
+        int problems = 0;
+        const int steps = 2000;
+
+        foreach (SpringEasing.SpringKind kind in Enum.GetValues<SpringEasing.SpringKind>())
+        {
+            var f = new SpringEasing(kind);
+
+            double at0 = f.Ease(0.0);
+            double at1 = f.Ease(1.0);
+            bool nan = false, inf = false, nonMonotonic = false;
+            double max = double.MinValue, min = double.MaxValue;
+            double prev = at0;
+
+            // Монотонность проверяется ТОЛЬКО до первого пика. Для
+            // колебательной пружины пик стоит на progress = π/ω_d
+            // (для Snappy это 0.298, для Bouncy — 0.218), и разворот
+            // там является физикой, а не ошибкой. Раньше граница была
+            // произвольной 0.30, и аудит ложно ругался на обе пружины.
+            double firstPeak = 1.0;
+            double zetaNow = f.DampingRatio;
+            if (zetaNow < 0.999)
+            {
+                double wd = f.NaturalFrequency * Math.Sqrt(1.0 - zetaNow * zetaNow);
+                if (wd > 1e-6) firstPeak = Math.PI / wd;
+            }
+
+            for (int i = 0; i <= steps; i++)
+            {
+                double t = (double)i / steps;
+                double v = f.Ease(t);
+
+                if (double.IsNaN(v)) { nan = true; continue; }
+                if (double.IsInfinity(v)) { inf = true; continue; }
+                if (v > max) max = v;
+                if (v < min) min = v;
+
+                if (t < firstPeak && v < prev - 1e-6) nonMonotonic = true;
+                if (t < firstPeak) prev = v;
+            }
+
+            bool overshoots = max > 1.0001;
+            double zeta = f.DampingRatio;
+            bool expectOvershoot = zeta < 0.999;
+            bool overshootOk = overshoots == expectOvershoot;
+
+            // Сильная проверка: величина перелёта обязана совпасть с
+            // теоретической M_p = exp(-П*zeta/sqrt(1-zeta^2)). Это отсекает
+            // кривые, которые «просто качаются», но физически неверны.
+            bool peakOk = true;
+            double theoretical = 0, peakErr = 0;
+            if (expectOvershoot)
+            {
+                theoretical = Math.Exp(-Math.PI * zeta / Math.Sqrt(1.0 - zeta * zeta));
+                peakErr = Math.Abs((max - 1.0) - theoretical);
+                peakOk = peakErr <= Math.Max(0.002, theoretical * 0.02);
+            }
+
+            bool ok = at0 == 0.0
+                   && Math.Abs(at1 - 1.0) < 1e-9
+                   && !nan && !inf
+                   && !nonMonotonic
+                   && overshootOk
+                   && peakOk;
+
+            if (!ok) problems++;
+
+            // Причина провала печатается явно: по одним числам на экране
+            // непонятно, что именно не сошлось.
+            var why = new System.Text.StringBuilder();
+            if (at0 != 0.0) why.Append("f(0)!=0; ");
+            if (Math.Abs(at1 - 1.0) >= 1e-9) why.Append("f(1)!=1; ");
+            if (nan) why.Append("есть NaN; ");
+            if (inf) why.Append("есть Inf; ");
+            if (nonMonotonic) why.Append("откат до первого пика; ");
+            if (!overshootOk) why.Append($"перелёт {(overshoots ? "есть" : "нет")}, ожидался {(expectOvershoot ? "есть" : "нет")}; ");
+            if (!peakOk) why.Append($"перелёт {(max - 1.0):P2} вместо {theoretical:P2}; ");
+
+            System.Console.WriteLine();
+            System.Console.WriteLine($"  {kind}");
+            System.Console.WriteLine($"    частота          : {f.NaturalFrequency:F3} рад/с");
+            System.Console.WriteLine($"    затухание (zeta) : {zeta:F4}  (колебательная: {expectOvershoot})");
+            System.Console.WriteLine($"    f(0)             : {at0:G6}   (ожидается 0)");
+            System.Console.WriteLine($"    f(1)             : {at1:G6}   (ожидается 1)");
+            System.Console.WriteLine($"    диапазон         : {min:F4} .. {max:F4}");
+            System.Console.WriteLine($"    перелёт >1       : {(overshoots ? "да" : "нет")}   (ожидался {(expectOvershoot ? "да" : "нет")})");
+            if (expectOvershoot)
+                System.Console.WriteLine($"    перелёт/теория   : {(max - 1.0):P2} против {theoretical:P2}  (расхождение {peakErr:P2})");
+            System.Console.WriteLine($"    первый пик       : {(firstPeak < 1.0 ? firstPeak.ToString("F3") : "нет (апериодическая)")}");
+            System.Console.WriteLine($"    NaN / Inf        : {(nan ? "ЕСТЬ" : "нет")} / {(inf ? "ЕСТЬ" : "нет")}");
+            System.Console.WriteLine($"    откат до пика    : {(nonMonotonic ? "ЕСТЬ" : "нет")}");
+            System.Console.WriteLine($"    итого            : {(ok ? "OK" : "ПРОБЛЕМА: " + why.ToString().TrimEnd(' ', ';'))}");
+            System.Console.Out.Flush();
+        }
+
+        // Каскад: задержка не должна разъезжаться на больших списках.
+        System.Console.WriteLine();
+        System.Console.WriteLine("  Каскад (stagger)");
+        foreach (int count in new[] { 5, 20, 100, 500, 5000 })
+        {
+            int last = Stagger.Delay(count - 1, count);
+            bool bounded = last <= Stagger.MaxTotalMs;
+            if (!bounded) problems++;
+            System.Console.WriteLine($"    элементов {count,5} → последний стартует через {last,4} мс " +
+                                      $"(предел {Stagger.MaxTotalMs} мс) {(bounded ? "OK" : "ПРОБЛЕМА")}");
+        }
+
+        System.Console.WriteLine();
+        System.Console.WriteLine(new string('=', 72));
+        System.Console.WriteLine(problems == 0
+            ? "ANIMATION AUDIT: OK — все пружины численно корректны"
+            : $"ANIMATION AUDIT: ПРОБЛЕМ: {problems}");
+        System.Console.Out.Flush();
+    }
+
+    /// <summary>
     /// Реальный прогон подсистемы накопителей: обнаружение, S.M.A.R.T., оценка.
     /// Печатает только фактические значения и честно отмечает недоступные,
     /// чтобы было видеть, откуда взялась каждая цифра в интерфейсе.
@@ -759,10 +906,29 @@ public partial class App : Application
             outp.WriteLine("");
             outp.WriteLine("  по файлам:");
             foreach (var it in engine.Items.Take(20))
-                outp.WriteLine($"    {it.Status,-10} {it.FileName}");
+                outp.WriteLine($"    {it.Status,-10} {it.FileName}" +
+                    (string.IsNullOrEmpty(it.VerifiedBy) ? "" : $"   [{it.VerifiedBy}]"));
+
+            // Настройка CRC-32 обязана быть проверяемой, а не заявленной.
+            // Показываем действующие параметры и требуем, чтобы каждый
+            // файл был подтверждён сверкой, если она включена.
+            outp.WriteLine("");
+            outp.WriteLine("  параметры ввода-вывода:");
+            outp.WriteLine("    " + Helpers.IoSettings.Describe());
+            int verified = engine.Items.Count(i => !string.IsNullOrEmpty(i.VerifiedBy));
+            outp.WriteLine($"    файлов со сверкой целостности: {verified}");
 
             bool ok = engine.IsCompleted && engine.Items.Count > 0 && !engine.AnySkipped
                       && engine.Items.All(i => i.Status == Models.CopyItemStatus.Done);
+
+            // Если CRC-32 включён, но ни один файл не подтверждён —
+            // заявленная в настройках защита не работает, и это провал.
+            if (ok && Helpers.IoSettings.VerifyCrc32 && verified != engine.Items.Count)
+            {
+                ok = false;
+                outp.WriteLine("");
+                outp.WriteLine("ПРОВАЛ: сверка CRC-32 включена, но подтверждено не всё число файлов.");
+            }
             outp.WriteLine("");
             outp.WriteLine(ok ? "ДВИЖОК: OK" : "ДВИЖОК: ПРОВАЛ");
             outp.Flush();

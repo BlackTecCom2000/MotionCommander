@@ -91,15 +91,28 @@
                   ContextMenuOpening="FileListView_ContextMenuOpening">
             <ListView.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="Открыть" Command="{Binding OpenCommand}"/>
+                    <!-- ВАЖНО: у Open/Rename/Delete/PropertiesCommand параметр типа
+                         FileEntry, а без CommandParameter команда получала null и
+                         сразу выходила. Пункты выглядели рабочими, но ничего не
+                         делали. Copy/Cut/Paste параметра не требуют: они
+                         работают с текущим выделением. -->
+                    <MenuItem Header="Открыть"
+                              Command="{Binding OpenCommand}"
+                              CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=ListView}}"/>
                     <MenuItem Header="Копировать" Command="{Binding CopyCommand}"/>
                     <MenuItem Header="Вырезать" Command="{Binding CutCommand}"/>
                     <MenuItem Header="Вставить" Command="{Binding PasteCommand}"/>
                     <Separator/>
-                    <MenuItem Header="Переименовать" Command="{Binding RenameCommand}"/>
-                    <MenuItem Header="Удалить" Command="{Binding DeleteCommand}"/>
+                    <MenuItem Header="Переименовать"
+                              Command="{Binding RenameCommand}"
+                              CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=ListView}}"/>
+                    <MenuItem Header="Удалить"
+                              Command="{Binding DeleteCommand}"
+                              CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=ListView}}"/>
                     <Separator/>
-                    <MenuItem Header="Свойства" Command="{Binding PropertiesCommand}"/>
+                    <MenuItem Header="Свойства"
+                              Command="{Binding PropertiesCommand}"
+                              CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=ListView}}"/>
                 </ContextMenu>
             </ListView.ContextMenu>
             <ListView.View>

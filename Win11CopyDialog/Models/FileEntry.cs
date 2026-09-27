@@ -28,8 +28,29 @@ public enum FileIconSize
 
 public sealed class FileEntry : INotifyPropertyChanged
 {
-    public string FullPath { get; }
-    public string Name { get; }
+    private string _fullPath;
+    private string _name;
+
+    /// <summary>Полный путь. Меняется только через <see cref="RenameTo"/>.</summary>
+    public string FullPath => _fullPath;
+
+    /// <summary>Имя объекта. Меняется только через <see cref="RenameTo"/>.</summary>
+    public string Name => _name;
+
+    /// <summary>
+    /// Обновляет путь и имя после переименования на диске и оповещает
+    /// интерфейс. Свойства намеренно были только для чтения, из-за чего
+    /// переименование в проводнике было невозможно реализовать.
+    /// </summary>
+    public void RenameTo(string newFullPath)
+    {
+        _fullPath = newFullPath;
+        _name = System.IO.Path.GetFileName(
+            newFullPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
+        OnPropertyChanged(nameof(FullPath));
+        OnPropertyChanged(nameof(Name));
+    }
+
     public FileEntryType Type { get; }
     public DateTime LastWriteTime { get; }
     public DateTime CreationTime { get; }
@@ -80,8 +101,8 @@ public sealed class FileEntry : INotifyPropertyChanged
 
     public FileEntry(string fullPath, FileEntryType type, DateTime lastWrite, DateTime creation, FileAttributes attrs)
     {
-        FullPath = fullPath;
-        Name = type == FileEntryType.Drive ? fullPath : Path.GetFileName(fullPath);
+        _fullPath = fullPath;
+        _name = type == FileEntryType.Drive ? fullPath : Path.GetFileName(fullPath);
         Type = type;
         LastWriteTime = lastWrite;
         CreationTime = creation;

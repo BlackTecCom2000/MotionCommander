@@ -162,7 +162,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Размер I/O буфера по умолчанию:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
-                                    <ComboBox x:Name="DefaultBufferCombo" Grid.Column="1" Width="200" HorizontalAlignment="Left" SelectedIndex="2">
+                                    <ComboBox x:Name="DefaultBufferCombo" SelectionChanged="IoSetting_Changed" Grid.Column="1" Width="200" HorizontalAlignment="Left" SelectedIndex="2">
                                         <ComboBoxItem Content="256 КБ (Для USB 2.0 / HDD)"/>
                                         <ComboBoxItem Content="512 КБ (Сбалансированный)"/>
                                         <ComboBoxItem Content="1 МБ (Рекомендуется для NVMe)"/>
@@ -178,7 +178,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Параллельные потоки:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
-                                    <ComboBox x:Name="ThreadsCombo" Grid.Column="1" Width="200" HorizontalAlignment="Left" SelectedIndex="3">
+                                    <ComboBox x:Name="ThreadsCombo" SelectionChanged="IoSetting_Changed" Grid.Column="1" Width="200" HorizontalAlignment="Left" SelectedIndex="3">
                                         <ComboBoxItem Content="1 поток (Строго по очереди)"/>
                                         <ComboBoxItem Content="2 потока"/>
                                         <ComboBoxItem Content="4 потока (Оптимально)"/>
@@ -187,9 +187,20 @@
                                     </ComboBox>
                                 </Grid>
 
-                                <CheckBox x:Name="DirectIoCheck" Content="Обход файлового кэша Windows (Direct I/O / FILE_FLAG_NO_BUFFERING)" Margin="0,6,0,6" IsChecked="False"/>
-                                <CheckBox x:Name="SequentialScanCheck" Content="Подсказка планировщику ядра (FILE_FLAG_SEQUENTIAL_SCAN)" Margin="0,0,0,6" IsChecked="True"/>
-                                <CheckBox x:Name="VerifyCrcCheck" Content="Автоматический расчёт CRC-32 контрольной суммы на лету" Margin="0,0,0,6" IsChecked="True"/>
+                                <CheckBox x:Name="DirectIoCheck" Checked="IoSetting_Changed" Unchecked="IoSetting_Changed" Content="Обход файлового кэша Windows (Direct I/O / FILE_FLAG_NO_BUFFERING)" Margin="0,6,0,6" IsChecked="False"/>
+                                <CheckBox x:Name="SequentialScanCheck" Checked="IoSetting_Changed" Unchecked="IoSetting_Changed" Content="Подсказка планировщику ядра (FILE_FLAG_SEQUENTIAL_SCAN)" Margin="0,0,0,6" IsChecked="True"/>
+                                <CheckBox x:Name="VerifyCrcCheck" Checked="IoSetting_Changed" Unchecked="IoSetting_Changed" Content="Автоматический расчёт CRC-32 контрольной суммы на лету" Margin="0,0,0,6" IsChecked="True"/>
+
+        <!-- Показывает фактически действующие значения параметров.
+             Раньше эти настройки выглядели рабочими, но не читались ни одним
+             движком, поэтому пользователь не мог проверить, что они применились. -->
+        <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="10,8" Margin="0,10,0,0">
+            <StackPanel>
+                <TextBlock Text="Применяется копированием сейчас:" FontSize="11" FontWeight="SemiBold"
+                           Style="{StaticResource MutedText}"/>
+                <TextBlock x:Name="IoSettingsSummaryText" Text="" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
                             </StackPanel>
                         </Border>
                     </StackPanel>

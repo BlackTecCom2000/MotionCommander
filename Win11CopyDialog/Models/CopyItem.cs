@@ -48,6 +48,14 @@ public sealed class CopyItem : INotifyPropertyChanged
     /// </summary>
     public bool WasSkipped { get; set; }
 
+    /// <summary>
+    /// Чем подтверждена целостность копии: «CRC-32 XXXXXXXX» либо пусто,
+    /// если проверка отключена.
+    /// <para>Показывается в интерфейсе, чтобы пользователь видел не просто
+    /// «готово», а что именно подтвердило целостность.</para>
+    /// </summary>
+    public string VerifiedBy { get; set; } = "";
+
     public string StatusGlyph => Status switch
     {
         CopyItemStatus.Done => "✔",
