@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using Win11CopyDialog.Models;
 
@@ -176,6 +177,16 @@ public partial class App : Application
         {
             RunStorageAudit();
             Shutdown(0);
+            return;
+        }
+
+        // --download-test <url>: реальная загрузка через DownloadEngine с
+        // отчётом о результате. Нужен для проверки менеджера загрузок end-to-end.
+        int dlIdx = Array.IndexOf(e.Args, "--download-test");
+        if (dlIdx >= 0)
+        {
+            string url = dlIdx + 1 < e.Args.Length ? e.Args[dlIdx + 1] : "";
+            _ = RunDownloadTestAsync(url);
             return;
         }
 
@@ -588,6 +599,103 @@ public partial class App : Application
         System.Console.Out.Flush();
 
         static string Or(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s.Trim();
+    }
+
+    /// <summary>
+    /// Сквозная проверка менеджера загрузок: реальный HTTP, реальные сегменты,
+    /// реальная сборка файла. Единственный способ утверждать, что загрузка
+    /// работает, — выполнить её.
+    /// </summary>
+    private async Task RunDownloadTestAsync(string url)
+    {
+        var outp = System.Console.Out;
+        outp.WriteLine("DOWNLOAD TEST");
+        outp.WriteLine(new string('=', 60));
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            outp.WriteLine("Не передан адрес. Использование: --download-test <url>");
+            outp.Flush();
+            Shutdown(1);
+            return;
+        }
+
+        string folder = Path.Combine(Path.GetTempPath(), "MCDownloadTest");
+        try
+        {
+            if (Directory.Exists(folder)) Directory.Delete(folder, true);
+            Directory.CreateDirectory(folder);
+        }
+        catch (Exception ex)
+        {
+            outp.WriteLine("Не удалось подготовить папку: " + ex.Message);
+            outp.Flush();
+            Shutdown(1);
+            return;
+        }
+
+        string fileName = "payload.bin";
+        try { fileName = Path.GetFileName(new Uri(url).LocalPath); } catch { }
+        if (string.IsNullOrWhiteSpace(fileName)) fileName = "payload.bin";
+
+        var item = new Modules.Utilities.DownloadManager.Models.DownloadItem
+        {
+            Url = url,
+            FileName = fileName,
+            SavePath = Path.Combine(folder, fileName),
+            Status = Modules.Utilities.DownloadManager.Models.DownloadStatus.Queued
+        };
+
+        var db = new Modules.Utilities.DownloadManager.Services.DatabaseService();
+        var config = new Modules.Utilities.DownloadManager.Models.DownloadTaskConfig();
+        var engine = new Modules.Utilities.DownloadManager.Services.DownloadEngine(db, config);
+
+        long lastReported = 0;
+        engine.ProgressChanged += (_, d) =>
+        {
+            if (d.BytesDownloaded - lastReported < 64 * 1024) return;
+            lastReported = d.BytesDownloaded;
+            outp.WriteLine($"  ... {d.BytesDownloaded / 1024} КБ из {d.TotalBytes / 1024} КБ, {d.Speed / 1024:0} КБ/с, сегментов {d.Segments.Count}");
+            outp.Flush();
+        };
+        engine.DownloadCompleted += (_, d) => outp.WriteLine("  СОБЫТИЕ: загрузка завершена");
+        engine.DownloadFailed += (_, d) => outp.WriteLine("  СОБЫТИЕ: ошибка — " + d.ErrorMessage);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await engine.StartDownloadAsync(item).ConfigureAwait(false);
+        sw.Stop();
+
+        outp.WriteLine("");
+        outp.WriteLine($"  Статус        : {item.Status}");
+        outp.WriteLine($"  Скачано       : {item.BytesDownloaded} из {item.TotalBytes} байт");
+        outp.WriteLine($"  Сегментов     : {item.Segments.Count}");
+        outp.WriteLine($"  Время         : {sw.Elapsed.TotalSeconds:0.0} с");
+        outp.WriteLine($"  Ошибка        : {item.ErrorMessage ?? "нет"}");
+
+        bool fileOk = false;
+        long actualSize = 0;
+        try
+        {
+            if (File.Exists(item.SavePath))
+            {
+                actualSize = new FileInfo(item.SavePath).Length;
+                fileOk = item.TotalBytes == 0 || actualSize == item.TotalBytes;
+            }
+        }
+        catch (Exception ex) { outp.WriteLine("  Проверка файла: " + ex.Message); }
+
+        outp.WriteLine($"  Файл на диске : {actualSize} байт -> {(fileOk ? "РАЗМЕР СОВПАДАЕТ" : "РАЗМЕР НЕ СОВПАДАЕТ / ФАЙЛА НЕТ")}");
+        outp.WriteLine("");
+        outp.WriteLine(item.Status == Modules.Utilities.DownloadManager.Models.DownloadStatus.Completed && fileOk
+            ? "РЕЗУЛЬТАТ: OK - файл скачан полностью и размер совпадает"
+            : "РЕЗУЛЬТАТ: ПРОВАЛ");
+        outp.Flush();
+
+        // Shutdown() должен вызываться на потоке Dispatcher: после
+        // ConfigureAwait(false) мы уже в пуле потоков, и вызов оттуда
+        // не завершался — процесс оставался жив и тест упирался в таймаут.
+        int code = item.Status == Modules.Utilities.DownloadManager.Models.DownloadStatus.Completed && fileOk ? 0 : 1;
+        await Dispatcher.InvokeAsync(() => Shutdown(code));
     }
 
     private void CleanupOldFiles()

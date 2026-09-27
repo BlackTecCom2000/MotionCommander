@@ -8,9 +8,10 @@
     <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        
+
         <!-- Toolbar -->
         <Border Grid.Row="0" Margin="20,20,20,10" Background="{DynamicResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
             <Grid>
@@ -21,12 +22,18 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                
-                <TextBox Grid.Column="0" Text="{Binding NewUrl, UpdateSourceTrigger=PropertyChanged}" 
-                         Background="#11FFFFFF" Foreground="White" BorderThickness="0" Padding="10" 
+
+                <!-- Цвета берутся из темы. Раньше здесь стояли жёсткие
+                     Foreground="White" и Background="#11FFFFFF", из-за чего
+                     поле ввода было нечитаемым в светлых темах. -->
+                <TextBox Grid.Column="0" Text="{Binding NewUrl, UpdateSourceTrigger=PropertyChanged}"
+                         Background="{DynamicResource LiquidGlassInputBackgroundBrush}"
+                         Foreground="{DynamicResource PrimaryTextBrush}"
+                         BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}"
+                         BorderThickness="1" Padding="10"
                          VerticalContentAlignment="Center"
-                         Margin="0,0,10,0" ToolTip="Введите URL для загрузки"/>
-                         
+                         Margin="0,0,10,0" ToolTip="Введите адрес http:// или https://"/>
+
                 <Button Grid.Column="1" Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{StaticResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
                 <Button Grid.Column="2" Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{StaticResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
                 <Button Grid.Column="3" Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{StaticResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
@@ -34,9 +41,15 @@
             </Grid>
         </Border>
 
+        <!-- Статус операции: раньше ошибки и результат операций негде было показать,
+             поэтому неверный адрес выглядел как «ничего не произошло». -->
+        <TextBlock Grid.Row="1" Margin="22,0,22,10" Text="{Binding StatusMessage}"
+                   FontSize="11" TextWrapping="Wrap"
+                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+
         <!-- Downloads List -->
-        <ListView Grid.Row="1" Margin="20,0,20,20" 
-                  Background="Transparent" 
+        <ListView Grid.Row="2" Margin="20,0,20,20"
+                  Background="Transparent"
                   BorderThickness="0"
                   ItemsSource="{Binding Downloads}"
                   SelectedItem="{Binding SelectedDownload}"
@@ -48,14 +61,14 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListViewItem">
-                                <Border Background="{DynamicResource CardBackgroundBrush}" CornerRadius="8" Padding="15">
+                                <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="15">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
-                                        
+
                                         <Grid Grid.Row="0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -64,16 +77,23 @@
                                             <StackPanel Grid.Column="0" Margin="0,0,15,0">
                                                 <TextBlock Text="{Binding FileName}" Foreground="{DynamicResource PrimaryTextBrush}" FontWeight="SemiBold" FontSize="16" TextTrimming="CharacterEllipsis"/>
                                                 <TextBlock Text="{Binding Url}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource StatusDangerBrush}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                                <TextBlock Text="{Binding Status}" Foreground="#00FFCC" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right"/>
+                                                <TextBlock Text="{Binding Status}" Foreground="{DynamicResource AccentBrush}" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right"/>
                                                 <TextBlock Text="{Binding SpeedText}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,2,0,0"/>
                                             </StackPanel>
                                         </Grid>
-                                        
-                                        <ProgressBar Grid.Row="1" Value="{Binding Progress}" Maximum="100" Height="4" Margin="0,15,0,0" Background="#33FFFFFF" Foreground="#00FFCC"/>
-                                        
-                                        <!-- Segments Visualizer -->
+
+                                        <ProgressBar Grid.Row="1" Value="{Binding Progress}" Maximum="100" Height="6" Margin="0,15,0,0"
+                                                     Background="{DynamicResource ProgressTrackBrush}"
+                                                     Foreground="{DynamicResource AccentBrush}"
+                                                     BorderThickness="0"/>
+
+                                        <!-- Сегменты: раньше был самодельный шаблон ProgressBar
+                                             с Rectangle без заданной ширины, поэтому полоса
+                                             сегмента всегда оставалась нулевой. Теперь это
+                                             обычный ProgressBar с ресурсами темы. -->
                                         <ItemsControl Grid.Row="2" ItemsSource="{Binding Segments}" Margin="0,10,0,0">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -82,23 +102,11 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Margin="1,0" Height="10" Background="#22FFFFFF" CornerRadius="2">
-                                                        <!-- Segment Progress fills from left to right -->
-                                                        <Grid>
-                                                            <ProgressBar Value="{Binding Progress}" Maximum="100" 
-                                                                         Background="Transparent" Foreground="#00FFCC" BorderThickness="0">
-                                                                <ProgressBar.Template>
-                                                                    <ControlTemplate TargetType="ProgressBar">
-                                                                        <Border Background="{TemplateBinding Background}" CornerRadius="2">
-                                                                            <Grid x:Name="PART_Track">
-                                                                                <Rectangle x:Name="PART_Indicator" Fill="{TemplateBinding Foreground}" HorizontalAlignment="Left" RadiusX="2" RadiusY="2"/>
-                                                                            </Grid>
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </ProgressBar.Template>
-                                                            </ProgressBar>
-                                                        </Grid>
-                                                    </Border>
+                                                    <ProgressBar Value="{Binding Progress}" Maximum="100"
+                                                                 Margin="1,0" Height="8" BorderThickness="0"
+                                                                 Background="{DynamicResource ProgressTrackBrush}"
+                                                                 Foreground="{DynamicResource AccentBrush}"
+                                                                 ToolTip="{Binding Progress, StringFormat=Сегмент: {0:F0}%}"/>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
