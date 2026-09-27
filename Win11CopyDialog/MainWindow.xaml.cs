@@ -2110,16 +2110,15 @@ public partial class MainWindow : Window
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-    // Settings Handlers (Stubs)
-    private void SettingsThemeCombo_Changed(object sender, SelectionChangedEventArgs e) { }
-    private void SettingsBackdrop_Changed(object sender, RoutedEventArgs e) { }
-    private void SettingsHaptics_Changed(object sender, RoutedEventArgs e) { }
-    private void SettingsTestClick_Click(object sender, RoutedEventArgs e) { }
-    private void SettingsTestHover_Click(object sender, RoutedEventArgs e) { }
-    private void SettingsTestSuccess_Click(object sender, RoutedEventArgs e) { }
-    private void SettingsTestScroll_Click(object sender, RoutedEventArgs e) { }
-    private void SettingsOpenConfigFolder_Click(object sender, RoutedEventArgs e) { }
-    private void SettingsReloadConfig_Click(object sender, RoutedEventArgs e) { }
-    private void SettingsResetConfig_Click(object sender, RoutedEventArgs e) { }
-    private void SettingsSaveConfig_Click(object sender, RoutedEventArgs e) { }
+    // Обработчики настроек (SettingsThemeCombo_Changed, SettingsBackdrop_Changed,
+    // SettingsHaptics_Changed, SettingsTestClick_Click, SettingsTestHover_Click,
+    // SettingsTestSuccess_Click, SettingsTestScroll_Click,
+    // SettingsOpenConfigFolder_Click, SettingsReloadConfig_Click,
+    // SettingsResetConfig_Click, SettingsSaveConfig_Click) удалены.
+    //
+    // Это были пустые тела { } без единой строки логики. После того как панель
+    // настроек вынесена в отдельное окно Views\Dialogs\SettingsWindow, они
+    // перестали вызываться из XAML, но остались в коде. Мёртвые заглушки
+    // вводили в заблуждение при чтении и маскировали реальные обработчики
+    // настроек, которые живут в SettingsWindow.
 }

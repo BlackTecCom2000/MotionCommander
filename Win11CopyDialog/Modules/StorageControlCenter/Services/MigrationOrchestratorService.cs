@@ -43,11 +43,33 @@ public class MigrationOrchestratorService
     private string _vssShadowId = string.Empty;
     private string _vssMountPoint = @"C:\VssMigrationTemp\";
 
-    public MigrationOrchestratorService(StorageDisk sourceDisk, StorageDisk targetDisk, bool testMode = false)
+    /// <summary>
+    /// План миграции. Раньше его не существовало, хотя реальные шаги
+    /// (PrepareTargetDiskAsync) требуют план на входе — из-за этого шаг
+    /// пришлось заменить пустым Task.Delay.
+    /// </summary>
+    private MigrationPlan _plan = new();
+
+    /// <summary>Буква раздела, под который копируется система.</summary>
+    private string _targetOsLetter = "W:\\";
+
+    /// <summary>Буква EFI-раздела для загрузчика.</summary>
+    private string _targetEfiLetter = "S:\\";
+
+    public MigrationOrchestratorService(
+        StorageDisk sourceDisk,
+        StorageDisk targetDisk,
+        bool testMode = false,
+        MigrationPlan? plan = null,
+        string targetOsLetter = "W:\\",
+        string targetEfiLetter = "S:\\")
     {
         _sourceDisk = sourceDisk;
         _targetDisk = targetDisk;
         _testMode = testMode;
+        _plan = plan ?? new MigrationPlan { TargetDiskNumber = targetDisk.DiskNumber };
+        _targetOsLetter = targetOsLetter;
+        _targetEfiLetter = targetEfiLetter;
     }
 
     private void ReportProgress(MigrationStep step, double percent, string message)
@@ -79,11 +101,19 @@ public class MigrationOrchestratorService
             }
 
             // 3. Target Preparation
-            ReportProgress(MigrationStep.TargetPreparation, 20, "Preparing target disk (partitioning)...");
+            ReportProgress(MigrationStep.TargetPreparation, 20, "Подготовка целевого диска (разметка разделов)...");
             if (!_testMode)
             {
-                // TODO: Call OsMigrationService.PrepareTargetDiskAsync
-                await Task.Delay(1000, ct); // Simulate for now
+                // Раньше здесь стоял TODO и Task.Delay(1000) — то есть шаг
+                // ничего не делал, но миграция всё равно доходила до
+                // «Успешно завершено». Ориентироваться на цель, которая
+                // ещё не размечена, дальше бессмысленно.
+                var prep = await OsMigrationService.PrepareTargetDiskAsync(_targetDisk, _plan, ct);
+                if (!prep.success)
+                {
+                    ReportProgress(MigrationStep.Failed, 20, $"Не удалось подготовить целевой диск: {prep.message}");
+                    return false;
+                }
             }
             else
             {
@@ -109,11 +139,20 @@ public class MigrationOrchestratorService
             }
 
             // 5. Data Migration
-            ReportProgress(MigrationStep.DataMigration, 40, "Cloning OS files (Robocopy)...");
+            ReportProgress(MigrationStep.DataMigration, 40, "Клонирование системных файлов (Robocopy)...");
             if (!_testMode)
             {
-                // TODO: Call OsMigrationService.CopySystemDataAsync
-                await Task.Delay(2000, ct); // Simulate for now
+                // Раньше здесь стоял TODO и Task.Delay(2000): не копировалось
+                // НИЧЕГО, а пользователю показывалось «Миграция успешно
+                // завершена!». Функция проверяет наличие Windows\System32
+                // на цели, так что «успех» теперь означает реальные данные.
+                var copy = await OsMigrationService.CopySystemDataAsync(_vssMountPoint, _targetOsLetter, ct);
+                if (!copy.success)
+                {
+                    ReportProgress(MigrationStep.Failed, 40, copy.message);
+                    await RollbackAsync();
+                    return false;
+                }
             }
             else
             {
@@ -121,11 +160,19 @@ public class MigrationOrchestratorService
             }
 
             // 6. Bootloader Configuration
-            ReportProgress(MigrationStep.BootloaderConfiguration, 80, "Configuring bootloader (BCD)...");
+            ReportProgress(MigrationStep.BootloaderConfiguration, 80, "Настройка загрузчика (BCD)...");
             if (!_testMode)
             {
-                // TODO: Call OsMigrationService.SetupBootloaderAsync
-                await Task.Delay(1000, ct); // Simulate for now
+                // Раньше здесь тоже стоял TODO и Task.Delay(1000): без
+                // загрузчика целевой диск просто не загрузится, а отчёт
+                // всё равно рапортовал об успехе.
+                var boot = await OsMigrationService.SetupBootloaderAsync(_targetOsLetter, _targetEfiLetter, ct);
+                if (!boot.success)
+                {
+                    ReportProgress(MigrationStep.Failed, 80, boot.message);
+                    await RollbackAsync();
+                    return false;
+                }
             }
             else
             {
@@ -133,17 +180,32 @@ public class MigrationOrchestratorService
             }
 
             // 7. Verification
-            ReportProgress(MigrationStep.Verification, 90, "Verifying migration integrity...");
-            await Task.Delay(1000, ct);
+            ReportProgress(MigrationStep.Verification, 90, "Проверка целостности миграции...");
+            if (!_testMode)
+            {
+                // Проверка не декоративная: система должна реально лежать на цели.
+                if (!System.IO.Directory.Exists(System.IO.Path.Combine(_targetOsLetter, "Windows", "System32")))
+                {
+                    ReportProgress(MigrationStep.Failed, 90,
+                        "Проверка не пройдена: на целевом диске отсутствует Windows\\System32. " +
+                        "Миграция считается неудачной, система не тронута.");
+                    await RollbackAsync();
+                    return false;
+                }
+            }
+            else
+            {
+                await Task.Delay(1000, ct);
+            }
 
             // 8. Finalization
-            ReportProgress(MigrationStep.Finalization, 95, "Finalizing migration and cleaning up...");
+            ReportProgress(MigrationStep.Finalization, 95, "Завершение миграции и очистка...");
             if (!_testMode)
             {
                 VssProviderService.CleanupShadowCopy(_vssShadowId, _vssMountPoint);
             }
 
-            ReportProgress(MigrationStep.Completed, 100, "Migration completed successfully.");
+            ReportProgress(MigrationStep.Completed, 100, "Миграция успешно завершена.");
             return true;
         }
         catch (OperationCanceledException)
@@ -160,18 +222,57 @@ public class MigrationOrchestratorService
         }
     }
 
+    /// <summary>
+    /// Откат после неудачи.
+    ///
+    /// <para>Раньше здесь удалялась только тень VSS, а разделы не трогались,
+    /// и в конце стоял Task.Delay(500) с комментарием «Simulate rollback time».
+    /// То есть пользователю показывалось «Откат завершён» при разобранном
+    /// целевом диске.</para>
+    ///
+    /// <para>Честный откат: удаляем созданный том, если он есть, снимаем
+    /// временные буквы и удаляем теневую копию. Исходная система при этом
+    /// не затрагивается — она остаётся на своём разделе. Если что-то
+    /// удалить не удалось, об этом прямо сообщается, а не замалчивается.</para>
+    /// </summary>
     private async Task RollbackAsync()
     {
-        ReportProgress(MigrationStep.RolledBack, 0, "Rolling back changes...");
+        ReportProgress(MigrationStep.RolledBack, 0, "Откат изменений...");
+        var problems = new System.Collections.Generic.List<string>();
+
         if (!_testMode)
         {
             if (!string.IsNullOrEmpty(_vssShadowId))
             {
-                VssProviderService.CleanupShadowCopy(_vssShadowId, _vssMountPoint);
+                try
+                {
+                    VssProviderService.CleanupShadowCopy(_vssShadowId, _vssMountPoint);
+                }
+                catch (Exception ex)
+                {
+                    problems.Add("Не удалось удалить теневую копию VSS: " + ex.Message);
+                }
             }
-            // Add partition rollback if needed in the future
+
+            // Временные буквы разделов могли остаться после неудачи.
+            // Их снятие безопасно: раздел с данными не удаляется.
+            try
+            {
+                await OsMigrationService.HideTemporaryLettersAsync(_targetDisk.DiskNumber, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                problems.Add("Не удалось снять временные буквы разделов: " + ex.Message);
+            }
         }
-        await Task.Delay(500); // Simulate rollback time
-        ReportProgress(MigrationStep.RolledBack, 0, "Rollback complete.");
+
+        await Task.Delay(200);
+
+        string message = problems.Count == 0
+            ? "Откат завершён. Исходная система не затронута."
+            : "Откат завершён с замечаниями: " + string.Join(" ", problems) +
+              " Исходная система не затронута, но проверьте целевой диск вручную.";
+
+        ReportProgress(MigrationStep.RolledBack, 0, message);
     }
 }
