@@ -85,7 +85,15 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <ProgressBar Grid.Row="1" Value="{Binding Progress}" Maximum="100" Height="6" Margin="0,15,0,0"
+                                        <!-- Mode=OneWay обязателен.
+                                             RangeBase.Value (ProgressBar.Value)
+                                             по умолчанию TwoWay, а DownloadItem.Progress
+                                             и DownloadSegment.Progress — свойства ТОЛЬКО
+                                             для чтения. WPF не может построить
+                                             two-way update source и падает с
+                                             «TwoWayOneWayToSourceSource не может работать
+                                             с источником DownloadItem». -->
+                                        <ProgressBar Grid.Row="1" Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="6" Margin="0,15,0,0"
                                                      Background="{DynamicResource ProgressTrackBrush}"
                                                      Foreground="{DynamicResource AccentBrush}"
                                                      BorderThickness="0"/>
@@ -102,11 +110,16 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <ProgressBar Value="{Binding Progress}" Maximum="100"
+                                                    <!-- StringFormat обязательно экранирован
+                                                         префиксом {}: иначе фигурные скобки
+                                                         {0:F0} воспринимаются парсером XAML
+                                                         как начало ещё одной markup-extension,
+                                                         и файл не грузится вообще. -->
+                                                    <ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100"
                                                                  Margin="1,0" Height="8" BorderThickness="0"
                                                                  Background="{DynamicResource ProgressTrackBrush}"
                                                                  Foreground="{DynamicResource AccentBrush}"
-                                                                 ToolTip="{Binding Progress, StringFormat=Сегмент: {0:F0}%}"/>
+                                                                 ToolTip="{Binding Progress, StringFormat='{}{0:F0} %'}"/>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
