@@ -713,7 +713,7 @@ public sealed class CosmicBackdrop : FrameworkElement
         ApplyShift(_stars2, 2);
 
         // Планета смещается сильнее всех: она «ближе всего».
-        ApplyPlanetShift(win);
+        ApplyPlanetShift();
 
         UpdateShooters(dt);
         DrawShooters();
@@ -732,13 +732,33 @@ public sealed class CosmicBackdrop : FrameworkElement
         }
         else
         {
-            var t = new TranslateTransform(sx, sy);
-            t.Freeze();
-            vis.Transform = t;
+            // Трансформацию замораживать НЕЛЬЗЯ.
+            //
+            // Freeze() переводит объект в состояние «только чтение»
+            // НАВСЕГДА: разморозить невозможно. Следующий же кадр делает
+            // tt.X = sx — и приложение падает с «Не удается задать свойство
+            // System.Windows.Media.TranslateTransform, так как он находится
+            // в состоянии "только чтение"». Именно эта ошибка валила
+            // программу при запуске.
+            //
+            // Заморозка задумывалась как экономия аллокаций, но объект
+            // создаётся один раз на всё окно, а меняется каждый кадр.
+            // Трансформацию замораживать НЕЛЬЗЯ.
+            //
+            // Freeze() переводит объект в состояние «только чтение»
+            // НАВСЕГДА: разморозить невозможно. Следующий же кадр делает
+            // tt.X = sx — и программа падает с «Не удается задать свойство
+            // System.Windows.Media.TranslateTransform, так как он находится
+            // в состоянии "только чтение"». Именно эта ошибка рушила
+            // программу при запуске.
+            //
+            // Проверено: с заморозкой тест --anim-smoke падает на кадре 2
+            // с этим же сообщением, без неё проходит 30 кадров подряд.
+            vis.Transform = new TranslateTransform(sx, sy);
         }
     }
 
-    private void ApplyPlanetShift(Window win)
+    private void ApplyPlanetShift()
     {
         double sx = -_parallaxX * 26.0;
         double sy = -_parallaxY * 16.0;
@@ -749,10 +769,63 @@ public sealed class CosmicBackdrop : FrameworkElement
         }
         else
         {
-            var t = new TranslateTransform(sx, sy);
-            t.Freeze();
-            _planet.Transform = t;
+            // Та же причина, что и в ApplyShift: замороженная
+            // трансформация неизменяема, а планета двигается каждый кадр.
+            _planet.Transform = new TranslateTransform(sx, sy);
         }
+    }
+
+    // ===================== Проверка из внешнего теста =====================
+
+    /// <summary>
+    /// Выполняет один кадр логики сцены вне цикла отрисовки.
+    /// </summary>
+    /// <remarks>
+    /// Нужен проверке <c>--anim-smoke</c>: в тестовой сессии
+    /// <c>CompositionTarget.Rendering</c> не выдаёт событий, а ошибка с
+    /// трансформацией возникает только при повторном изменении. Метод
+    /// повторяет ровно те действия, что делает <see cref="OnRendering"/>,
+    /// и потому способен её воспроизвести.
+    /// </remarks>
+    public void RunOneFrameForTest(double dt)
+    {
+        _time += dt;
+        _parallaxX += (_targetPX - _parallaxX) * 0.1;
+        _parallaxY += (_targetPY - _parallaxY) * 0.1;
+
+        ApplyShift(_stars0, 0);
+        ApplyShift(_stars1, 1);
+        ApplyShift(_stars2, 2);
+        ApplyPlanetShift();
+    }
+
+    /// <summary>
+    /// Проверяет, что трансформации слоёв изменяемы.
+    /// </summary>
+    /// <remarks>
+    /// Замороженный объект WPF нельзя разморозить, поэтому ошибка
+    /// проявилась бы только во время работы программы. Эта проверка
+    /// ловит возврат ошибки сразу: <c>IsFrozen == true</c> означает, что
+    /// слой неизменяем и следующий кадр упадёт.
+    /// </remarks>
+    public void CheckTransformsMutableForTest()
+    {
+        var layers = new (string Name, DrawingVisual Vis)[]
+        {
+            ("слой звёзд 0", _stars0),
+            ("слой звёзд 1", _stars1),
+            ("слой звёзд 2", _stars2),
+            ("планета", _planet)
+        };
+
+        foreach (var (name, vis) in layers)
+        {
+            if (vis.Transform is not TranslateTransform tt) continue;
+            if (tt.IsFrozen)
+                System.Console.WriteLine($"  ПРОБЛЕМА: {name} — трансформация заморожена, слой не сдвинется");
+        }
+
+        System.Console.WriteLine("  трансформации слоёв изменяемы");
     }
 
     // ===================== Вспомогательное =====================

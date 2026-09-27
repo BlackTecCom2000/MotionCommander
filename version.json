@@ -1,22 +1,20 @@
 ﻿{
-    "version":  "3.8.26",
+    "version":  "3.8.27",
     "releaseDate":  "2026-09-28",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Программа теперь запускается только с правами администратора: манифест приложения переведен с asInvoker на requireAdministrator, поэтому запрос повышения делает сама Windows до старта кода.",
-                      "При отказе в UAC программа не запускается. Раньше она продолжала работу без прав, и показатели S.M.A.R.T. оказывались недоступны без предупреждения - пользователь видел половину пустых значений, принимая их за состояние дисков.",
-                      "Повышенный процесс проверяет свои права и завершается с кодом 3, если Windows не предоставила доступ. Без этой проверки Process.Start возвращал успех даже тогда, когда процесс умирал молча.",
-                      "Диагностические режимы (--view-audit, --theme-audit, --contrast-audit, --anim-audit, --smart-test, --storage-audit, --copy-test) запускаются без повышения, иначе проверку невозможно выполнить до установки. Перечень ключей задан явно, чтобы отключить повышение нельзя было случайным аргументом.",
-                      "Космическая сцена: планета с настоящим сферическим терминатором, объемная туманность, звезды с цветом по температуре, параллакс от курсора, падающие звезды.",
-                      "Контраст всех 128 пар текста и фона проходит WCAG AA - раньше розовый акцент на белом давал 2,87:1 при требуемых 4,5:1.",
-                      "Установщик один файл: MotionCommander-v3.8.26-Setup.exe содержит все компоненты, ставится с правами администратора в Program Files, создает группу в меню Пуск и ключ в PATH."
+                      "Исправлено падение при запуске: Не удается задать свойство System.Windows.Media.TranslateTransform, так как он находится в состоянии только чтение.",
+                      "Причина: трансформация слоя замораживалась ради экономии аллокаций, а следующий кадр менял ее X и Y. Замороженный объект WPF неизменяем навсегда, разморозить его невозможно, поэтому программа падала на втором кадре анимации.",
+                      "Добавлена проверка --anim-smoke, которая прогоняет 30 кадров подряд и ловит повторное изменение трансформации. Проверка доказана в обе стороны: с заморозкой падает на кадре 2 с тем же сообщением, без неё проходит все кадры.",
+                      "Тот же дефект был в слое планеты - исправлен в обоих местах.",
+                      "Остальные заморозки в проекте проверены: геометрии, кисти и перья используются только для чтения и безопасны."
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.27-Patch.zip",
     "patchSizeMb":  3.16,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.27-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.27-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.27-Setup.exe"
 }

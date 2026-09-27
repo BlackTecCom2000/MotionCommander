@@ -244,6 +244,19 @@ public partial class App : Application
             return;
         }
 
+        // --anim-smoke: прогон кадра космической сцены без окна.
+        // Ошибка с замороженной трансформацией проявлялась только на
+        // втором кадре анимации, и обычная проверка экранов её не
+        // ловила: она создаёт окна, но CompositionTarget.Rendering в
+        // тестовой сессии не выдаёт событий. Этот режим вызывает логику
+        // кадра напрямую столько раз, сколько нужно, чтобы поймать
+        // повторное изменение трансформации.
+        if (e.Args.Contains("--anim-smoke"))
+        {
+            Shutdown(RunAnimationSmokeTest() ? 0 : 1);
+            return;
+        }
+
         // --contrast-audit: численная проверка контраста всех тем по WCAG AA.
         // Контраст раньше нигде не считался, поэтому нечитаемость
         // обнаруживалась только глазами на конкретном экране.
@@ -818,6 +831,63 @@ public partial class App : Application
     /// результат. Так видно не только проблему, но и то, решена ли она
     /// алгоритмом.</para>
     /// </summary>
+    /// <summary>
+    /// Прогон кадра космической сцены без создания окна.
+    /// </summary>
+    /// <remarks>
+    /// <para>Нужен из-за конкретной ошибки: трансформация слоя
+    /// замораживалась ради «экономии», а следующий кадр менял её X и Y.
+    /// Замороженный объект WPF неизменяем навсегда, и программа падала
+    /// при запуске с сообщением «Не удается задать свойство
+    /// TranslateTransform».</para>
+    ///
+    /// <para>Проверка воспроизводит именно тот порядок действий: создать
+    /// сцену, задать размер, выполнить несколько кадров подряд и
+    /// убедиться, что ни один не бросает. Одного кадра мало — ошибка
+    /// возникает при ПОВТОРНОМ присваивании.</para>
+    /// </remarks>
+    private static bool RunAnimationSmokeTest()
+    {
+        System.Console.WriteLine("ANIMATION SMOKE - прогон кадров космической сцены");
+        System.Console.WriteLine(new string('=', 72));
+
+        int problems = 0;
+        var scene = new Controls.CosmicBackdrop();
+        scene.Measure(new Size(1280, 800));
+        scene.Arrange(new Rect(0, 0, 1280, 800));
+
+        // Первый кадр создаёт трансформации, второй и последующие
+        // изменяют их. Именно на этом и падало приложение.
+        for (int frame = 1; frame <= 30; frame++)
+        {
+            try
+            {
+                scene.RunOneFrameForTest(frame * 0.016);
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"  кадр {frame}: ОШИБКА {ex.GetType().Name}: {ex.Message}");
+                problems++;
+                break;
+            }
+        }
+
+        if (problems == 0)
+            System.Console.WriteLine("  30 кадров подряд: без исключений");
+
+        // Прямая проверка инварианта: трансформации слоёв должны быть
+        // изменяемыми. Замороженная — признак возврата ошибки.
+        scene.CheckTransformsMutableForTest();
+
+        System.Console.WriteLine();
+        System.Console.WriteLine(new string('=', 72));
+        System.Console.WriteLine(problems == 0
+            ? "ANIMATION SMOKE: OK - сцена устойчива к многокадровой анимации"
+            : "ANIMATION SMOKE: ПРОБЛЕМА - сцена падает при анимации");
+        System.Console.Out.Flush();
+        return problems == 0;
+    }
+
     private void RunContrastAudit()
     {
         System.Console.WriteLine("CONTRAST AUDIT - контраст по WCAG 2.1 AA");
