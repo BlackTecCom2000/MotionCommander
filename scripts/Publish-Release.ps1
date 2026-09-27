@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = "3.8.18",
+    [string]$Version = "3.8.19",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -11,19 +11,22 @@ Set-Location $repoRoot
 
 if ($null -eq $Notes -or $Notes.Count -eq 0) {
     $Notes = @(
-        "Security: full payment card numbers removed from source, binaries and public repository (PCI-DSS)",
-        "Fixed pipe deadlock that could hang Drive Optimizer and S.M.A.R.T. scan forever",
+        "Honest storage diagnostics: disk health, temperature, wear, power-on hours, TRIM state and S.M.A.R.T. attributes are now read from the controller instead of being invented",
+        "Removed the per-media-type placeholder table that reported 41 C / 1840 hours / A+ for any disk whose controller could not be queried",
+        "S.M.A.R.T. table is now parsed from real MSStorageDriver_FailurePredictData with real thresholds, so failing attributes (Reallocated, Pending, Uncorrectable) can finally be reported",
+        "Disk type is determined from MSFT_PhysicalDisk spindle speed and bus type instead of guessing from the drive letter; drives with 'PRO' in the model name are no longer misreported as NVMe",
+        "Health score is averaged only over parameters that were actually measured, and shows 'n/a' when no data is available instead of always grading A+",
+        "Fragmentation is measured with the real defrag analyzer; TRIM state is queried via fsutil; both were previously hardcoded constants",
+        "Benchmark IOPS is computed correctly and single-threaded tests are no longer labelled Q8T1/Q32T1",
+        "Storage reports (txt/CSV/JSON) mark which values are measured and which are unavailable",
+        "Added scripts/Build-CrossPlatform.ps1 for cross-platform CLI packages and GitHub Actions diagnostics",
+        "Fixed pipe deadlock in Drive Optimizer and S.M.A.R.T. scan",
         "Fixed blocking Dispatcher.Invoke that throttled file copy throughput",
-        "Fixed Cancel button in WizTree and Duplicate Finder (cancellation exception was swallowed)",
-        "Fixed directory junction recursion and Recycle.Bin traversal in Duplicate Finder",
-        "Fixed shared collection in DependencyProperty: second File Manager blanked the drive tree in the first",
-        "Fixed ProgressBar crash when progress exceeded 100%",
-        "Settings now persist across restarts (config was written but never read)",
-        "Added error handling to destructive disk operations",
-        "Fixed false success reports from Drive Optimizer",
-        "Added Zip Slip protection and privileged path traversal validation",
-        "Fixed buffer pool leak on copy cancellation",
-        "Fixed installer script encoding and synchronized all versions"
+        "Fixed Cancel button in WizTree and Duplicate Finder",
+        "Fixed directory junction recursion in Duplicate Finder",
+        "Fixed shared DependencyProperty collection that blanked the drive tree",
+        "Settings now persist across restarts",
+        "Security: full payment card numbers removed from source, binaries and public repository (PCI-DSS)"
     )
 }
 
