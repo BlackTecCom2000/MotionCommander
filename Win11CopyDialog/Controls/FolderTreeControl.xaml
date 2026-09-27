@@ -96,7 +96,12 @@
             <MenuItem Header="Открыть в новой вкладке"/>
             <MenuItem Header="Копировать путь"/>
             <Separator/>
-            <MenuItem Header="Создать папку" Command="{Binding NewFolderCommand}"/>
+            <!-- CommandParameter обязателен: без него RelayCommand<FileEntry>
+                 вызывается с null, и CreateNewFolder сразу делает return.
+                 Пункт меню «Создать папку» был гарантированным no-op. -->
+            <MenuItem Header="Создать папку"
+                      Command="{Binding NewFolderCommand}"
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
             <MenuItem Header="Вставить" Command="{Binding PasteCommand}"/>
         </ContextMenu>
     </UserControl.Resources>

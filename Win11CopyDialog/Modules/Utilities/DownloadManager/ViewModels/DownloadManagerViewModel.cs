@@ -16,13 +16,17 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
     {
         private readonly DatabaseService _dbService;
         private readonly DownloadTaskConfig _config;
-        private DownloadItem _selectedDownload;
+        // Nullable: оба поля изначально не заданы (до выбора пользователем),
+        // а проверки в командах построены на сравнении с null.
+        private DownloadItem? _selectedDownload;
 
-        private string _newUrl;
+        private string? _newUrl;
         
+        // Публичные свойства остаются непустыми для простоты биндинга XAML,
+        // а внутри возвращают пустую строку / null через null-forgiving оператор.
         public string NewUrl
         {
-            get => _newUrl;
+            get => _newUrl ?? "";
             set
             {
                 _newUrl = value;
@@ -32,7 +36,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
 
         public ObservableCollection<DownloadItem> Downloads { get; set; } = new ObservableCollection<DownloadItem>();
 
-        public DownloadItem SelectedDownload
+        public DownloadItem? SelectedDownload
         {
             get => _selectedDownload;
             set
@@ -110,7 +114,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
             _ = engine.StartDownloadAsync(item);
         }
 
-        private void Engine_ProgressChanged(object sender, DownloadItem e)
+        private void Engine_ProgressChanged(object? sender, DownloadItem e)
         {
             // Simple notification update
             var item = Downloads.FirstOrDefault(x => x.Id == e.Id);
@@ -126,7 +130,11 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
             if (SelectedDownload != null)
             {
                 SelectedDownload.Status = DownloadStatus.Paused;
-                _dbService.SaveDownloadAsync(SelectedDownload);
+
+                // Явный отброс задачи: раньше вызов SaveDownloadAsync не был
+                // ожидаемым, что давало предупреждение CS4014 и означало
+                // «продолжить, не дожидаясь сохранения» — ошибки БД терялись.
+                _ = _dbService.SaveDownloadAsync(SelectedDownload);
                 // In a full implementation, you'd keep track of DownloadEngine instances to call Cancel on their CancellationTokenSources
             }
         }
@@ -152,32 +160,73 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 
+    /// <summary>
+    /// Команда WPF с поддержкой асинхронного выполнения.
+    ///
+    /// <para>Раньше здесь был <c>Action&lt;object&gt;</c>, и вызовы вида
+    /// <c>new RelayCommand(async _ =&gt; await AddDownloadAsync())</c>
+    /// компилировались как <c>async void</c>: любое исключение из
+    /// AddDownloadAsync попадало в SynchronizationContext, а не к вызывающему,
+    /// и команда считалась выполненной мгновенно, до реального результата.</para>
+    /// </summary>
     public class RelayCommand : ICommand
     {
-        private readonly Action<object> _execute;
-        private readonly Predicate<object> _canExecute;
+        private readonly Func<object?, Task> _executeAsync;
+        private readonly Func<object?, bool>? _canExecute;
 
-        public RelayCommand(Action<object> execute, Predicate<object> canExecute = null)
+        public RelayCommand(Func<object?, Task> executeAsync, Func<object?, bool>? canExecute = null)
         {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _executeAsync = executeAsync ?? throw new ArgumentNullException(nameof(executeAsync));
             _canExecute = canExecute;
         }
 
-        public bool CanExecute(object parameter) => _canExecute == null || _canExecute(parameter);
+        public RelayCommand(Action<object?> execute, Func<object?, bool>? canExecute = null)
+            : this(p => { execute(p); return Task.CompletedTask; }, canExecute)
+        {
+        }
 
-        public void Execute(object parameter) => _execute(parameter);
-
-        public event EventHandler CanExecuteChanged
+        public event EventHandler? CanExecuteChanged
         {
             add => CommandManager.RequerySuggested += value;
             remove => CommandManager.RequerySuggested -= value;
+        }
+
+        public bool CanExecute(object? parameter) => _canExecute == null || _canExecute(parameter);
+
+        /// <summary>
+        /// ICommand.Execute возвращает void, поэтому асинхронная работа
+        /// запускается через ForgetSafe: исключения логируются, а не теряются
+        /// и не превращаются в фатальный async void.
+        /// </summary>
+        public void Execute(object? parameter) => _executeAsync(parameter).ForgetSafe();
+
+        public bool RaiseCanExecuteChanged() => true;
+    }
+
+    /// <summary>Оборачивает fire-and-forget задачу, не теряя исключения.</summary>
+    internal static class TaskExtensions
+    {
+        public static async void ForgetSafe(this Task task)
+        {
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Отмена — штатный сценарий.
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Async command failed: {ex}");
+            }
         }
     }
 }

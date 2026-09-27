@@ -26,9 +26,9 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
 
         [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Url { get; set; }
-        public string FileName { get; set; }
-        public string SavePath { get; set; }
+        public string Url { get; set; } = "";
+        public string FileName { get; set; } = "";
+        public string SavePath { get; set; } = "";
         public long TotalBytes { get; set; }
 
         public long BytesDownloaded
@@ -87,7 +87,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
 
         public DateTime DateAdded { get; set; } = DateTime.Now;
         public DateTime? DateCompleted { get; set; }
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
         
         // Navigation property
         [Ignore]
@@ -97,8 +97,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
             set { _segments = value; OnPropertyChanged(); }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        public void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        public event PropertyChangedEventHandler? PropertyChanged;
+        public void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

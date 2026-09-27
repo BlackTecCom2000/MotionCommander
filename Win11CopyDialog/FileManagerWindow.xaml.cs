@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -241,8 +242,102 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
         _ = NavigateToAsync(_currentPath, false);
     }
 
-    private void ViewList_Click(object sender, RoutedEventArgs e) { /* switch to list view */ }
-    private void ViewTiles_Click(object sender, RoutedEventArgs e) { /* switch to tiles view */ }
+    /// <summary>
+    /// Режим отображения файлов: true — таблица со столбцами, false — плитка.
+    /// Раньше обе кнопки были пустыми заглушками «/* switch to list view */».
+    /// </summary>
+    private static bool _isListView = true;
+
+    private void ViewList_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SetFileViewMode(listView: true);
+    }
+
+    private void ViewTiles_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SetFileViewMode(listView: false);
+    }
+
+    /// <summary>Переключает список файлов между табличным и плиточным представлением.</summary>
+    private void SetFileViewMode(bool listView)
+    {
+        if (FileList == null) return;
+
+        _isListView = listView;
+
+        if (listView)
+        {
+            // Табличный режим: колонки Имя / Размер / Изменён.
+            var gv = new GridView();
+            gv.Columns.Add(new GridViewColumn
+            {
+                Header = "Имя",
+                DisplayMemberBinding = new Binding("Name"),
+                Width = 320
+            });
+            gv.Columns.Add(new GridViewColumn
+            {
+                Header = "Размер",
+                DisplayMemberBinding = new Binding("SizeFormatted"),
+                Width = 110
+            });
+            gv.Columns.Add(new GridViewColumn
+            {
+                Header = "Изменён",
+                DisplayMemberBinding = new Binding("LastWriteTime"),
+                Width = 150
+            });
+
+            FileList.SetView(gv);
+        }
+        else
+        {
+            // Плиточный режим: одна крупная колонка с шаблоном элемента.
+            var gv = new GridView();
+            gv.Columns.Add(new GridViewColumn
+            {
+                Header = "Файлы",
+                Width = 280,
+                CellTemplate = BuildFileTileTemplate()
+            });
+
+            FileList.SetView(gv);
+        }
+    }
+
+    /// <summary>Строит DataTemplate плитки: иконка, имя и размер файла.</summary>
+    private static DataTemplate BuildFileTileTemplate()
+    {
+        // FrameworkElementFactory — единственный способ построить DataTemplate
+        // из кода без файла XAML. Здесь он корректен и является каноническим.
+        var panel = new FrameworkElementFactory(typeof(StackPanel));
+        panel.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 8, 6, 8));
+
+        var icon = new FrameworkElementFactory(typeof(Image));
+        icon.SetBinding(Image.SourceProperty, new System.Windows.Data.Binding("Icon"));
+        icon.SetValue(Image.WidthProperty, 40.0);
+        icon.SetValue(Image.HeightProperty, 40.0);
+        icon.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+        panel.AppendChild(icon);
+
+        var name = new FrameworkElementFactory(typeof(TextBlock));
+        name.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Name"));
+        name.SetValue(TextBlock.FontSizeProperty, 13.0);
+        name.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        name.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap);
+        name.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 4, 0, 0));
+        panel.AppendChild(name);
+
+        var size = new FrameworkElementFactory(typeof(TextBlock));
+        size.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("SizeFormatted"));
+        size.SetValue(TextBlock.FontSizeProperty, 11.0);
+        size.SetValue(UIElement.OpacityProperty, 0.7);
+        panel.AppendChild(size);
+
+        return new DataTemplate { VisualTree = panel };
+    }
 
     private void NewWindow_Click(object sender, RoutedEventArgs e)
     {
@@ -296,7 +391,7 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
 
     private void UpdateCopyUI(CopyProgress p)
     {
-        CopyProgressBar.Value = p.Percent;
+        CopyProgressBar.SetSafe(p.Percent);
         CopySpeedText.Text = p.TotalBytes > 0 ? $"{Formatters.Speed(p.CopiedBytes / Math.Max(1, (DateTime.Now - _copyStart).TotalSeconds))}" : "";
         CopyEtaText.Text = p.TotalBytes > 0 && p.CopiedBytes > 0 
             ? $"Осталось: {Formatters.Eta(TimeSpan.FromSeconds((p.TotalBytes - p.CopiedBytes) / Math.Max(1, p.CopiedBytes / (DateTime.Now - _copyStart).TotalSeconds)))}"

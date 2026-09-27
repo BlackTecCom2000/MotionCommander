@@ -96,6 +96,16 @@ public static class OsMigrationService
             };
 
             using var bcdProc = Process.Start(bcdPsi);
+
+            // Process.Start возвращает null, если процесс не удалось запустить
+            // (bcdboot отсутствует в PATH, заблокирован антивирусом и т.п.).
+            // Раньше здесь сразу шёл разыменование null → NullReferenceException
+            // посреди критичной операции миграции ОС.
+            if (bcdProc == null)
+            {
+                return (false, "Не удалось запустить bcdboot.exe. Убедитесь, что файл присутствует в системе и у процесса есть права администратора.");
+            }
+
             await bcdProc.WaitForExitAsync(ct);
 
             if (bcdProc.ExitCode != 0)

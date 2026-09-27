@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,14 +11,26 @@ namespace Win11CopyDialog.Controls;
 
 public sealed partial class FolderTreeControl : UserControl, INotifyPropertyChanged
 {
+    // ВАЖНО: значение по умолчанию для коллекции в PropertyMetadata указывать НЕЛЬЗЯ.
+    // WPF не копирует объект по умолчанию — все экземпляры FolderTreeControl
+    // получали ОДИН И ТОТ ЖЕ экземпляр коллекции. Из-за этого открытие второго
+    // окна файлового менеджера вызывало Roots.Clear() и дерево дисков в первом
+    // окне становилось пустым.
+    // Решение: nullable-DP + ленивое создание собственной коллекции в геттере.
     public static readonly DependencyProperty RootsProperty =
         DependencyProperty.Register(nameof(Roots), typeof(ObservableCollection<FileEntry>), typeof(FolderTreeControl),
-            new PropertyMetadata(new ObservableCollection<FileEntry>()));
+            new PropertyMetadata(null));
+
+    private ObservableCollection<FileEntry>? _roots;
 
     public ObservableCollection<FileEntry> Roots
     {
-        get => (ObservableCollection<FileEntry>)GetValue(RootsProperty);
-        set => SetValue(RootsProperty, value);
+        get => _roots ??= (ObservableCollection<FileEntry>?)GetValue(RootsProperty) ?? new ObservableCollection<FileEntry>();
+        set
+        {
+            SetValue(RootsProperty, value);
+            RaisePropertyChanged();
+        }
     }
 
     public ICommand NewFolderCommand { get; }
@@ -78,5 +91,13 @@ public sealed partial class FolderTreeControl : UserControl, INotifyPropertyChan
             Roots.Add(drive);
     }
 
+    /// <summary>
+    /// Событие было объявлено, но никогда не возбуждалось (предупреждение CS0067),
+    /// то есть реализация INotifyPropertyChanged была декоративной.
+    /// Теперь оно действительно работает, что нужно биндингам в XAML.
+    /// </summary>
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void RaisePropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

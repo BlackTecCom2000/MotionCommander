@@ -30,13 +30,24 @@ public partial class MotionCopyWindow : Window
     private bool _allowClose;
     private bool _filesExpanded = false;
 
+    // Хранятся в полях для отписки в OnClosed — иначе движок копирования
+    // (статический экземпляр) удерживает это окно после закрытия.
+    private EventHandler? _progressTickHandler;
+    private EventHandler? _completedHandler;
+
     public MotionCopyWindow()
     {
         InitializeComponent();
         FilesList.ItemsSource = Engine.Items;
         WaveGraph.Values = Engine.SpeedHistory;
-        Engine.ProgressTick += (_, _) => Dispatcher.Invoke(RefreshTargets);
-        Engine.Completed += (_, _) => Dispatcher.Invoke(OnCompleted);
+
+        // НЕБЛОКИРУЮЩИЙ маршалинг. ProgressTick приходит с потока, который пишет
+        // байты на диск — Dispatcher.Invoke здесь замедлял само копирование.
+        _progressTickHandler = (_, _) => Dispatcher.BeginInvoke(RefreshTargets);
+        _completedHandler = (_, _) => Dispatcher.BeginInvoke(OnCompleted);
+        Engine.ProgressTick += _progressTickHandler;
+        Engine.Completed += _completedHandler;
+
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
 
         Loaded += (_, _) =>
@@ -54,7 +65,16 @@ public partial class MotionCopyWindow : Window
             CompositionTarget.Rendering += OnFrame;
             RefreshTargets();
         };
-        Closed += (_, _) => CompositionTarget.Rendering -= OnFrame;
+        Closed += (_, _) =>
+        {
+            CompositionTarget.Rendering -= OnFrame;
+
+            // Отписка от движка: иначе статический экземпляр бесконечно удерживает это окно.
+            if (_progressTickHandler != null) Engine.ProgressTick -= _progressTickHandler;
+            if (_completedHandler != null) Engine.Completed -= _completedHandler;
+            _progressTickHandler = null;
+            _completedHandler = null;
+        };
     }
 
     // ---------- Публичный API ----------

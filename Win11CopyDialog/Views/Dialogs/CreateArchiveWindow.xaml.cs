@@ -88,7 +88,7 @@ public partial class CreateArchiveWindow : Window
         {
             CompVis.Progress = p.ProgressPercent;
             CompVis.Ratio = p.RatioPercent;
-            CompProgress.Value = p.ProgressPercent;
+            CompProgress.SetSafe(p.ProgressPercent);
             CompFileText.Text = $"📄 {p.CurrentFile}";
             CompRatioText.Text = $"Коэффициент: {p.RatioPercent:0.0}% (сэкономлено {p.SavedPercent:0.0}%)";
             StatusText.Text = $"{Formatters.Bytes(p.BytesProcessed)} / {Formatters.Bytes(p.TotalBytes)} • {Formatters.Speed(p.CurrentSpeedBytesPerSec)}";
@@ -100,8 +100,13 @@ public partial class CreateArchiveWindow : Window
             HapticAudio.PlaySuccess();
             StatusText.Text = "Архив успешно создан!";
             MessageBox.Show($"Архив успешно создан:\n{dest}", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-            DialogResult = true;
-            Close();
+
+            // Раньше здесь стояло «DialogResult = true; Close();». На немодальном
+            // окне (App.xaml.cs открывает его через Show(), а не ShowDialog())
+            // присваивание DialogResult бросает InvalidOperationException, из-за
+            // чего пользователь получал ложное «Ошибка создания архива» уже после
+            // успешной записи, а Close() не выполнялся — окно зависало.
+            this.CloseWithResult(true);
         }
         catch (OperationCanceledException)
         {

@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using Win11CopyDialog.Helpers;
 using Win11CopyDialog.Modules.UpdateEngine;
 
 namespace Win11CopyDialog.Views.Dialogs;
@@ -31,7 +32,7 @@ public partial class UpdateProgressWindow : Window
         _cts = new CancellationTokenSource();
         var progress = new Progress<(long bytesRead, long totalBytes, int percent, double speedMBps)>(p =>
         {
-            UpdateProgressBar.Value = p.percent;
+            UpdateProgressBar.SetSafe(p.percent);
             PercentText.Text = $"{p.percent}%";
             double downloadedMb = p.bytesRead / (1024.0 * 1024.0);
             double totalMb = p.totalBytes > 0 ? p.totalBytes / (1024.0 * 1024.0) : 0;

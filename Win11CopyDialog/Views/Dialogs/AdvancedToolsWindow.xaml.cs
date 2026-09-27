@@ -55,7 +55,7 @@ public partial class AdvancedToolsWindow : Window
     private async void ComputeHashesFor(string filePath)
     {
         HashProgress.Visibility = Visibility.Visible;
-        var prog = new Progress<double>(p => HashProgress.Value = p);
+        var prog = new Progress<double>(p => HashProgress.SetSafe(p));
 
         try
         {
@@ -79,10 +79,26 @@ public partial class AdvancedToolsWindow : Window
         }
     }
 
-    private void CopyCrc_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); Clipboard.SetText(CrcBox.Text); }
-    private void CopyMd5_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); Clipboard.SetText(Md5Box.Text); }
-    private void CopySha256_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); Clipboard.SetText(Sha256Box.Text); }
-    private void CopySha512_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); Clipboard.SetText(Sha512Box.Text); }
+    // Clipboard.SetText бросает COMException, когда буфер занят другим процессом —
+    // это происходит регулярно. Без try/catch исключение вылетало наружу и
+    // приводило к фатальному крашу (App.xaml.cs не помечает DispatcherUnhandledException
+    // как обработанное). Сравните с корректной обработкой в MainWindow.xaml.cs:456.
+    private static void SafeSetClipboard(string text)
+    {
+        try
+        {
+            Clipboard.SetText(text);
+        }
+        catch (Exception)
+        {
+            // Буфер занят другим приложением — не критично, игнорируем.
+        }
+    }
+
+    private void CopyCrc_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); SafeSetClipboard(CrcBox.Text); }
+    private void CopyMd5_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); SafeSetClipboard(Md5Box.Text); }
+    private void CopySha256_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); SafeSetClipboard(Sha256Box.Text); }
+    private void CopySha512_Click(object sender, RoutedEventArgs e) { HapticAudio.PlayClick(); SafeSetClipboard(Sha512Box.Text); }
 
     private void ExpectedHashBox_TextChanged(object sender, TextChangedEventArgs e)
     {
@@ -162,7 +178,7 @@ public partial class AdvancedToolsWindow : Window
         CompareProgress.Visibility = Visibility.Visible;
         CompareResultText.Text = "Выполняется побайтовое бинарное сравнение…";
 
-        var prog = new Progress<double>(p => CompareProgress.Value = p);
+        var prog = new Progress<double>(p => CompareProgress.SetSafe(p));
 
         try
         {

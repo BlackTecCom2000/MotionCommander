@@ -220,9 +220,36 @@ namespace Win11CopyDialog.Controls
             RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
             UseLayoutRounding = true;
 
-            CompositionTarget.Rendering += OnRendering;
-            Unloaded += (_, __) => CompositionTarget.Rendering -= OnRendering;
+            // Раньше подписка выполнялась в КОНСТРУКТОРЕ, а отписка — один раз
+            // в Unloaded, и повторной подписки в Loaded не было. Из-за этого
+            // после первого же переключения вкладки или скрытия окна звёздное
+            // поле переставало анимироваться НАВСЕГДА.
+            //
+            // Теперь подписка идёт в Loaded (каждый раз при появлении),
+            // отписка — в Unloaded, что даёт корректный цикл жизни.
+            Loaded += OnControlLoaded;
+            Unloaded += OnControlUnloaded;
         }
+
+        private void OnControlLoaded(object sender, RoutedEventArgs e)
+        {
+            // Защита от двойной подписки.
+            if (_renderingAttached) return;
+
+            CompositionTarget.Rendering += OnRendering;
+            _renderingAttached = true;
+        }
+
+        private void OnControlUnloaded(object sender, RoutedEventArgs e)
+        {
+            if (!_renderingAttached) return;
+
+            CompositionTarget.Rendering -= OnRendering;
+            _renderingAttached = false;
+        }
+
+        /// <summary>Признак того, что обработчик OnRendering сейчас подписан.</summary>
+        private bool _renderingAttached;
 
         // ── Visual tree overrides ────────────────────────────────────────────
         protected override int VisualChildrenCount => _children.Count;
@@ -246,6 +273,11 @@ namespace Win11CopyDialog.Controls
             var now = DateTime.UtcNow;
             double dt = (now - _lastTick).TotalSeconds;
             _lastTick = now;
+
+            // Ограничение шага: после suspend/resume (сон, блокировка экрана)
+            // dt может быть минутами, что вызывало огромный скачок фазы
+            // анимации. Соседние визуализаторы используют тот же кламп 0.05 с.
+            dt = Math.Min(0.05, Math.Max(0, dt));
 
             _elapsed1 = (_elapsed1 + dt * (CyclePx / Speed1)) % CyclePx;
             _elapsed2 = (_elapsed2 + dt * (CyclePx / Speed2)) % CyclePx;

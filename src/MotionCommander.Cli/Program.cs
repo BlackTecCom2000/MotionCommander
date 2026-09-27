@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using MotionCommander.Core.Archive;
 using MotionCommander.Core.Common;
 using MotionCommander.Core.Models;
@@ -9,6 +10,29 @@ namespace MotionCommander.Cli;
 
 public static class Program
 {
+    /// <summary>
+    /// Версия берётся из сборочных метаданных сборки, а не из литерала.
+    /// Раньше здесь стоял жёстко прописанный «3.0.0», хотя проект давно
+    /// находится на 3.8.x — пользователь видел заведомо неверную версию.
+    /// </summary>
+    private static string AppVersion
+    {
+        get
+        {
+            var asm = typeof(Program).Assembly;
+            var informational = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+            if (!string.IsNullOrWhiteSpace(informational))
+            {
+                // InformationalVersion может содержать суффикс "+<commit>".
+                int plus = informational.IndexOf('+');
+                return plus > 0 ? informational[..plus] : informational;
+            }
+
+            return asm.GetName().Version?.ToString(3) ?? "0.0.0";
+        }
+    }
+
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -58,7 +82,7 @@ public static class Program
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("  Кроссплатформенная экосистема передачи данных и контроля накопителей");
         Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"  Версия: v3.0.0 | Платформа: {PlatformDetector.OsName} ({PlatformDetector.Architecture})");
+        Console.WriteLine($"  Версия: v{AppVersion} | Платформа: {PlatformDetector.OsName} ({PlatformDetector.Architecture})");
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("  Разработчик и автор: BlackTecCom - Jaborov Daler (MIT License)");
         Console.ResetColor();
@@ -326,8 +350,11 @@ public static class Program
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine("Поддержка автора (Донат фрилансеру / VISA):");
-        Console.WriteLine("  • 🇹🇯 Alif Bank VISA: 4444 8888 1022 6013");
-        Console.WriteLine("  • 🇹🇯 DC Bank VISA:   4713 3800 2165 1431");
+        Console.WriteLine("  Полные номера карт намеренно не встроены в программу (требование PCI-DSS).");
+        Console.WriteLine("  • Alif Bank VISA: •••• •••• •••• 6013");
+        Console.WriteLine("  • DC Bank VISA:   •••• •••• •••• 1431");
+        Console.WriteLine("  Полный номер можно указать в переменной окружения MOTIONCOMMANDER_DONATE_CARD_ALIF");
+        Console.WriteLine("  или MOTIONCOMMANDER_DONATE_CARD_DC, либо в %LOCALAPPDATA%\\MotionCommander\\donate_*.txt");
         Console.ResetColor();
         Console.WriteLine();
         return 0;
@@ -335,7 +362,7 @@ public static class Program
 
     private static int HandleVersion()
     {
-        Console.WriteLine("Motion Commander v3.0.0");
+        Console.WriteLine($"Motion Commander v{AppVersion}");
         Console.WriteLine("Copyright (c) 2026 BlackTecCom - Jaborov Daler. All rights reserved.");
         Console.WriteLine("Licensed under the MIT License.");
         return 0;

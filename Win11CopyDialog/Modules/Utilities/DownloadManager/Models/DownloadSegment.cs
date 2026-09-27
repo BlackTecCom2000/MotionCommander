@@ -22,7 +22,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
         public string Id { get; set; } = Guid.NewGuid().ToString();
         
         [Indexed]
-        public string DownloadItemId { get; set; }
+        public string DownloadItemId { get; set; } = "";
         public int Index { get; set; }
         public long StartPosition { get; set; }
         public long EndPosition { get; set; }
@@ -55,8 +55,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }

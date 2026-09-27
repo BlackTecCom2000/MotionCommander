@@ -342,14 +342,64 @@ public partial class CyberFolderPickerDialog : Window
         }
     }
 
+    private void ShowInvalidFolderName(string reason)
+    {
+        NewFolderNameBox.Text = "";
+
+        if (NewFolderBanner != null)
+        {
+            NewFolderBanner.Visibility = Visibility.Visible;
+        }
+
+        MessageBox.Show(
+            $"Недопустимое имя папки: {reason}",
+            "Проверка имени",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+
     private void CreateFolderConfirm_Click(object sender, RoutedEventArgs e)
     {
         string name = NewFolderNameBox.Text.Trim();
         if (string.IsNullOrEmpty(name)) return;
 
+        // ВАЖНО: приложение само повышает себя до администратора
+        // (App.xaml.cs), поэтому свободное текстовое поле нельзя
+        // использовать для создания произвольных каталогов.
+        //   - «C:\Windows\System32\x»   — Path.Combine отбрасывает базовый путь;
+        //   - «..\..\Windows\Temp\x»  — выход за пределы текущей папки.
+        if (Path.IsPathRooted(name) || name.Contains(':'))
+        {
+            ShowInvalidFolderName("Имя не должно содержать путь или диск (например «C:\\…»).");
+            return;
+        }
+
+        if (name.Split('\\', '/').Any(seg => seg == ".."))
+        {
+            ShowInvalidFolderName("Имя не должно содержать «..» (переход в родительскую папку).");
+            return;
+        }
+
+        if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            ShowInvalidFolderName("Имя содержит недопустимые символы.");
+            return;
+        }
+
         try
         {
             string newPath = Path.Combine(_currentPath, name);
+
+            // Итоговая проверка: результат обязан лежать внутри текущей папки.
+            string root = Path.GetFullPath(_currentPath);
+            if (!root.EndsWith(Path.DirectorySeparatorChar)) root += Path.DirectorySeparatorChar;
+
+            if (!Path.GetFullPath(newPath).StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                ShowInvalidFolderName("Имя приводит к выходу за пределы текущей папки.");
+                return;
+            }
+
             if (!Directory.Exists(newPath))
             {
                 Directory.CreateDirectory(newPath);
@@ -403,16 +453,14 @@ public partial class CyberFolderPickerDialog : Window
         if (Directory.Exists(SelectedPath))
         {
             HapticAudio.PlaySuccess();
-            DialogResult = true;
-            Close();
+            this.CloseWithResult(true);
         }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        DialogResult = false;
-        Close();
+        this.CloseWithResult(false);
     }
 
     private void Header_MouseDown(object sender, MouseButtonEventArgs e)

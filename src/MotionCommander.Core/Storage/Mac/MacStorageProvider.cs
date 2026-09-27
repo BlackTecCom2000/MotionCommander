@@ -14,7 +14,7 @@ public sealed class MacStorageProvider : IStorageProvider
         try
         {
             // Получение топологии через system_profiler SPStorageDataType в формате JSON
-            string json = await RunProcessAsync("system_profiler", "SPStorageDataType -json");
+            string json = (await RunProcessAsync("system_profiler", new[] { "SPStorageDataType", "-json" })).output;
             if (!string.IsNullOrWhiteSpace(json))
             {
                 using var doc = JsonDocument.Parse(json);
@@ -135,13 +135,19 @@ public sealed class MacStorageProvider : IStorageProvider
     {
         string fs = fileSystem.ToUpperInvariant() switch
         {
-            "APFS" => "APFS",
             "EXFAT" => "ExFAT",
             "FAT32" => "FAT32",
             _ => "APFS"
         };
-        string res = await RunProcessAsync("diskutil", $"eraseVolume {fs} \"{label}\" {devicePathOrLetter}");
-        return res.Contains("Finished erase", StringComparison.OrdinalIgnoreCase);
+
+        // Метка и путь устройства ограничиваются безопасным набором символов:
+        // они попадают в аргументы командной строки.
+        string safeLabel = SanitizeLabel(label);
+        string device = SanitizeDevicePath(devicePathOrLetter);
+
+        var res = await RunProcessAsync("diskutil", new[] { "eraseVolume", fs, safeLabel, device });
+        return res.exitCode == 0
+               && res.output.Contains("Finished erase", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<bool> DeletePartitionAsync(int diskIndex, int partitionNumber, bool overrideLocks)
@@ -150,32 +156,69 @@ public sealed class MacStorageProvider : IStorageProvider
         var disk = disks.FirstOrDefault(d => d.Index == diskIndex);
         if (disk == null) return false;
 
-        string res = await RunProcessAsync("diskutil", $"eraseVolume Free Space None {disk.DevicePath}");
-        return true;
+        // Раньше возвращался безусловный true, игнорируя результат diskutil.
+        var res = await RunProcessAsync("diskutil",
+            new[] { "eraseVolume", "Free", "Space", "None", SanitizeDevicePath(disk.DevicePath) });
+
+        return res.exitCode == 0;
     }
 
-    private static async Task<string> RunProcessAsync(string fileName, string args)
+    /// <summary>Метка тома: только буквы, цифры, дефис, точка и подчёркивание.</summary>
+    private static string SanitizeLabel(string label)
+    {
+        if (string.IsNullOrWhiteSpace(label)) return "MotionCommander";
+        var cleaned = new string(label
+            .Where(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.' or '_')
+            .ToArray());
+        return string.IsNullOrEmpty(cleaned) ? "MotionCommander" : cleaned[..Math.Min(cleaned.Length, 27)];
+    }
+
+    /// <summary>Разрешает только путь к блочному устройству вида /dev/diskXsY.</summary>
+    private static string SanitizeDevicePath(string device)
+    {
+        if (string.IsNullOrWhiteSpace(device)) return "/dev/null";
+        var trimmed = device.Trim();
+        if (!trimmed.StartsWith("/dev/", StringComparison.Ordinal)) return "/dev/null";
+
+        if (!trimmed.Skip(5).All(c => char.IsAsciiLetterOrDigit(c) || c is '/' or '.' or '_' or '-'))
+            return "/dev/null";
+
+        return trimmed;
+    }
+
+    /// <summary>
+    /// Запускает процесс и читает stdout/stderr ОДНОВРЕМЕННО, иначе возможен
+    /// классический pipe deadlock при заполнении буфера stderr.
+    /// </summary>
+    private static async Task<(int exitCode, string output)> RunProcessAsync(string fileName, string[] args)
     {
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = fileName,
-                Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            using var proc = Process.Start(psi);
-            if (proc == null) return "";
-            string output = await proc.StandardOutput.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-            return output;
+
+            foreach (var a in args) psi.ArgumentList.Add(a);
+
+            using var proc = new Process { StartInfo = psi };
+            proc.Start();
+
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+
+            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+            await proc.WaitForExitAsync().ConfigureAwait(false);
+
+            return (proc.ExitCode, stdoutTask.Result + "\n" + stderrTask.Result);
         }
         catch
         {
-            return "";
+            return (-1, "");
         }
     }
 }

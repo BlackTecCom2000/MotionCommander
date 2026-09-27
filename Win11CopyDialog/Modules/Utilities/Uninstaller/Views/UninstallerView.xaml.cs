@@ -87,16 +87,27 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Views
                 if (result == MessageBoxResult.Yes)
                 {
                     StatusText.Text = $"Удаление {app.DisplayName}...";
-                    bool success = await _removalService.RunStandardUninstallAsync(app);
-                    if (success)
+                    try
                     {
-                        MessageBox.Show("Удаление завершено.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                        await LoadApplicationsAsync();
+                        bool success = await _removalService.RunStandardUninstallAsync(app);
+                        if (success)
+                        {
+                            MessageBox.Show("Удаление завершено.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                            await LoadApplicationsAsync();
+                        }
+                        else
+                        {
+                            MessageBox.Show("Программа удаления вернула ошибку или была отменена.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            StatusText.Text = "Ожидание...";
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        MessageBox.Show("Программа удаления вернула ошибку или была отменена.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        // Сервис удаления работает с реестром и запускает
+                        // процессы с повышением прав — исключения регулярны.
+                        // Раньше async void шёл БЕЗ try/catch, что давало краш.
                         StatusText.Text = "Ожидание...";
+                        MessageBox.Show($"Не удалось запустить удаление:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
             }
@@ -110,26 +121,40 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Views
                                              "Принудительное удаление", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (result == MessageBoxResult.Yes)
                 {
-                    // Execute dry-run first
-                    await _removalService.RunForceUninstallAsync(app, dryRun: true);
-
-                    var finalResult = MessageBox.Show($"План принудительного удаления:\n- Удаление реестра: {app.RegistryKeyPath}\n- Удаление папки: {app.InstallLocation}\n\nВыполнить?", 
-                                             "Подтверждение плана", MessageBoxButton.YesNo, MessageBoxImage.Error);
-
-                    if (finalResult == MessageBoxResult.Yes)
+                    try
                     {
-                        StatusText.Text = $"Принудительное удаление {app.DisplayName}...";
-                        bool success = await _removalService.RunForceUninstallAsync(app, dryRun: false);
-                        if (success)
+                        // Пробный прогон: сервис сам бросает исключение для
+                        // системных компонентов, поэтому за пределами try.
+                        await _removalService.RunForceUninstallAsync(app, dryRun: true);
+
+                        var finalResult = MessageBox.Show($"План принудительного удаления:\n- Удаление реестра: {app.RegistryKeyPath}\n- Удаление папки: {app.InstallLocation}\n\nВыполнить?",
+                                                 "Подтверждение плана", MessageBoxButton.YesNo, MessageBoxImage.Error);
+
+                        if (finalResult == MessageBoxResult.Yes)
                         {
-                            MessageBox.Show("Принудительное удаление завершено.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
-                            await LoadApplicationsAsync();
+                            StatusText.Text = $"Принудительное удаление {app.DisplayName}...";
+                            bool success = await _removalService.RunForceUninstallAsync(app, dryRun: false);
+                            if (success)
+                            {
+                                MessageBox.Show("Принудительное удаление завершено.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                                await LoadApplicationsAsync();
+                            }
+                            else
+                            {
+                                MessageBox.Show("Произошла ошибка при принудительном удалении. Возможно, требуются права администратора или файлы заняты.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                                StatusText.Text = "Ожидание...";
+                            }
                         }
-                        else
-                        {
-                            MessageBox.Show("Произошла ошибка при принудительном удалении. Возможно, требуются права администратора или файлы заняты.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                            StatusText.Text = "Ожидание...";
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Рекурсивное удаление папок и работа с реестром
+                        // регулярно бросают UnauthorizedAccessException.
+                        // Раньше async void шёл без try/catch — это был краш.
+                        StatusText.Text = "Ожидание...";
+                        MessageBox.Show(
+                            $"Принудительное удаление невозможно:\n\n{ex.Message}",
+                            "Отказ", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
             }

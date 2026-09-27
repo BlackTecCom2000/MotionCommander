@@ -11,7 +11,7 @@ namespace Win11CopyDialog.Views.Dialogs;
 
 public sealed class AppConfigData
 {
-    public string Theme { get; set; } = "MicaDark";
+    public string Theme { get; set; } = nameof(AppTheme.MotionGlass);
     public string Accent { get; set; } = "Неон Циан";
     public string Backdrop { get; set; } = "Mica";
     public bool HapticAudioEnabled { get; set; } = true;
@@ -20,8 +20,48 @@ public sealed class AppConfigData
     public bool DirectIoBypassCache { get; set; } = false;
     public bool SequentialScanOptimized { get; set; } = true;
     public bool AutoVerifyCrc32 { get; set; } = true;
-    public string RegisteredUser { get; set; } = "BlackTecCom - Jaborov Daler";
-    public string Version { get; set; } = "3.0.0 Pro";
+
+    /// <summary>
+    /// Версия приложения, записавшая конфиг. Раньше здесь жёстко стояло
+    /// «3.0.0 Pro», и это значение попадало в конфиг каждого пользователя.
+    /// </summary>
+    public string Version { get; set; } = "";
+
+    /// <summary>
+    /// Читает конфигурацию с диска.
+    ///
+    /// <para>Раньше AppConfigData создавался и сериализовался, но НИКОГДА не
+    /// десериализовался: ни одна настройка не переживала перезапуск. Теперь
+    /// метод читает файл, проверяет структуру и возвращает заполненный объект
+    /// с безопасными значениями по умолчанию при любой ошибке.</para>
+    /// </summary>
+    public static AppConfigData LoadFromFile(string path)
+    {
+        var defaults = new AppConfigData();
+
+        try
+        {
+            if (!File.Exists(path)) return defaults;
+
+            string json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json)) return defaults;
+
+            var loaded = JsonSerializer.Deserialize<AppConfigData>(json);
+            if (loaded == null) return defaults;
+
+            // Валидация: не доверяем значениям из файла.
+            loaded.DefaultBufferSizeKb = Math.Clamp(loaded.DefaultBufferSizeKb, 256, 8192);
+            loaded.ConcurrencyThreads = Math.Clamp(loaded.ConcurrencyThreads, 1, 16);
+            loaded.Version = "";
+
+            return loaded;
+        }
+        catch
+        {
+            // Повреждённый конфиг не должен мешать запуску приложения.
+            return defaults;
+        }
+    }
 }
 
 public partial class SettingsWindow : Window
@@ -29,15 +69,39 @@ public partial class SettingsWindow : Window
     private readonly string _configFilePath;
     private bool _initializing = true;
 
+    /// <summary>
+    /// Путь к файлу конфигурации. ОБЯЗАТЕЛЬНО должен совпадать с путём,
+    /// который читается при старте в App.xaml.cs, иначе настройки снова
+    /// окажутся «потерянными» (пишется в один файл, читается из другого).
+    /// </summary>
+    public static string ConfigFilePath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "MotionCommander",
+        "settings.json");
+
     public SettingsWindow()
     {
         InitializeComponent();
         ThemeManager.Instance.Apply();
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
 
-        string appDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MotionCommander");
-        Directory.CreateDirectory(appDir);
-        _configFilePath = Path.Combine(appDir, "appsettings.json");
+        _configFilePath = ConfigFilePath;
+
+        // Раньше Directory.CreateDirectory стоял в конструкторе БЕЗ try/catch.
+        // При отказе в доступе исключение вылетало из new SettingsWindow(), и
+        // окно настроек становилось невозможно открыть вообще.
+        try
+        {
+            string? appDir = Path.GetDirectoryName(_configFilePath);
+            if (!string.IsNullOrEmpty(appDir)) Directory.CreateDirectory(appDir);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Не удалось подготовить папку конфигурации:\n{ex.Message}\n\n" +
+                "Настройки не смогут сохраняться. Проверьте права доступа.",
+                "Ошибка конфигурации", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
 
         InitThemes();
         InitAccents();
@@ -365,10 +429,18 @@ public partial class SettingsWindow : Window
             {
                 ConfigEditorBox.Text = json;
             }
+
+            // Раньше ошибка сохранения уходила только в Debug.WriteLine, который
+            // в Release-сборке вырезается компилятором. Пользователь не знал,
+            // что настройки не сохранились.
+            if (StatusMessage != null) StatusMessage.Text = "Настройки сохранены.";
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Failed to save config: {ex.Message}");
+            if (StatusMessage != null)
+            {
+                StatusMessage.Text = $"Ошибка сохранения настроек: {ex.Message}";
+            }
         }
     }
 
@@ -382,11 +454,49 @@ public partial class SettingsWindow : Window
     private void ResetConfig_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        var data = new AppConfigData();
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        ConfigEditorBox.Text = JsonSerializer.Serialize(data, options);
-        File.WriteAllText(_configFilePath, ConfigEditorBox.Text);
-        StatusMessage.Text = "Настройки сброшены к значениям по умолчанию.";
+
+        try
+        {
+            var data = new AppConfigData();
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string json = JsonSerializer.Serialize(data, options);
+
+            File.WriteAllText(_configFilePath, json);
+            ConfigEditorBox.Text = json;
+
+            // Раньше сброс ТОЛЬКО записывал файл, но не применял значения к
+            // живому приложению. Более того, следующий же SaveCurrentStateToConfig()
+            // (он вызывается при любом изменении контрола) затирал «сброшенный»
+            // файл текущим состоянием. Теперь настройки реально применяются.
+            ApplyConfigToApp(data);
+
+            StatusMessage.Text = "Настройки сброшены к значениям по умолчанию и применены.";
+            HapticAudio.PlaySuccess();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage.Text = $"Не удалось сбросить настройки: {ex.Message}";
+            MessageBox.Show($"Сброс настроек не выполнен:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Применяет конфигурацию к живому приложению.
+    ///
+    /// Вызывается при сбросе настроек и при загрузке конфига при старте.
+    /// </summary>
+    public static void ApplyConfigToApp(AppConfigData data)
+    {
+        if (data is null) return;
+
+        // Тема применяется по ИМЕНИ, а не по индексу: перестановка элементов
+        // в enum AppTheme больше не переназначает тему пользователя.
+        if (Enum.TryParse<AppTheme>(data.Theme, ignoreCase: true, out var theme))
+        {
+            ThemeManager.Instance.Theme = theme;
+        }
+
+        HapticAudio.Enabled = data.HapticAudioEnabled;
     }
 
     private void SaveConfig_Click(object sender, RoutedEventArgs e)
@@ -411,26 +521,43 @@ public partial class SettingsWindow : Window
     {
         HapticAudio.PlayClick();
         string dir = Path.GetDirectoryName(_configFilePath) ?? "";
-        if (Directory.Exists(dir))
+        if (!Directory.Exists(dir))
         {
-            Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true });
+            StatusMessage.Text = "Папка конфигурации не найдена.";
+            return;
+        }
+
+        try
+        {
+            // ArgumentList вместо строковой интерполяции: путь может содержать пробелы.
+            var psi = new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+            psi.ArgumentList.Add(dir);
+            Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage.Text = $"Не удалось открыть папку: {ex.Message}";
         }
     }
 
-    private void CopyAlif_Click(object sender, RoutedEventArgs e)
+    private void CopyDonation_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        Clipboard.SetText("4444888810226013");
-        StatusMessage.Text = "Номер карты Alif VISA скопирован в буфер обмена!";
-        MessageBox.Show("Номер карты Alif VISA (4444 8888 1022 6013) скопирован в буфер обмена!\nСпасибо за поддержку разработки!", "Донат скопирован", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
 
-    private void CopyDc_Click(object sender, RoutedEventArgs e)
-    {
-        HapticAudio.PlayClick();
-        Clipboard.SetText("4713380021651431");
-        StatusMessage.Text = "Номер карты DC Bank VISA скопирован в буфер обмена!";
-        MessageBox.Show("Номер карты DC Bank VISA (4713 3800 2165 1431) скопирован в буфер обмена!\nСпасибо за поддержку разработки!", "Донат скопирован", MessageBoxButton.OK, MessageBoxImage.Information);
+        if (sender is not FrameworkElement { Tag: string tag } || !DonationInfo.TryParseTag(tag, out var method))
+        {
+            StatusMessage.Text = "Не удалось определить карту для копирования.";
+            return;
+        }
+
+        string status = DonationInfo.CopyToClipboard(method, out bool success);
+        StatusMessage.Text = status;
+
+        MessageBox.Show(
+            status,
+            "Донат",
+            MessageBoxButton.OK,
+            success ? MessageBoxImage.Information : MessageBoxImage.Warning);
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

@@ -151,6 +151,9 @@ public partial class DuplicateFinderWindow : Window
         var dirQueue = new Queue<string>();
         dirQueue.Enqueue(rootPath);
 
+        // Множество уже посещённых каталогов: защита от зацикливания на junction'ах.
+        var _visitedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         while (dirQueue.Count > 0)
         {
             ct.ThrowIfCancellationRequested();
@@ -161,13 +164,27 @@ public partial class DuplicateFinderWindow : Window
                 var dirInfo = new DirectoryInfo(curDir);
                 foreach (var di in dirInfo.EnumerateDirectories())
                 {
-                    // Пропускаем системные папки и корзину
-                    if ((di.Attributes & (FileAttributes.ReparsePoint | FileAttributes.System)) != 0 &&
+                    // Одно чтение атрибутов вместо двух (L-34).
+                    FileAttributes attrs = di.Attributes;
+
+                    // Reparse point (junction/symlink) ведёт обратно в уже
+                    // пройденное дерево — без этой проверки BFS зацикливается
+                    // и очередь растёт бесконечно.
+                    if ((attrs & FileAttributes.ReparsePoint) != 0) continue;
+
+                    // Корзина и служебные папки: скрытые + системные по ИМЕНИ.
+                    // Прежнее условие требовало ReparsePoint И System И совпадение
+                    // имени, из-за чего практически никогда не срабатывало.
+                    if ((attrs & (FileAttributes.Hidden | FileAttributes.System)) != 0 &&
                         (di.Name.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase) ||
                          di.Name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase)))
                     {
                         continue;
                     }
+
+                    // Дополнительная защита: не заходим в уже посещённые каталоги.
+                    if (!_visitedDirs.Add(di.FullName)) continue;
+
                     dirQueue.Enqueue(di.FullName);
                 }
 
@@ -185,9 +202,15 @@ public partial class DuplicateFinderWindow : Window
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // Отмена — пробрасываем наружу. Раньше bare catch проглатывал её,
+                // из-за чего кнопка «Отмена» не работала: сканирование шло до конца.
+                throw;
+            }
             catch
             {
-                // Игнорируем недоступные папки
+                // Игнорируем только недоступные папки (нет прав, диск отсоединён).
             }
         }
 

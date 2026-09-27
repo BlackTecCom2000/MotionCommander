@@ -23,6 +23,36 @@ public static class ArchiveService
         return ReadExtensions.Contains(ext);
     }
 
+    /// <summary>
+    /// Защита от Zip Slip (Path Traversal).
+    ///
+    /// Запись в архиве вида «../../Windows/System32/evil.dll» в сочетании с
+    /// ExtractFullPath = true приводит к записи файлов ЗА ПРЕДЕЛАМИ папки
+    /// назначения. Такие архивы встречаются в природе и являются приёмом
+    /// Path Traversal, поэтому путь каждой записи обязан быть проверен.
+    ///
+    /// Возвращает безопасный абсолютный путь либо null, если запись опасна.
+    /// </summary>
+    private static string? ResolveSafePath(string destinationDir, string entryKey)
+    {
+        // Нормализуем разделители и отсекаем ведущие корневые символы.
+        string normalized = entryKey.Replace('\\', '/').TrimStart('/');
+
+        // Отклоняем пути с сегментами «..» ДО любых преобразований.
+        if (normalized.Split('/').Any(seg => seg == "..")) return null;
+
+        string rootFull = Path.GetFullPath(destinationDir);
+        if (!rootFull.EndsWith(Path.DirectorySeparatorChar))
+            rootFull += Path.DirectorySeparatorChar;
+
+        string combined = Path.GetFullPath(Path.Combine(destinationDir, normalized));
+
+        // Итоговая проверка: результат обязан находиться внутри корня.
+        if (!combined.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase)) return null;
+
+        return combined;
+    }
+
     public static List<ArchiveItem> ListEntries(string archivePath, string? password = null)
     {
         var result = new List<ArchiveItem>();
@@ -63,7 +93,7 @@ public static class ArchiveService
         Directory.CreateDirectory(destinationDir);
         var opt = new ReaderOptions { Password = password };
 
-        await Task.Run(() =>
+        await Task.Run(async () =>
         {
             using var archive = ArchiveFactory.OpenArchive(archivePath, opt);
             var entries = archive.Entries.Where(e => !e.IsDirectory).ToList();
@@ -73,11 +103,24 @@ public static class ArchiveService
             foreach (var entry in entries)
             {
                 ct.ThrowIfCancellationRequested();
-                entry.WriteToDirectory(destinationDir, new ExtractionOptions
+
+                // Защита от Zip Slip: запись с путём вне папки назначения
+                // отбрасывается, а не распаковывается поверх системных файлов.
+                string? safePath = ResolveSafePath(destinationDir, entry.Key ?? "");
+                if (safePath == null)
                 {
-                    ExtractFullPath = true,
-                    Overwrite = true
-                });
+                    throw new InvalidDataException(
+                        $"Обнаружена небезопасная запись в архиве, распаковка прервана: \"{entry.Key}\"");
+                }
+
+                string? parentDir = Path.GetDirectoryName(safePath);
+                if (!string.IsNullOrEmpty(parentDir)) Directory.CreateDirectory(parentDir);
+
+                using (var entryStream = entry.OpenEntryStream())
+                using (var outStream = new FileStream(safePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await entryStream.CopyToAsync(outStream, 81920, ct).ConfigureAwait(false);
+                }
 
                 extractedBytes += entry.Size;
                 if (progress != null && totalBytes > 0)
@@ -87,7 +130,8 @@ public static class ArchiveService
                         CurrentEntryName = entry.Key ?? "",
                         CurrentBytes = extractedBytes,
                         TotalBytes = totalBytes,
-                        Percent = (int)((extractedBytes * 100) / totalBytes)
+                        // Math.Clamp защищает ProgressBar.Value от выхода за 100.
+                        Percent = (int)Math.Clamp((extractedBytes * 100.0) / totalBytes, 0, 100)
                     });
                 }
             }

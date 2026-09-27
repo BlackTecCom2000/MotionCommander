@@ -33,18 +33,37 @@ public sealed class DriverDeviceInfo
         _ => "СБОЙ"
     };
 
+    // Раньше эти два свойства создавали НОВУЮ SolidColorBrush при каждом
+    // обращении, а биндинг WPF вызывает их дважды на строку при каждой
+    // перерисовке. Теперь кисти создаются один раз и переиспользуются
+    // (Freeze обязателен — иначе кисть заблокирует UI-поток).
+    private static readonly Brush _okBadge = Frozen(Color.FromArgb(40, 0, 230, 118));
+    private static readonly Brush _warnBadge = Frozen(Color.FromArgb(40, 255, 179, 0));
+    private static readonly Brush _errBadge = Frozen(Color.FromArgb(40, 255, 82, 82));
+
+    private static readonly Brush _okFg = Frozen(Color.FromRgb(0, 230, 118));
+    private static readonly Brush _warnFg = Frozen(Color.FromRgb(255, 179, 0));
+    private static readonly Brush _errFg = Frozen(Color.FromRgb(255, 82, 82));
+
+    private static SolidColorBrush Frozen(Color color)
+    {
+        var b = new SolidColorBrush(color);
+        b.Freeze();
+        return b;
+    }
+
     public Brush StatusBadgeBrush => ConfigManagerErrorCode switch
     {
-        0 => new SolidColorBrush(Color.FromArgb(40, 0, 230, 118)),
-        22 => new SolidColorBrush(Color.FromArgb(40, 255, 179, 0)),
-        _ => new SolidColorBrush(Color.FromArgb(40, 255, 82, 82))
+        0 => _okBadge,
+        22 => _warnBadge,
+        _ => _errBadge
     };
 
     public Brush StatusBadgeForeground => ConfigManagerErrorCode switch
     {
-        0 => new SolidColorBrush(Color.FromRgb(0, 230, 118)),
-        22 => new SolidColorBrush(Color.FromRgb(255, 179, 0)),
-        _ => new SolidColorBrush(Color.FromRgb(255, 82, 82))
+        0 => _okFg,
+        22 => _warnFg,
+        _ => _errFg
     };
 
     public string ErrorDescription => ConfigManagerErrorCode switch
@@ -69,6 +88,9 @@ public sealed class DriverDeviceInfo
 public partial class DriverInspectorWindow : Window
 {
     private readonly List<DriverDeviceInfo> _allDevices = new();
+
+    /// <summary>Сообщение об ошибке последнего частичного сбоя при WMI-сканировании.</summary>
+    private string? _lastScanError;
 
     public DriverInspectorWindow()
     {
@@ -100,61 +122,80 @@ public partial class DriverInspectorWindow : Window
         var sw = Stopwatch.StartNew();
         _allDevices.Clear();
 
+        string? scanError = null;
+
         try
         {
             var list = await Task.Run(() =>
             {
                 var result = new List<DriverDeviceInfo>();
-                try
+                string? error = null;
+
+                using var searcher = new ManagementObjectSearcher(
+                    "SELECT DeviceID, Name, Caption, Description, Manufacturer, PNPClass, Service, Status, ConfigManagerErrorCode, HardWareID FROM Win32_PnPEntity");
+
+                // Раньше try стоял ВОКРУГ всего foreach, поэтому одно
+                // некорректное устройство прерывало перечисление, а ошибка
+                // уходила только в Debug.WriteLine (вырезается в Release).
+                // Пользователю показывалось «Найдено устройств: 0» без причины.
+                foreach (ManagementObject mo in searcher.Get())
                 {
-                    using var searcher = new ManagementObjectSearcher(
-                        "SELECT DeviceID, Name, Caption, Description, Manufacturer, PNPClass, Service, Status, ConfigManagerErrorCode, HardWareID FROM Win32_PnPEntity");
-
-                    foreach (ManagementObject mo in searcher.Get())
+                    // Каждый ManagementObject удерживает COM-ссылку
+                    // IWbemClassObject и обязан быть освобождён. Раньше
+                    // освобождался только searcher, что при 200–1000 устройствах
+                    // давало утечку COM-объектов на всё время работы процесса.
+                    using (mo)
                     {
-                        string name = mo["Name"]?.ToString() ?? mo["Caption"]?.ToString() ?? mo["Description"]?.ToString() ?? "Неизвестное устройство";
-                        string pnpClass = mo["PNPClass"]?.ToString() ?? "";
-                        string mfg = mo["Manufacturer"]?.ToString() ?? "Стандартный";
-                        string devId = mo["DeviceID"]?.ToString() ?? "";
-                        string service = mo["Service"]?.ToString() ?? "—";
-                        string status = mo["Status"]?.ToString() ?? "OK";
-                        uint errCode = 0;
-                        if (mo["ConfigManagerErrorCode"] != null)
+                        try
                         {
-                            _ = uint.TryParse(mo["ConfigManagerErrorCode"].ToString(), out errCode);
-                        }
+                            string name = mo["Name"]?.ToString() ?? mo["Caption"]?.ToString() ?? mo["Description"]?.ToString() ?? "Неизвестное устройство";
+                            string pnpClass = mo["PNPClass"]?.ToString() ?? "";
+                            string mfg = mo["Manufacturer"]?.ToString() ?? "Стандартный";
+                            string devId = mo["DeviceID"]?.ToString() ?? "";
+                            string service = mo["Service"]?.ToString() ?? "—";
+                            string status = mo["Status"]?.ToString() ?? "OK";
+                            uint errCode = 0;
+                            if (mo["ConfigManagerErrorCode"] != null)
+                            {
+                                _ = uint.TryParse(mo["ConfigManagerErrorCode"].ToString(), out errCode);
+                            }
 
-                        string hwId = "";
-                        if (mo["HardWareID"] is string[] hwArray && hwArray.Length > 0)
-                        {
-                            hwId = hwArray[0];
-                        }
-                        else
-                        {
-                            hwId = devId;
-                        }
+                            string hwId = "";
+                            if (mo["HardWareID"] is string[] hwArray && hwArray.Length > 0)
+                            {
+                                hwId = hwArray[0];
+                            }
+                            else
+                            {
+                                hwId = devId;
+                            }
 
-                        var (catName, catIcon) = Categorize(pnpClass, name);
+                            var (catName, catIcon) = Categorize(pnpClass, name);
 
-                        result.Add(new DriverDeviceInfo
+                            result.Add(new DriverDeviceInfo
+                            {
+                                Name = name,
+                                DeviceID = devId,
+                                HardwareId = hwId,
+                                Manufacturer = mfg,
+                                PNPClass = pnpClass,
+                                CategoryName = catName,
+                                CategoryIcon = catIcon,
+                                ServiceName = service,
+                                Status = status,
+                                ConfigManagerErrorCode = errCode
+                            });
+                        }
+                        catch (Exception ex)
                         {
-                            Name = name,
-                            DeviceID = devId,
-                            HardwareId = hwId,
-                            Manufacturer = mfg,
-                            PNPClass = pnpClass,
-                            CategoryName = catName,
-                            CategoryIcon = catIcon,
-                            ServiceName = service,
-                            Status = status,
-                            ConfigManagerErrorCode = errCode
-                        });
+                            // Одно сбойное устройство не должно прерывать
+                            // сканирование всей системы.
+                            error ??= ex.Message;
+                        }
                     }
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"WMI scan error: {ex.Message}");
-                }
+
+                _lastScanError = error;
                 return result;
             });
 
@@ -162,7 +203,10 @@ public partial class DriverInspectorWindow : Window
             ApplyFilters();
 
             int errCount = _allDevices.Count(d => d.HasError);
-            StatusText.Text = $"Найдено устройств: {_allDevices.Count} (с ошибками/отключено: {errCount}) за {sw.Elapsed.TotalSeconds:F1} сек.";
+            scanError = _lastScanError;
+
+            StatusText.Text = $"Найдено устройств: {_allDevices.Count} (с ошибками/отключено: {errCount}) за {sw.Elapsed.TotalSeconds:F1} сек."
+                            + (scanError != null ? $"\n⚠ Часть устройств пропущена: {scanError}" : "");
         }
         catch (Exception ex)
         {
@@ -204,7 +248,27 @@ public partial class DriverInspectorWindow : Window
         if (cls.Contains("BLUETOOTH"))
             return ("Bluetooth", "📶");
 
-        return (string.IsNullOrEmpty(pnpClass) ? "Оборудование" : pnpClass, "🧩");
+        if (cls.Contains("MONITOR"))
+            return ("Мониторы", "🖥");
+
+        if (cls.Contains("PRINTER") || cls.Contains("PRINT"))
+            return ("Принтеры / Сканеры", "🖨");
+
+        if (cls.Contains("BATTERY") || cls.Contains("POWER"))
+            return ("Питание / Батареи", "🔋");
+
+        if (cls.Contains("HUMAN") || cls.Contains("BIOMETRIC"))
+            return ("Биометрия", "🔐");
+
+        if (cls.Contains("NET "))
+            return ("Сетевые адаптеры", "🌐");
+
+        // Раньше здесь возвращался СЫРОЙ английский PNPClass (например
+        // «DiskDrive», «Net», «System»). Такие значения не содержат русских
+        // подстрок, по которым работают фильтры, поэтому устройства из
+        // fallback-категории ИСЧЕЗАЛИ при активации любого категорийного
+        // фильтра. Теперь используется гарантированная русская категория.
+        return ("Прочие устройства", "🧩");
     }
 
     private void ApplyFilters()
@@ -216,17 +280,19 @@ public partial class DriverInspectorWindow : Window
 
         var filtered = _allDevices.Where(d =>
         {
-            // Категориальный фильтр
-            if (FilterStorageRadio?.IsChecked == true && !d.CategoryName.Contains("Накопители"))
-                return false;
-            if (FilterGpuRadio?.IsChecked == true && !d.CategoryName.Contains("Видеокарт"))
-                return false;
-            if (FilterNetworkRadio?.IsChecked == true && !d.CategoryName.Contains("Сетев"))
-                return false;
-            if (FilterSystemRadio?.IsChecked == true && !d.CategoryName.Contains("Системн"))
-                return false;
-            if (FilterIssuesRadio?.IsChecked == true && !d.HasError)
-                return false;
+            // Категориальный фильтр.
+            // RadioButton'ы объединены в группу (GroupName="DeviceFilters"),
+            // поэтому активен РОВНО ОДИН. Проверки по-прежнему расположены
+            // последовательно, но условие «ни один активный фильтр не
+            // отверг элемент» даёт корректную семантику даже при
+            // программной установке нескольких флагов.
+            bool rejected = false;
+            if (FilterStorageRadio?.IsChecked == true && !d.CategoryName.Contains("Накопители")) rejected = true;
+            if (FilterGpuRadio?.IsChecked == true && !d.CategoryName.Contains("Видеокарт")) rejected = true;
+            if (FilterNetworkRadio?.IsChecked == true && !d.CategoryName.Contains("Сетев")) rejected = true;
+            if (FilterSystemRadio?.IsChecked == true && !d.CategoryName.Contains("Системн")) rejected = true;
+            if (FilterIssuesRadio?.IsChecked == true && !d.HasError) rejected = true;
+            if (rejected) return false;
 
             // Поисковый запрос
             if (!string.IsNullOrEmpty(query))
@@ -259,6 +325,29 @@ public partial class DriverInspectorWindow : Window
         }
     }
 
+    /// <summary>
+    /// Экранирует значение для CSV.
+    ///
+    /// <para>Две угрозы, обе устранены:</para>
+    /// <list type="bullet">
+    /// <item>Встроенные кавычки не экранировались, что ломало структуру файла.</item>
+    /// <item>Ведущие =, +, −, @ заставляют Excel/LibreOffice трактовать ячейку
+    /// как ФОРМУЛУ (CSV injection). Значения берутся из метаданных устройств,
+    /// то есть именем устройства можно управлять локально.</item>
+    /// </list>
+    /// </summary>
+    private static string CsvCell(string? value)
+    {
+        string v = value ?? "";
+
+        if (v.Length > 0 && v[0] is '=' or '+' or '-' or '@')
+        {
+            v = "'" + v;
+        }
+
+        return "\"" + v.Replace("\"", "\"\"") + "\"";
+    }
+
     private void ExportReport_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
@@ -279,7 +368,14 @@ public partial class DriverInspectorWindow : Window
                 sb.AppendLine("Статус;Устройство;Категория;Производитель;Служба;КодОшибки;HardwareID");
                 foreach (var d in _allDevices)
                 {
-                    sb.AppendLine($"\"{d.StatusBadgeText}\";\"{d.Name}\";\"{d.CategoryName}\";\"{d.Manufacturer}\";\"{d.ServiceName}\";\"{d.ConfigManagerErrorCode}\";\"{d.HardwareId}\"");
+                    sb.AppendLine(string.Join(';',
+                        CsvCell(d.StatusBadgeText),
+                        CsvCell(d.Name),
+                        CsvCell(d.CategoryName),
+                        CsvCell(d.Manufacturer),
+                        CsvCell(d.ServiceName),
+                        CsvCell(d.ConfigManagerErrorCode.ToString()),
+                        CsvCell(d.HardwareId)));
                 }
             }
             else
@@ -303,8 +399,18 @@ public partial class DriverInspectorWindow : Window
                 }
             }
 
-            File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
-            MessageBox.Show($"Отчёт успешно сохранён:\n{sfd.FileName}", "Экспорт завершён", MessageBoxButton.OK, MessageBoxImage.Information);
+            // Раньше запись шла БЕЗ try/catch: отказ в доступе (например,
+            // защищённая папка), переполнение диска или перехват пути другим
+            // процессом приводили к фатальному крашу прямо из обработчика кнопки.
+            try
+            {
+                File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+                MessageBox.Show($"Отчёт успешно сохранён:\n{sfd.FileName}", "Экспорт завершён", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось сохранить отчёт:\n\n{ex.Message}", "Ошибка записи", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

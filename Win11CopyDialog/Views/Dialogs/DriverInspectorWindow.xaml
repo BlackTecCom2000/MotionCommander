@@ -77,14 +77,19 @@
                             </Grid>
                         </DockPanel>
 
-                        <!-- Фильтры категорий -->
+                        <!-- Фильтры категорий.
+                             GroupName ОБЯЗАТЕЛЕН: без него RadioButton'ы не группируются,
+                             пользователь мог отметить несколько фильтров одновременно.
+                             Поскольку проверки ниже идут последовательно как
+                             «return false», несколько отмеченных фильтров
+                             объединялись по И (AND) и список молча становился пустым. -->
                         <StackPanel Grid.Row="1" Orientation="Horizontal">
-                            <RadioButton x:Name="FilterAllRadio" Content="Все устройства" IsChecked="True" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
-                            <RadioButton x:Name="FilterStorageRadio" Content="💾 Накопители и NVMe/SATA" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
-                            <RadioButton x:Name="FilterGpuRadio" Content="🎮 Видеокарты (GPU)" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
-                            <RadioButton x:Name="FilterNetworkRadio" Content="🌐 Сетевые карты" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
-                            <RadioButton x:Name="FilterSystemRadio" Content="⚙ Системные шины" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
-                            <RadioButton x:Name="FilterIssuesRadio" Content="⚠️ С ошибками / Предупреждениями" Foreground="#FF5252" FontWeight="Bold" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterAllRadio" GroupName="DeviceFilters" Content="Все устройства" IsChecked="True" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterStorageRadio" GroupName="DeviceFilters" Content="💾 Накопители и NVMe/SATA" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterGpuRadio" GroupName="DeviceFilters" Content="🎮 Видеокарты (GPU)" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterNetworkRadio" GroupName="DeviceFilters" Content="🌐 Сетевые карты" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterSystemRadio" GroupName="DeviceFilters" Content="⚙ Системные шины" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
+                            <RadioButton x:Name="FilterIssuesRadio" GroupName="DeviceFilters" Content="⚠️ С ошибками / Предупреждениями" Foreground="#FF5252" FontWeight="Bold" Margin="0,0,14,0" Checked="FilterRadio_Checked"/>
                         </StackPanel>
                     </Grid>
                 </Border>

@@ -12,11 +12,17 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
     {
         private readonly DatabaseService _dbService;
         private readonly DownloadTaskConfig _config;
-        private CancellationTokenSource _cancellationTokenSource;
 
-        public event EventHandler<DownloadItem> ProgressChanged;
-        public event EventHandler<DownloadItem> DownloadCompleted;
-        public event EventHandler<DownloadItem> DownloadFailed;
+        // Поле nullable: в блоке finally ему присваивается null (строка 120).
+        private CancellationTokenSource? _cancellationTokenSource;
+
+        // События nullable: без инициализатора компилятор требовал
+        // непустое значение на выходе из конструктора. Возбуждаются
+        // только после реальной подписки, поэтому "нет подписчиков" —
+        // штатное состояние.
+        public event EventHandler<DownloadItem>? ProgressChanged;
+        public event EventHandler<DownloadItem>? DownloadCompleted;
+        public event EventHandler<DownloadItem>? DownloadFailed;
 
         public DownloadEngine(DatabaseService dbService, DownloadTaskConfig config)
         {
@@ -28,7 +34,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
         {
             _cancellationTokenSource = new CancellationTokenSource();
             item.Status = DownloadStatus.Downloading;
-            item.ErrorMessage = null;
+            item.ErrorMessage = null;  // ErrorMessage теперь string?
             await _dbService.SaveDownloadAsync(item);
 
             try

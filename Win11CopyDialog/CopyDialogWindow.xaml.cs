@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Media;
 using System.Windows;
 using Win11CopyDialog.Helpers;
@@ -22,17 +23,36 @@ public partial class CopyDialogWindow : Window
 
     private bool _closeRequested;
 
+    // Обработчики хранятся в полях, чтобы можно было отписаться в OnClosed.
+    // Раньше использовались анонимные лямбды, которые невозможно отменить —
+    // синглтон ThemeManager навсегда удерживал визуальное дерево каждого окна.
+    private readonly PropertyChangedEventHandler _themeChangedHandler;
+    private EventHandler? _progressTickHandler;
+    private EventHandler? _completedHandler;
+
     public CopyDialogWindow()
     {
         InitializeComponent();
         FilesList.ItemsSource = Engine.Items;
         Graph.Values = Engine.SpeedHistory;
-        Engine.ProgressTick += (_, _) => Dispatcher.Invoke(RefreshUi);
-        Engine.Completed += (_, _) => Dispatcher.Invoke(OnCompleted);
-        ThemeManager.Instance.PropertyChanged += (_, e) =>
+
+        // НЕБЛОКИРУЮЩИЙ маршалинг: ProgressTick приходит с потока, который пишет
+        // байты на диск. Dispatcher.Invoke здесь замедлял само копирование.
+        _progressTickHandler = (_, _) => Dispatcher.BeginInvoke(RefreshUi);
+        _completedHandler = (_, _) => Dispatcher.BeginInvoke(OnCompleted);
+
+        Engine.ProgressTick += _progressTickHandler;
+        Engine.Completed += _completedHandler;
+
+        _themeChangedHandler = (_, e) =>
         {
-            if (e.PropertyName == nameof(ThemeManager.AccentColor)) Graph.InvalidateVisual();
+            if (e.PropertyName == nameof(ThemeManager.AccentColor))
+            {
+                Dispatcher.BeginInvoke(Graph.InvalidateVisual);
+            }
         };
+        ThemeManager.Instance.PropertyChanged += _themeChangedHandler;
+
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
         RefreshUi();
     }
@@ -98,20 +118,34 @@ public partial class CopyDialogWindow : Window
         SpeedRun.Text = Engine.IsPaused ? "пауза" : Formatters.Speed(Engine.CurrentSpeed);
         EtaRun.Text = Engine.IsCompleted ? "готово" : Engine.IsCancelled ? "—" : Formatters.Eta(Engine.Eta);
 
-        TotalProgress.Value = p;
+        TotalProgress.SetSafe(p);
         TaskbarInfo.ProgressValue = p / 100.0;
         TaskbarInfo.ProgressState = Engine.IsCancelled ? System.Windows.Shell.TaskbarItemProgressState.Error
             : Engine.IsPaused ? System.Windows.Shell.TaskbarItemProgressState.Paused
             : Engine.IsCompleted ? System.Windows.Shell.TaskbarItemProgressState.None
             : System.Windows.Shell.TaskbarItemProgressState.Normal;
 
-        if (cur != null) FileProgress.Value = cur.Progress;
+        if (cur != null) FileProgress.SetSafe(cur.Progress);
         ItemsRun.Text = $"{Engine.DoneCount} / {Engine.Items.Count}";
         BytesRun.Text = $"{Formatters.Bytes(Engine.CopiedBytes)} из {Formatters.Bytes(Engine.TotalBytes)}";
         ElapsedRun.Text = Formatters.Elapsed(Engine.Elapsed);
         LeftRun.Text = Engine.IsCompleted ? "—" : Formatters.Bytes(Engine.RemainingBytes);
 
-        Graph.Max = Math.Max(Graph.Max, Engine.SpeedHistory.DefaultIfEmpty(0).Max() * 1.15);
+        // Раньше Max ТОЛЬКО РОС: Math.Max(Graph.Max, пик * 1.15). После одного
+        // кратковременного пика шкала оставалась завышенной навсегда, и весь
+        // дальнейший сигнал выглядел плоским. Теперь масштаб мягко
+        // сжимается обратно, когда фактический пик заметно ниже текущего Max.
+        double observedPeak = Engine.SpeedHistory.DefaultIfEmpty(0).Max() * 1.15;
+        if (observedPeak > Graph.Max)
+        {
+            Graph.Max = observedPeak;
+        }
+        else if (Graph.Max > 0 && observedPeak > 0 && observedPeak < Graph.Max * 0.6)
+        {
+            // Плавно (20% за обновление) возвращаемся к актуальному масштабу.
+            Graph.Max = Graph.Max * 0.8 + observedPeak * 0.2;
+        }
+
         Graph.InvalidateVisual();
 
         string pauseGlyph = Engine.IsPaused ? "▶" : "⏸";
@@ -208,9 +242,19 @@ public partial class CopyDialogWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        base.OnClosed(e);
         if (!_closeRequested && Engine.IsRunning && !Engine.IsCompleted && !Engine.IsCancelled)
             Engine.Cancel();
         Engine.Dispose();
+
+        // Обязательная отписка: без неё синглтон ThemeManager и статический
+        // движок копирования навсегда удерживают визуальное дерево этого окна.
+        if (_progressTickHandler != null) Engine.ProgressTick -= _progressTickHandler;
+        if (_completedHandler != null) Engine.Completed -= _completedHandler;
+        if (_themeChangedHandler != null) ThemeManager.Instance.PropertyChanged -= _themeChangedHandler;
+
+        _progressTickHandler = null;
+        _completedHandler = null;
+
+        base.OnClosed(e);
     }
 }

@@ -14,7 +14,8 @@ public sealed class LinuxStorageProvider : IStorageProvider
         try
         {
             // 1. Попытка использования lsblk в JSON-формате
-            string lsblkOutput = await RunProcessAsync("lsblk", "-J -b -o NAME,PATH,SIZE,ROTA,TYPE,MOUNTPOINT,FSTYPE,LABEL,MODEL,TRAN");
+            string lsblkOutput = (await RunProcessAsync("lsblk", new[]
+            { "-J", "-b", "-o", "NAME,PATH,SIZE,ROTA,TYPE,MOUNTPOINT,FSTYPE,LABEL,MODEL,TRAN" })).output;
             if (!string.IsNullOrWhiteSpace(lsblkOutput))
             {
                 using var doc = JsonDocument.Parse(lsblkOutput);
@@ -159,7 +160,7 @@ public sealed class LinuxStorageProvider : IStorageProvider
         {
             try
             {
-                string json = await RunProcessAsync("smartctl", $"-a -j {disk.DevicePath}");
+                string json = (await RunProcessAsync("smartctl", new[] { "-a", "-j", disk.DevicePath })).output;
                 if (!string.IsNullOrWhiteSpace(json))
                 {
                     using var doc = JsonDocument.Parse(json);
@@ -181,25 +182,29 @@ public sealed class LinuxStorageProvider : IStorageProvider
     public async Task<bool> OptimizeDiskAsync(int diskIndex, IProgress<string>? progress = null)
     {
         progress?.Report("Выполнение fstrim для сброса свободных блоков на Linux...");
-        string output = await RunProcessAsync("fstrim", "-av");
+        string output = (await RunProcessAsync("fstrim", new[] { "-av" })).output;
         progress?.Report(string.IsNullOrWhiteSpace(output) ? "Оптимизация Trim завершена успешно." : output.Trim());
         return true;
     }
 
     public async Task<bool> FormatPartitionAsync(string devicePathOrLetter, string fileSystem, string label, bool quick)
     {
-        string cmd = fileSystem.ToLowerInvariant() switch
+        // Метка тома ограничивается безопасным набором символов: она попадает
+        // в аргументы командной строки, где кавычки и «;» опасны.
+        string safeLabel = SanitizeLabel(label);
+        string device = SanitizeDevicePath(devicePathOrLetter);
+
+        var (exe, args) = fileSystem.ToLowerInvariant() switch
         {
-            "ext4" => $"mkfs.ext4 -F -L \"{label}\" {devicePathOrLetter}",
-            "btrfs" => $"mkfs.btrfs -f -L \"{label}\" {devicePathOrLetter}",
-            "fat32" or "vfat" => $"mkfs.vfat -F 32 -n \"{label}\" {devicePathOrLetter}",
-            "ntfs" => $"mkfs.ntfs -f -L \"{label}\" {devicePathOrLetter}",
-            _ => $"mkfs.ext4 -F -L \"{label}\" {devicePathOrLetter}"
+            "btrfs" => ("mkfs.btrfs", new[] { "-f", "-L", safeLabel, device }),
+            "fat32" or "vfat" => ("mkfs.vfat", new[] { "-F", "32", "-n", safeLabel, device }),
+            "ntfs" => ("mkfs.ntfs", new[] { "-f", "-L", safeLabel, device }),
+            _ => ("mkfs.ext4", new[] { "-F", "-L", safeLabel, device })
         };
 
-        var parts = cmd.Split(' ', 2);
-        string res = await RunProcessAsync(parts[0], parts[1]);
-        return !res.Contains("failed", StringComparison.OrdinalIgnoreCase);
+        // ArgumentList вместо строковой склейки — защита от command injection.
+        var res = await RunProcessAsync(exe, args);
+        return res.exitCode == 0;
     }
 
     public async Task<bool> DeletePartitionAsync(int diskIndex, int partitionNumber, bool overrideLocks)
@@ -207,33 +212,69 @@ public sealed class LinuxStorageProvider : IStorageProvider
         var disks = await GetPhysicalDisksAsync();
         var disk = disks.FirstOrDefault(d => d.Index == diskIndex);
         if (disk == null) return false;
+        if (partitionNumber < 0) return false;
 
-        string res = await RunProcessAsync("parted", $"-s {disk.DevicePath} rm {partitionNumber}");
-        return true;
+        // Раньше возвращался безусловный true, игнорируя результат parted.
+        var res = await RunProcessAsync("parted", new[] { "-s", disk.DevicePath, "rm", partitionNumber.ToString() });
+        return res.exitCode == 0;
     }
 
-    private static async Task<string> RunProcessAsync(string fileName, string args)
+    /// <summary>Допускает только буквы, цифры, дефис и подчёркивание (лимит метки ext4 — 16 символов).</summary>
+    private static string SanitizeLabel(string label)
+    {
+        if (string.IsNullOrWhiteSpace(label)) return "DATA";
+        var cleaned = new string(label
+            .Where(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_')
+            .ToArray());
+        return string.IsNullOrEmpty(cleaned) ? "DATA" : cleaned[..Math.Min(cleaned.Length, 16)];
+    }
+
+    /// <summary>Разрешает только путь к блочному устройству вида /dev/xxx.</summary>
+    private static string SanitizeDevicePath(string device)
+    {
+        if (string.IsNullOrWhiteSpace(device)) return "/dev/null";
+        var trimmed = device.Trim();
+        if (!trimmed.StartsWith("/dev/", StringComparison.Ordinal)) return "/dev/null";
+
+        // Только буквы, цифры и разделители пути.
+        if (!trimmed.Skip(5).All(c => char.IsAsciiLetterOrDigit(c) || c is '/' or '.' or '_' or '-'))
+            return "/dev/null";
+
+        return trimmed;
+    }
+
+    private static async Task<(int exitCode, string output)> RunProcessAsync(string fileName, string[] args)
     {
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = fileName,
-                Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
-            using var proc = Process.Start(psi);
-            if (proc == null) return "";
-            string output = await proc.StandardOutput.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-            return output;
+
+            foreach (var a in args) psi.ArgumentList.Add(a);
+
+            using var proc = new Process { StartInfo = psi };
+            proc.Start();
+
+            // Обе задачи чтения стартуют ОДНОВРЕМЕННО. Иначе, если процесс
+            // заполнит буфер stderr и заблокируется, чтение stdout до EOF
+            // никогда не завершится (классический pipe deadlock).
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+
+            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+            await proc.WaitForExitAsync().ConfigureAwait(false);
+
+            return (proc.ExitCode, stdoutTask.Result + "\n" + stderrTask.Result);
         }
         catch
         {
-            return "";
+            return (-1, "");
         }
     }
 }

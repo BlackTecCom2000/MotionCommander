@@ -1,16 +1,28 @@
 ﻿{
-    "version":  "3.8.17",
-    "releaseDate":  "2026-09-20",
+    "version":  "3.8.18",
+    "releaseDate":  "2026-09-27",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Fixed Download Manager crash on startup caused by invalid color keys"
+                      "Security: full payment card numbers removed from source, binaries and public repository (PCI-DSS)",
+                      "Fixed pipe deadlock that could hang Drive Optimizer and S.M.A.R.T. scan forever",
+                      "Fixed blocking Dispatcher.Invoke that throttled file copy throughput",
+                      "Fixed Cancel button in WizTree and Duplicate Finder (cancellation exception was swallowed)",
+                      "Fixed directory junction recursion and Recycle.Bin traversal in Duplicate Finder",
+                      "Fixed shared collection in DependencyProperty: second File Manager blanked the drive tree in the first",
+                      "Fixed ProgressBar crash when progress exceeded 100%",
+                      "Settings now persist across restarts (config was written but never read)",
+                      "Added error handling to destructive disk operations",
+                      "Fixed false success reports from Drive Optimizer",
+                      "Added Zip Slip protection and privileged path traversal validation",
+                      "Fixed buffer pool leak on copy cancellation",
+                      "Fixed installer script encoding and synchronized all versions"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.17-Patch.zip",
-    "patchSizeMb":  1.91,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.17-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.17-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.17-Setup.exe"
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.18-Patch.zip",
+    "patchSizeMb":  3.05,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.18-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.18-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.18-Setup.exe"
 }

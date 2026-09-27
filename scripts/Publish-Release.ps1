@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = "3.8.8",
+    [string]$Version = "3.8.18",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -11,12 +11,19 @@ Set-Location $repoRoot
 
 if ($null -eq $Notes -or $Notes.Count -eq 0) {
     $Notes = @(
-        "Direct I/O Streamer: Hardware saturation PCIe/SATA pipeline with null-allocation pool",
-        "Speed Telemetry HUD: 30 FPS Canvas speed graph, 4-tile neon indicators and bottleneck detector",
-        "WizTree Disk Space Analyzer: Folder weights treemap, Top-100 heavy files and extensions statistics",
-        "Duplicate File Cleaner: 3-stage high-speed scan (Size -> 4KB Pre-Hash -> Full SHA-256)",
-        "System Driver Inspector: WMI PnP device audit, state indicators, devmgmt.msc and report export",
-        "Settings Window: 10 designer themes (Cyberpunk, OLED Midnight, Matrix, Sunset), backdrops, haptics and JSON editor"
+        "Security: full payment card numbers removed from source, binaries and public repository (PCI-DSS)",
+        "Fixed pipe deadlock that could hang Drive Optimizer and S.M.A.R.T. scan forever",
+        "Fixed blocking Dispatcher.Invoke that throttled file copy throughput",
+        "Fixed Cancel button in WizTree and Duplicate Finder (cancellation exception was swallowed)",
+        "Fixed directory junction recursion and Recycle.Bin traversal in Duplicate Finder",
+        "Fixed shared collection in DependencyProperty: second File Manager blanked the drive tree in the first",
+        "Fixed ProgressBar crash when progress exceeded 100%",
+        "Settings now persist across restarts (config was written but never read)",
+        "Added error handling to destructive disk operations",
+        "Fixed false success reports from Drive Optimizer",
+        "Added Zip Slip protection and privileged path traversal validation",
+        "Fixed buffer pool leak on copy cancellation",
+        "Fixed installer script encoding and synchronized all versions"
     )
 }
 
@@ -83,9 +90,32 @@ $patchStagingDir = "$distDir\patch_staging"
 if (Test-Path $patchStagingDir) { Remove-Item $patchStagingDir -Recurse -Force }
 New-Item -ItemType Directory -Path $patchStagingDir -Force | Out-Null
 
-# Copy only the application files (exclude heavy 35MB static runtimes/ folder)
-Get-ChildItem -Path $publishDir -File | ForEach-Object {
-    Copy-Item $_.FullName -Destination $patchStagingDir -Force
+# ВАЖНО: раньше здесь стоял `Get-ChildItem -Path $publishDir -File`, который
+# брал ТОЛЬКО файлы верхнего уровня и молча терял все подпапки.
+# UpdateService.ApplySeamlessUpdate копирует staging рекурсивно
+# (SearchOption.AllDirectories) и сам создаёт недостающие каталоги,
+# поэтому отсутствие подпапок означало бы сломанную сборку у обновившихся.
+#
+# Папка runtimes\ весит ~82 МБ, потому что туда попадают нативные библиотеки
+# для ВСЕХ платформ (android*, ios*, browser-wasm, linux*, osx*).
+# Исключать её целиком тоже нельзя: приложению на Windows обязательно нужны
+#   runtimes\win-x64\native\e_sqlite3.dll      — нативная SQLite (базы, драйверы)
+#   runtimes\win\lib\net8.0\System.Management.dll — WMI для инспектора драйверов
+# Поэтому в дельту идут только Windows-варианты (~2.2 МБ вместо 82 МБ).
+Get-ChildItem -Path $publishDir -Recurse -File | ForEach-Object {
+    $relative = $_.FullName.Substring($publishDir.Length).TrimStart('\', '/')
+
+    if ($relative -like 'runtimes\*') {
+        $rid = ($relative -split '\\')[1]
+        if ($rid -ne 'win' -and $rid -ne 'win-x64') { return }
+    }
+
+    $target = Join-Path $patchStagingDir $relative
+    $targetDir = Split-Path -Parent $target
+    if (-not (Test-Path $targetDir)) {
+        New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+    }
+    Copy-Item $_.FullName -Destination $target -Force
 }
 
 $patchFile = "$distDir\MotionCommander-v$cleanVer-Patch.zip"

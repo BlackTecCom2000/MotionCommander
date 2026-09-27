@@ -48,16 +48,25 @@ public sealed class SpeedGraph : FrameworkElement
 
         if (Values == null || Values.Count < 2) return;
 
-        double max = Math.Max(Max, Values.DefaultIfEmpty(1).Max());
+        // L-17: DefaultIfEmpty(1).Max() — мёртвый код, выше уже есть
+        // ранний выход при Count < 2, а Count >= 2 гарантирует непустую коллекцию.
+        double max = Math.Max(Max, Values.Max());
         if (max <= 0) max = 1;
 
         int n = Values.Count;
+
+        // X-координата по ЧИСЛУ ТОЧЕК (n), а не по жёсткой константе
+        // Models.CopyEngine.MaxHistory (90). Раньше ломаная сжималась в левую
+        // 1/89 часть контрола, пока не набиралось 90 замеров, то есть первые
+        // ~9 секунд каждой передачи (и навсегда при коротких передачах).
+        double xStep = w / (n - 1);
+
         var line = new StreamGeometry();
         using (var ctx = line.Open())
         {
             for (int i = 0; i < n; i++)
             {
-                double x = w * i / (Models.CopyEngine.MaxHistory - 1);
+                double x = i * xStep;
                 double y = h - 4 - (h - 10) * (Values[i] / max);
                 y = Math.Clamp(y, 2, h - 2);
                 if (i == 0) ctx.BeginFigure(new Point(x, y), false, false);
@@ -73,11 +82,11 @@ public sealed class SpeedGraph : FrameworkElement
             ctx.BeginFigure(new Point(0, h), true, true);
             for (int i = 0; i < n; i++)
             {
-                double x = w * i / (Models.CopyEngine.MaxHistory - 1);
+                double x = i * xStep;
                 double y = h - 4 - (h - 10) * (Values[i] / max);
                 ctx.LineTo(new Point(x, Math.Clamp(y, 2, h - 2)), true, false);
             }
-            ctx.LineTo(new Point(w * (n - 1) / (Models.CopyEngine.MaxHistory - 1), h), true, false);
+            ctx.LineTo(new Point(w, h), true, false);
         }
         area.Freeze();
         dc.DrawGeometry(fill, null, area);

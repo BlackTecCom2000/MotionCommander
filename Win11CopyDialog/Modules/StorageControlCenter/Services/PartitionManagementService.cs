@@ -40,7 +40,7 @@ public static class PartitionManagementService
     /// Аппаратная и программная проверка безопасности всего диска целиком.
     /// Блокирует любые деструктивные операции на диске, если он содержит системный том.
     /// </summary>
-    public static void ValidateSafeTargetDisk(StorageDisk disk, string operationName, MigrationPlan plan = null)
+    public static void ValidateSafeTargetDisk(StorageDisk disk, string operationName, MigrationPlan? plan = null)
     {
         if (disk.Partitions.Any(p => p.IsSystem || p.IsBoot || p.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase)))
         {

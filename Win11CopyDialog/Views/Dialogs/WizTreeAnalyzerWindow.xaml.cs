@@ -114,12 +114,23 @@ public partial class WizTreeAnalyzerWindow : Window
 
         var allFiles = new List<WizFileInfo>();
 
+        // Троттлинг прогресса: раньше InvokeAsync вызывался на КАЖДЫЙ каталог.
+        // При сканировании C:\ это десятки тысяч задач в очередь Dispatcher,
+        // каждая с интерполяцией строки и полным layout-проходом — UI вставал
+        // на всё время сканирования, и кнопку «Прервать» было не нажать.
+        long lastUiUpdateTicks = 0;
+        const long UiUpdateIntervalTicks = 100_000; // ~10 Гц (100 мс)
+
         try
         {
             var sw = Stopwatch.StartNew();
             var rootNode = await Task.Run(() => ScanDirectoryTree(root, allFiles, ct, p =>
             {
-                Dispatcher.InvokeAsync(() => StatusText.Text = $"Сканирование: {p}");
+                long now = Environment.TickCount64;
+                if (now - lastUiUpdateTicks < UiUpdateIntervalTicks) return;
+                lastUiUpdateTicks = now;
+
+                Dispatcher.BeginInvoke(() => StatusText.Text = $"Сканирование: {p}");
             }), ct);
 
             sw.Stop();
@@ -225,10 +236,26 @@ public partial class WizTreeAnalyzerWindow : Window
                     dirTotal += subNode.SizeBytes;
                     node.Children.Add(subNode);
                 }
-                catch { }
+                catch (OperationCanceledException)
+                {
+                    // Отмена — пробрасываем. Раньше bare catch проглатывал её,
+                    // из-за чего кнопка «Прервать» не останавливала сканирование.
+                    throw;
+                }
+                catch
+                {
+                    // Игнорируем только недоступные подкаталоги.
+                }
             }
         }
-        catch { }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // Игнорируем только недоступные каталоги (нет прав, отсоединён диск).
+        }
 
         node.SizeBytes = dirTotal;
 

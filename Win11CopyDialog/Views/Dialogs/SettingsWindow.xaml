@@ -275,20 +275,20 @@
 
                                 <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="12" Margin="0,0,0,8">
                                     <DockPanel>
-                                        <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" DockPanel.Dock="Right" Padding="10,4" Click="CopyAlif_Click"/>
+                                        <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" DockPanel.Dock="Right" Padding="10,4" Click="CopyDonation_Click" Tag="alif"/>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="🇹🇯 Alif Bank VISA (Валютная карта):" FontSize="11" Style="{StaticResource MutedText}"/>
-                                            <TextBlock Text="4444 8888 1022 6013" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="•••• •••• •••• 6013" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" ToolTip="Полный номер хранится локально и не входит в сборку (PCI-DSS)."/>
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>
 
                                 <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="12">
                                     <DockPanel>
-                                        <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" DockPanel.Dock="Right" Padding="10,4" Click="CopyDc_Click"/>
+                                        <Button Style="{StaticResource CyberToolButton}" Content="📋 Копировать" DockPanel.Dock="Right" Padding="10,4" Click="CopyDonation_Click" Tag="dc"/>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="🇹🇯 DC Bank VISA (Международные переводы):" FontSize="11" Style="{StaticResource MutedText}"/>
-                                            <TextBlock Text="4713 3800 2165 1431" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="•••• •••• •••• 1431" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" ToolTip="Полный номер хранится локально и не входит в сборку (PCI-DSS)."/>
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>

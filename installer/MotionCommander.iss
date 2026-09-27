@@ -1,6 +1,6 @@
-#define MyAppName "Motion Commander"
+﻿#define MyAppName "Motion Commander"
 #ifndef MyAppVersion
-#define MyAppVersion "3.8.13"
+#define MyAppVersion "3.8.18"
 #endif
 #define MyAppPublisher "BlackTecCom - Jaborov Daler"
 #define MyAppURL "https://github.com/BlackTecCom2000/MotionCommander"
@@ -37,14 +37,14 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "addtopath"; Description: "Р”РѕР±Р°РІРёС‚СЊ Motion Commander РІ PATH (РєРѕРјР°РЅРґР° 'motion' РІ С‚РµСЂРјРёРЅР°Р»Рµ)"; GroupDescription: "РЎРёСЃС‚РµРјРЅС‹Рµ РЅР°СЃС‚СЂРѕР№РєРё:"
+Name: "addtopath"; Description: "Добавить Motion Commander в PATH (команда 'motion' в терминале)"; GroupDescription: "Системные настройки:"
 
 [Files]
 Source: "..\dist\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\{#MyAppName} (РљРѕРЅСЃРѕР»СЊ CLI)"; Filename: "{app}\motion.exe"
+Name: "{group}\{#MyAppName} (Консоль CLI)"; Filename: "{app}\motion.exe"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
@@ -86,4 +86,3 @@ begin
     end;
   end;
 end;
-

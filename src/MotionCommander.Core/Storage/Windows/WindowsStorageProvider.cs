@@ -80,56 +80,132 @@ public sealed class WindowsStorageProvider : IStorageProvider
         var disk = disks.FirstOrDefault(d => d.Index == diskIndex);
         string driveLetter = disk?.DeviceId.TrimEnd(':') ?? "C";
 
+        // ArgumentList вместо строковой интерполяции (защита от инъекции).
         var psi = new ProcessStartInfo
         {
             FileName = "defrag.exe",
-            Arguments = $"{driveLetter}: /O /U",
-            RedirectStandardOutput = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
-        using var p = Process.Start(psi);
-        if (p != null) await p.WaitForExitAsync();
-        progress?.Report("Оптимизация завершена.");
-        return true;
+        psi.ArgumentList.Add($"{driveLetter}:");
+        psi.ArgumentList.Add("/O");
+        psi.ArgumentList.Add("/U");
+
+        return await RunAndReportAsync(psi, progress) == 0;
     }
 
     public async Task<bool> FormatPartitionAsync(string devicePathOrLetter, string fileSystem, string label, bool quick)
     {
-        string letter = devicePathOrLetter.TrimEnd(':', '\\');
-        string script = $"select volume {letter}\nformat fs={fileSystem} label=\"{label}\" {(quick ? "quick" : "")}\nexit\n";
+        string letter = SanitizeVolumeLetter(devicePathOrLetter);
+        string fs = SanitizeIdentifier(fileSystem, "NTFS");
+        string safeLabel = SanitizeIdentifier(label, "Label");
+
+        string script = $"select volume {letter}\nformat fs={fs} label=\"{safeLabel}\" {(quick ? "quick" : "")}\nexit\n";
         string scriptFile = Path.Combine(Path.GetTempPath(), $"format_{Guid.NewGuid():N}.txt");
         await File.WriteAllTextAsync(scriptFile, script);
 
-        var psi = new ProcessStartInfo
+        try
         {
-            FileName = "diskpart.exe",
-            Arguments = $"/s \"{scriptFile}\"",
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        using var p = Process.Start(psi);
-        if (p != null) await p.WaitForExitAsync();
-        try { File.Delete(scriptFile); } catch { }
-        return true;
+            var psi = new ProcessStartInfo
+            {
+                FileName = "diskpart.exe",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            psi.ArgumentList.Add("/s");
+            psi.ArgumentList.Add(scriptFile);
+
+            // Раньше результат игнорировался и всегда возвращался true —
+            // вызывающий код показывал «✔ Успешно» даже при упавшем diskpart.
+            return await RunAndReportAsync(psi, null) == 0;
+        }
+        finally
+        {
+            try { File.Delete(scriptFile); } catch { /* файл может быть занят diskpart */ }
+        }
     }
 
     public async Task<bool> DeletePartitionAsync(int diskIndex, int partitionNumber, bool overrideLocks)
     {
+        // Числовые параметры валидируем: иначе возможна инъекция в скрипт diskpart.
+        if (diskIndex < 0 || partitionNumber < 0)
+            return false;
+
         string script = $"select disk {diskIndex}\nselect partition {partitionNumber}\ndelete partition {(overrideLocks ? "override" : "")}\nexit\n";
         string scriptFile = Path.Combine(Path.GetTempPath(), $"del_{Guid.NewGuid():N}.txt");
         await File.WriteAllTextAsync(scriptFile, script);
 
-        var psi = new ProcessStartInfo
+        try
         {
-            FileName = "diskpart.exe",
-            Arguments = $"/s \"{scriptFile}\"",
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        using var p = Process.Start(psi);
-        if (p != null) await p.WaitForExitAsync();
-        try { File.Delete(scriptFile); } catch { }
-        return true;
+            var psi = new ProcessStartInfo
+            {
+                FileName = "diskpart.exe",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            psi.ArgumentList.Add("/s");
+            psi.ArgumentList.Add(scriptFile);
+
+            return await RunAndReportAsync(psi, null) == 0;
+        }
+        finally
+        {
+            try { File.Delete(scriptFile); } catch { }
+        }
+    }
+
+    /// <summary>Оставляет только букву тома — защита от инъекции в скрипт diskpart.</summary>
+    private static string SanitizeVolumeLetter(string input)
+    {
+        string s = (input ?? "").Trim().TrimEnd(':', '\\', '/');
+        return s.Length == 1 && char.IsLetter(s[0]) ? s.ToUpperInvariant() : "C";
+    }
+
+    /// <summary>Оставляет только буквы, цифры, пробел, дефис и подчёркивание.</summary>
+    private static string SanitizeIdentifier(string input, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return fallback;
+
+        var cleaned = new string(input
+            .Where(c => char.IsAsciiLetterOrDigit(c) || c is ' ' or '-' or '_')
+            .ToArray())
+            .Trim();
+
+        return cleaned.Length == 0 ? fallback : cleaned;
+    }
+
+    /// <summary>
+    /// Запускает процесс и читает stdout/stderr ОДНОВРЕМЕННО.
+    /// Последовательное чтение вызывает deadlock, когда дочерний процесс
+    /// заполняет буфер stderr и блокируется до завершения.
+    /// </summary>
+    private static async Task<int> RunAndReportAsync(ProcessStartInfo psi, IProgress<string>? progress)
+    {
+        using var proc = new Process { StartInfo = psi };
+        proc.Start();
+
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+
+        await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+        await proc.WaitForExitAsync().ConfigureAwait(false);
+
+        if (proc.ExitCode != 0 && progress != null)
+        {
+            var err = stderrTask.Result.Trim();
+            if (err.Length > 0)
+            {
+                if (err.Length > 300) err = err[..300] + "...";
+                progress.Report($"Ошибка утилиты (код {proc.ExitCode}): {err}");
+            }
+        }
+
+        return proc.ExitCode;
     }
 }

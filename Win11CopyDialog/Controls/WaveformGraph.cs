@@ -101,7 +101,12 @@ public sealed class WaveformGraph : FrameworkElement
         }
 
         if (Values == null || Values.Count < 2) return;
-        var ac = ((SolidColorBrush)_accent).Color;
+
+        // L-24: (SolidColorBrush) жёсткий бросок на кисти из ресурсов темы.
+        // Если токен темы когда-либо станет градиентом, это упадёт внутри
+        // прохода отрисовки. Используем безопасный паттерн из одноимённых
+        // соседних визуализаторов.
+        var ac = (_accent as SolidColorBrush)?.Color ?? Color.FromRgb(0, 120, 212);
 
         int cap = Math.Max(8, Capacity);
         int skip = Math.Max(0, Values.Count - cap);
@@ -112,10 +117,15 @@ public sealed class WaveformGraph : FrameworkElement
         for (int i = skip; i < Values.Count; i++)
             max = Math.Max(max, Values[i]);
 
+        // X-координата по числу ИМЕЮЩИХСЯ точек (n), а не по ёмкости (cap).
+        // Раньше делитель был cap - 1, поэтому пока буфер не заполнен,
+        // сигнал сжимался в левую часть контрола.
+        double xStep = w / (n - 1);
+
         var pts = new Point[n];
         for (int i = 0; i < n; i++)
         {
-            double x = w * i / (cap - 1);
+            double x = i * xStep;
             double v = Motion.Clamp01(Values[skip + i] / max);
             pts[i] = new Point(x, h - 5 - (h - 12) * v);
         }

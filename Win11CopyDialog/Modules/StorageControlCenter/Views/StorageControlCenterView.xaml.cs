@@ -105,6 +105,37 @@ public partial class StorageControlCenterView : UserControl
         _telemetryTimer.Stop();
         _benchCts?.Cancel();
         _wipeCts?.Cancel();
+
+        // Раньше CTS отменялись, но НЕ обнулялись. Обработчики кнопок
+        // используют «_benchCts != null» как признак «тест идёт», поэтому после
+        // переключения вкладки кнопка оставалась с надписью «ОСТАНОВИТЬ ТЕСТ»,
+        // а повторное нажатие лишь вызывало Cancel() на уже мёртвом токене —
+        // тест нельзя было запустить заново без переоткрытия вкладки.
+        ResetRunningOperationsUi();
+    }
+
+    /// <summary>Возвращает UI операций (бенчмарк/очистка) в исходное состояние.</summary>
+    private void ResetRunningOperationsUi()
+    {
+        _benchCts?.Dispose();
+        _benchCts = null;
+
+        _wipeCts?.Dispose();
+        _wipeCts = null;
+
+        if (StartBenchBtn != null)
+        {
+            StartBenchBtn.Content = "🚀 Запустить бенчмарк";
+            StartBenchBtn.IsEnabled = true;
+        }
+
+        if (StartWipeBtn != null)
+        {
+            StartWipeBtn.Content = "🧹 Запустить безопасную очистку";
+            StartWipeBtn.IsEnabled = true;
+        }
+
+        if (BenchProgressCard != null) BenchProgressCard.Visibility = Visibility.Collapsed;
     }
 
     public async Task RefreshDisksAsync()
@@ -363,7 +394,7 @@ public partial class StorageControlCenterView : UserControl
 
         DiskCapacitySummaryText.Text = $"Емкость: {Formatters.Bytes(disk.TotalSizeBytes - (long)disk.TotalFreeBytes)} занято из {disk.TotalSizeFormatted} ({disk.FreeSpacePercent:F1}% свободно)";
         DiskFreeSpaceBadgeText.Text = $"Свободно: {disk.FreeSpaceFormatted}";
-        DiskSpaceProgressBar.Value = disk.UsedSpacePercent;
+        DiskSpaceProgressBar.SetSafe(disk.UsedSpacePercent);
 
         // SMART атрибуты
         SmartAttributesList.ItemsSource = disk.SmartAttributes;
@@ -745,7 +776,7 @@ public partial class StorageControlCenterView : UserControl
         var progress = new Progress<(string testName, int percent, double currentSpeed)>(p =>
         {
             BenchProgressStatusText.Text = p.testName;
-            BenchProgressBar.Value = p.percent;
+            BenchProgressBar.SetSafe(p.percent);
             BenchLiveSpeedText.Text = $"{p.currentSpeed:F1} МБ/с";
         });
 
@@ -875,7 +906,7 @@ public partial class StorageControlCenterView : UserControl
 
         var progress = new Progress<(int percent, string status, double speedMBps)>(p =>
         {
-            WipeProgressBar.Value = p.percent;
+            WipeProgressBar.SetSafe(p.percent);
             WipeStatusText.Text = p.status;
             WipeSpeedText.Text = $"{p.speedMBps:F1} МБ/с";
         });
@@ -971,7 +1002,19 @@ public partial class StorageControlCenterView : UserControl
 
         if (res == MessageBoxResult.Yes)
         {
-            var (success, msg) = await PartitionManagementService.DeletePartitionAsync(_selectedPartition, forceOverride: true);
+            bool success;
+            string msg;
+            try
+            {
+                (success, msg) = await PartitionManagementService.DeletePartitionAsync(_selectedPartition, forceOverride: true);
+            }
+            catch (Exception ex)
+            {
+                // Необратимая операция — раньше любое исключение было фатальным.
+                success = false;
+                msg = $"Удаление раздела прервано ошибкой: {ex.Message}";
+            }
+
             MessageBox.Show(msg, "Удаление раздела", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
             PartitionActionBox.Visibility = Visibility.Collapsed;
             await RefreshDisksAsync();
@@ -988,7 +1031,10 @@ public partial class StorageControlCenterView : UserControl
 
         if (_selectedPartition.IsSystem || _selectedPartition.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase))
         {
+            // Раньше здесь отсутствовал return: после предупреждения выполнение
+            // проваливалось и форма сжатия всё равно показывалась для тома C:.
             MessageBox.Show("Сжатие системного тома C: ограничено политиками безопасности Windows во время активной сессии.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
 
         long defaultShrinkMb = 5120;
@@ -1140,7 +1186,20 @@ public partial class StorageControlCenterView : UserControl
 
         if (res == MessageBoxResult.Yes)
         {
-            var (success, msg) = await PartitionManagementService.CleanDiskAsync(_selectedDisk);
+            bool success;
+            string msg;
+            try
+            {
+                (success, msg) = await PartitionManagementService.CleanDiskAsync(_selectedDisk);
+            }
+            catch (Exception ex)
+            {
+                // Дискpart/WMI бросают исключения регулярно. Без catch это
+                // фатальный краш посреди необратимой операции очистки диска.
+                success = false;
+                msg = $"Очистка диска прервана ошибкой: {ex.Message}";
+            }
+
             MessageBox.Show(msg, "Очистка диска", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
             PartitionActionBox.Visibility = Visibility.Collapsed;
             await RefreshDisksAsync();
@@ -1152,8 +1211,16 @@ public partial class StorageControlCenterView : UserControl
         if (_selectedDisk == null) return;
 
         int? partNum = _selectedPartition?.PartitionNumber;
-        var (success, msg) = await PartitionManagementService.ClearReadOnlyAsync(_selectedDisk.DiskNumber, partNum);
-        MessageBox.Show(msg, "Снятие защиты от записи", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+
+        try
+        {
+            var (success, msg) = await PartitionManagementService.ClearReadOnlyAsync(_selectedDisk.DiskNumber, partNum);
+            MessageBox.Show(msg, "Снятие защиты от записи", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось снять защиту от записи: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async void PartChkdsk_Click(object sender, RoutedEventArgs e)
@@ -1164,8 +1231,15 @@ public partial class StorageControlCenterView : UserControl
             return;
         }
 
-        var (success, msg) = await PartitionManagementService.CheckFileSystemAsync(_selectedPartition.DriveLetter);
-        MessageBox.Show(msg, $"Chkdsk: {_selectedPartition.DriveLetter}:", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        try
+        {
+            var (success, msg) = await PartitionManagementService.CheckFileSystemAsync(_selectedPartition.DriveLetter);
+            MessageBox.Show(msg, $"Chkdsk: {_selectedPartition.DriveLetter}:", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Проверка Chkdsk прервана ошибкой: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void ActionBoxCancel_Click(object sender, RoutedEventArgs e)
@@ -1297,6 +1371,22 @@ public partial class StorageControlCenterView : UserControl
                     }
             }
         }
+        catch (OperationCanceledException)
+        {
+            MessageBox.Show("Операция отменена.", "Отмена", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            // Раньше здесь был try/finally БЕЗ catch. Ошибки diskpart/WMI
+            // (нет доступа, диск занят, Win32Exception) приводили к фатальному
+            // крашу посреди необратимой операции — полуформатированный том.
+            MessageBox.Show(
+                $"Операция «{_currentAction}» прервана ошибкой:\n\n{ex.Message}\n\n" +
+                "Состояние накопителя может быть незавершённым. Рекомендуется проверить диск.",
+                "Ошибка выполнения",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
         finally
         {
             ActionBoxExecuteBtn.IsEnabled = true;
@@ -1322,7 +1412,28 @@ public partial class StorageControlCenterView : UserControl
         return list;
     }
 
-    private static TextBox CreateStyledTextBox(string initialValue)
+    /// <summary>
+    /// Возвращает ресурс темы, либо null если он не найден.
+    /// Раньше цвета форм были ЗАХАРДКОЖЕНЫ (тёмно-синий фон + белый текст),
+    /// из-за чего в светлых темах (Light, MicaLight, MinimalWhite) форма
+    /// «Создать раздел / Форматировать» выглядела инвертированной,
+    /// а подсказки серым по тёмному были практически нечитаемы.
+    /// </summary>
+    private Brush? ThemeBrush(string key) => TryFindResource(key) as Brush;
+
+    /// <summary>Фон поля ввода с корректным контрастом для активной темы.</summary>
+    private Brush InputBackground() => ThemeBrush("ControlBackgroundBrush")
+                                         ?? new SolidColorBrush(Color.FromArgb(180, 15, 23, 42));
+
+    /// <summary>Цвет текста поля ввода.</summary>
+    private Brush InputForeground() => ThemeBrush("PrimaryTextBrush") ?? Brushes.White;
+
+    /// <summary>Цвет подписей и подсказок в форме.</summary>
+    private Brush MutedForeground() => ThemeBrush("TextMutedBrush")
+                                        ?? ThemeBrush("SecondaryTextBrush")
+                                        ?? Brushes.LightGray;
+
+    private TextBox CreateStyledTextBox(string initialValue)
     {
         return new TextBox
         {
@@ -1330,34 +1441,46 @@ public partial class StorageControlCenterView : UserControl
             Padding = new Thickness(8, 5, 8, 5),
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
-            Background = new SolidColorBrush(Color.FromArgb(180, 15, 23, 42)),
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromArgb(100, 59, 130, 246)),
             BorderThickness = new Thickness(1),
             MinWidth = 200
         };
     }
 
-    private static ComboBox CreateStyledComboBox(IEnumerable<string> items, string selectedItem)
+    private ComboBox CreateStyledComboBox(IEnumerable<string> items, string selectedItem)
     {
-        var cb = new ComboBox
+        return new ComboBox
         {
             ItemsSource = items.ToList(),
             SelectedItem = selectedItem,
             Padding = new Thickness(8, 5, 8, 5),
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
-            Background = new SolidColorBrush(Color.FromArgb(180, 15, 23, 42)),
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromArgb(100, 59, 130, 246)),
             BorderThickness = new Thickness(1),
             MinWidth = 200
         };
-        return cb;
     }
 
-    private static FrameworkElement CreateFormRow(string label, FrameworkElement control, string? tip = null)
+    private FrameworkElement CreateFormRow(string label, FrameworkElement control, string? tip = null)
     {
+        // Применяем цвета активной темы ко всем элементам строки формы.
+        var bg = InputBackground();
+        var fg = InputForeground();
+        var muted = MutedForeground();
+
+        switch (control)
+        {
+            case TextBox tb:
+                tb.Background = bg;
+                tb.Foreground = fg;
+                tb.BorderBrush = ThemeBrush("AccentBrush") ?? new SolidColorBrush(Color.FromArgb(100, 59, 130, 246));
+                break;
+            case ComboBox cb:
+                cb.Background = bg;
+                cb.Foreground = fg;
+                cb.BorderBrush = ThemeBrush("AccentBrush") ?? new SolidColorBrush(Color.FromArgb(100, 59, 130, 246));
+                break;
+        }
+
         var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
 
         var lbl = new TextBlock
@@ -1365,7 +1488,7 @@ public partial class StorageControlCenterView : UserControl
             Text = label,
             FontSize = 11,
             FontWeight = FontWeights.Bold,
-            Foreground = Brushes.LightGray,
+            Foreground = muted,
             Margin = new Thickness(0, 0, 0, 4)
         };
         sp.Children.Add(lbl);
@@ -1377,7 +1500,8 @@ public partial class StorageControlCenterView : UserControl
             {
                 Text = tip,
                 FontSize = 10,
-                Foreground = Brushes.DarkGray,
+                // Brushes.DarkGray на тёмном фоне был практически нечитаем.
+                Foreground = muted,
                 Margin = new Thickness(0, 3, 0, 0)
             };
             sp.Children.Add(hint);
@@ -1393,6 +1517,50 @@ public partial class StorageControlCenterView : UserControl
         if (win != null && win.WindowState == WindowState.Minimized) return;
 
         StorageMonitorService.PollRealtimeTelemetry(_disks);
+
+        // Раньше здесь ТОЛЬКО опрашивались значения: ни один TextBlock и ни один
+        // ProgressBar не обновлялись, а InvalidateVisual() не вызывался.
+        // В итоге карточка «живого» здоровья показывала данные, загруженные
+        // один раз при выборе диска: температура, износ и наработка «замерзали»,
+        // хотя опрос WMI/SMART каждые 2 секунды продолжал работать впустую.
+        UpdateRealtimeTelemetryUi();
+    }
+
+    /// <summary>Обновляет элементы карточки здоровья актуальными значениями телеметрии.</summary>
+    private void UpdateRealtimeTelemetryUi()
+    {
+        var disk = _selectedDisk;
+        if (disk == null) return;
+
+        try
+        {
+            DiskTempValueText.Text = $"{disk.TemperatureC:F0} °C";
+            TempStatusBadgeText.Text = disk.TemperatureC < 50 ? "Норма" : (disk.TemperatureC < 65 ? "Внимание" : "Троттлинг");
+            TempBadgeBorder.Background = new BrushConverter().ConvertFromString(disk.TemperatureColor) as Brush;
+            TempDescText.Text = disk.TemperatureStatus;
+
+            DiskWearValueText.Text = $"{disk.LifetimeRemainingPercent:F0}% (Износ {disk.WearLevelPercent:F0}%)";
+            DiskLifeDescText.Text = disk.TotalBytesWritten > 0
+                ? $"Записано: {Formatters.Bytes(disk.TotalBytesWritten)}"
+                : "Ресурс ячеек в норме";
+
+            DiskPowerHoursText.Text = $"{disk.PowerOnHours:N0} часов";
+            DiskPowerCyclesText.Text = $"{disk.PowerCycles:N0} включений";
+
+            DiskCapacitySummaryText.Text = $"Емкость: {Formatters.Bytes(disk.TotalSizeBytes - (long)disk.TotalFreeBytes)} занято из {disk.TotalSizeFormatted} ({disk.FreeSpacePercent:F1}% свободно)";
+            DiskFreeSpaceBadgeText.Text = $"Свободно: {disk.FreeSpaceFormatted}";
+            DiskSpaceProgressBar.SetSafe(disk.UsedSpacePercent);
+
+            HealthScoreValueText.Text = $"{disk.Score.TotalScore:F0} / 100";
+            HealthScoreGradeText.Text = disk.Score.Grade;
+            HealthScoreStatusText.Text = disk.Score.StatusText;
+            HealthScoreStatusText.Foreground = new BrushConverter().ConvertFromString(disk.Score.StatusColor) as Brush;
+        }
+        catch
+        {
+            // Отказоустойчиво: телеметрия — фоновая функция, её сбой
+            // не должен приводить к крашему интерфейса.
+        }
     }
 
 }

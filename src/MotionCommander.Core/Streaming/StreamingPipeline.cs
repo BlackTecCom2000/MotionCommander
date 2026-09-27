@@ -69,6 +69,7 @@ public static class StreamingPipeline
         var swTotal = Stopwatch.StartNew();
         long lastTimestamp = Stopwatch.GetTimestamp();
         long lastBytes = 0;
+        bool writeCompleted = false;
 
         var writerTask = Task.Run(async () =>
         {
@@ -80,7 +81,12 @@ public static class StreamingPipeline
                     while (channel.Reader.TryRead(out var block))
                     {
                         ct.ThrowIfCancellationRequested();
-                        pauseGate?.Wait(ct);
+
+                        // ВАЖНО: pauseGate.Wait здесь отсутствует намеренно.
+                        // Если бы пауза блокировала и писателя, а не только
+                        // читателя, канал заполнялся бы, читатель вставал бы
+                        // на WriteAsync — и копирование намертво зависало.
+                        // Пауза должна останавливать только наполнение канала.
 
                         swWrite.Restart();
                         await dstStream.WriteAsync(block.Buffer.Data.AsMemory(0, block.Count), ct);
@@ -110,11 +116,15 @@ public static class StreamingPipeline
                 }
 
                 await dstStream.FlushAsync(ct);
+                writeCompleted = true;
             }
             finally
             {
+                // Финальную телеметрию отправляем ТОЛЬКО при успешном завершении.
+                // Раньше она уходила и в блоке finally при исключении/отмене,
+                // из-за чего GUI показывал 100% для недописанного файла.
                 double finalSec = swTotal.Elapsed.TotalSeconds;
-                if (finalSec > 0)
+                if (writeCompleted && finalSec > 0)
                 {
                     onTelemetry?.Invoke(new PipelineTelemetry
                     {
@@ -135,9 +145,19 @@ public static class StreamingPipeline
                 pauseGate?.Wait(ct);
 
                 var pooled = BufferPool.Rent(bufferSize);
-                swRead.Restart();
-                int bytesRead = await srcStream.ReadAsync(pooled.Data.AsMemory(0, bufferSize), ct);
-                swRead.Stop();
+                int bytesRead;
+                try
+                {
+                    swRead.Restart();
+                    bytesRead = await srcStream.ReadAsync(pooled.Data.AsMemory(0, bufferSize), ct);
+                    swRead.Stop();
+                }
+                catch
+                {
+                    // При отмене/ошибке чтения буфер обязан вернуться в пул.
+                    pooled.Dispose();
+                    throw;
+                }
 
                 if (bytesRead <= 0)
                 {
@@ -145,7 +165,19 @@ public static class StreamingPipeline
                     break;
                 }
 
-                await channel.Writer.WriteAsync(new PipelineBlock(pooled, bytesRead), ct);
+                var block = new PipelineBlock(pooled, bytesRead);
+                try
+                {
+                    await channel.Writer.WriteAsync(block, ct);
+                }
+                catch
+                {
+                    // Канал заполнен и запись отменена — буфер не уйдёт к
+                    // писателю и обязан быть возвращён в ArrayPool вручную,
+                    // иначе при отмене копирования пул течёт.
+                    block.Buffer.Dispose();
+                    throw;
+                }
             }
         }
         finally

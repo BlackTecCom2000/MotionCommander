@@ -17,7 +17,12 @@ public static class MigrationPlannerService
     // Approximately 60GB minimum for a Windows 11 installation + overhead
     private const long MIN_REQUIRED_SPACE_MB = 60 * 1024;
 
-    public static async Task<MigrationPlan> GeneratePlanAsync(int targetDiskNumber, StorageDisk targetDisk, MigrationMode mode, CancellationToken ct = default)
+    /// <summary>
+    /// Метод помечен async, но не содержит ни одного await (предупреждение CS1998):
+    /// расчёт плана полностью синхронный. Сигнатура сохранена, чтобы не ломать
+    /// существующих вызывающих, но возвращается уже завершённая задача.
+    /// </summary>
+    public static Task<MigrationPlan> GeneratePlanAsync(int targetDiskNumber, StorageDisk targetDisk, MigrationMode mode, CancellationToken ct = default)
     {
         var plan = new MigrationPlan
         {
@@ -30,7 +35,7 @@ public static class MigrationPlannerService
         if (targetDisk == null)
         {
             plan.Warnings.Add("Целевой диск не найден или отключен.");
-            return plan;
+            return Task.FromResult(plan);
         }
 
         // 1. System Disk Protection (Safety Guard)
@@ -38,7 +43,7 @@ public static class MigrationPlannerService
         if (targetDisk.Partitions.Any(p => p.IsSystem || p.IsBoot || p.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase)))
         {
             plan.Warnings.Add("КРИТИЧЕСКАЯ ОШИБКА: Выбранный диск является текущим системным диском Windows. Миграция заблокирована.");
-            return plan;
+            return Task.FromResult(plan);
         }
 
         // 2. Evaluate space and mode
@@ -47,7 +52,7 @@ public static class MigrationPlannerService
         if (totalCapacityMB < plan.RequiredSpaceMB)
         {
             plan.Warnings.Add($"Недостаточно места на физическом диске. Требуется минимум {plan.RequiredSpaceMB / 1024} ГБ, доступно {totalCapacityMB / 1024} ГБ.");
-            return plan;
+            return Task.FromResult(plan);
         }
 
         if (mode == MigrationMode.FullDiskClone)
@@ -80,7 +85,7 @@ public static class MigrationPlannerService
                 // we warn that safe migration requires unallocated space or we cannot proceed automatically yet.
                 // A real planner would use 'diskpart shrink' or check unallocated gaps.
                 plan.Warnings.Add("Безопасная миграция на размеченный диск (с существующими разделами) в данный момент требует ручного высвобождения неразмеченного пространства. Пожалуйста, используйте 'Управление дисками', чтобы освободить минимум 60 ГБ.");
-                return plan;
+                return Task.FromResult(plan);
             }
 
             plan.PlannedSteps.Add("4. Создание теневой копии (VSS) текущей системы.");
@@ -88,6 +93,6 @@ public static class MigrationPlannerService
             plan.PlannedSteps.Add("6. Установка загрузчика (bcdboot).");
         }
 
-        return plan;
+        return Task.FromResult(plan);
     }
 }

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Win11CopyDialog.Helpers;
 using Win11CopyDialog.Modules.StorageControlCenter.Models;
 using Win11CopyDialog.Modules.StorageControlCenter.Services;
 
@@ -55,7 +56,19 @@ public partial class MigrationWizardView : UserControl
     {
         _testModeEnabled = !_testModeEnabled;
         var btn = (Button)sender;
-        btn.Foreground = _testModeEnabled ? new SolidColorBrush(Color.FromRgb(16, 185, 129)) : (Brush)FindResource("MutedTextBrush");
+
+        // Раньше здесь был FindResource("MutedTextBrush") — такого ключа в теме
+        // НЕТ (есть TextMutedBrush), поэтому FindResource возвращал null и
+        // приглушённая подпись молча не появлялась. Используем реальный ключ
+        // с безопасным запасным вариантом.
+        Brush muted = TryFindResource("TextMutedBrush") as Brush
+                      ?? TryFindResource("MutedTextBrush") as Brush
+                      ?? Brushes.Gray;
+
+        btn.Foreground = _testModeEnabled
+            ? new SolidColorBrush(Color.FromRgb(16, 185, 129))
+            : muted;
+
         btn.Content = _testModeEnabled ? "✔ Тестовый режим ВКЛЮЧЕН (Dry Run)" : "Включить тестовый режим (Dry Run)";
         LogMessage($"Тестовый режим (Dry Run) {(_testModeEnabled ? "включен. Операции записи не будут выполняться." : "выключен. Операции будут выполнены РЕАЛЬНО.")}");
     }
@@ -89,7 +102,7 @@ public partial class MigrationWizardView : UserControl
     {
         Dispatcher.Invoke(() =>
         {
-            OverallProgressBar.Value = e.OverallProgressPercent;
+            OverallProgressBar.SetSafe(e.OverallProgressPercent);
             OverallProgressPercentText.Text = $"{e.OverallProgressPercent:F0}%";
             
             if (!string.IsNullOrEmpty(e.Message))
@@ -168,13 +181,34 @@ public partial class MigrationWizardView : UserControl
                 MessageBox.Show("Миграция была прервана или завершилась с ошибкой. Проверьте журнал.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Отмена — это штатный сценарий, не ошибка.
+            LogMessage("Миграция отменена пользователем.");
+            MessageBox.Show("Миграция отменена.", "Отмена", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            // StartMigrationAsync выполняет VSS-снимки, bcdedit и прямую запись
+            // на диск — всё это регулярно бросает исключения. Раньше обработчик
+            // был async void с try/finally БЕЗ catch, поэтому любая ошибка
+            // приводила к фатальному крашу (App.xaml.cs не помечает
+            // DispatcherUnhandledException обработанным).
+            LogMessage($"Ошибка миграции: {ex.Message}");
+            MessageBox.Show(
+                $"Миграция прервана ошибкой:\n\n{ex.Message}\n\n" +
+                "Состояние системы может быть незавершённым. Проверьте журнал операций.",
+                "Ошибка миграции",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
         finally
         {
             if (_orchestrator != null)
             {
                 _orchestrator.ProgressChanged -= Orchestrator_ProgressChanged;
             }
-            
+
             StartBtn.IsEnabled = true;
             TargetDriveCombo.IsEnabled = true;
             ConfigurationPanel.IsEnabled = true;

@@ -53,7 +53,7 @@ public partial class ExtractArchiveWindow : Window
         var progress = new Progress<ArchiveProgress>(p =>
         {
             ExtractVis.Progress = p.ProgressPercent;
-            ExtractProgress.Value = p.ProgressPercent;
+            ExtractProgress.SetSafe(p.ProgressPercent);
             ExtractFileText.Text = $"🛡 Проверка: {p.CurrentFile}";
             StatusText.Text = $"{Formatters.Bytes(p.BytesProcessed)} / {Formatters.Bytes(p.TotalBytes)}";
         });
@@ -108,7 +108,7 @@ public partial class ExtractArchiveWindow : Window
         var progress = new Progress<ArchiveProgress>(p =>
         {
             ExtractVis.Progress = p.ProgressPercent;
-            ExtractProgress.Value = p.ProgressPercent;
+            ExtractProgress.SetSafe(p.ProgressPercent);
             ExtractFileText.Text = $"📦 {p.CurrentFile}";
             StatusText.Text = $"{Formatters.Bytes(p.BytesProcessed)} / {Formatters.Bytes(p.TotalBytes)} • {Formatters.Speed(p.CurrentSpeedBytesPerSec)}";
         });
@@ -120,8 +120,9 @@ public partial class ExtractArchiveWindow : Window
             HapticAudio.PlaySuccess();
             StatusText.Text = "Распаковка завершена!";
             MessageBox.Show($"Файлы успешно распакованы в:\n{target}", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-            DialogResult = true;
-            Close();
+
+            // DialogResult допустим только на модальном окне — см. DialogCloser.
+            this.CloseWithResult(true);
         }
         catch (OperationCanceledException)
         {

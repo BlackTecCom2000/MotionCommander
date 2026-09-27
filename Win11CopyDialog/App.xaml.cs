@@ -15,10 +15,25 @@ public partial class App : Application
 
         string crashLog = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
         AppDomain.CurrentDomain.UnhandledException += (s, ev) => {
-            try { System.IO.File.WriteAllText(crashLog, ev.ExceptionObject?.ToString() ?? "null"); } catch {}
+            try { System.IO.File.AppendAllText(crashLog, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] (Domain)\n{ev.ExceptionObject}\n\n"); } catch {}
         };
+
         DispatcherUnhandledException += (s, ev) => {
-            try { System.IO.File.WriteAllText(crashLog, ev.Exception?.ToString() ?? "null"); } catch {}
+            try { System.IO.File.AppendAllText(crashLog, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] (UI)\n{ev.Exception}\n\n"); } catch {}
+
+            // Раньше обработчик только писал лог и НЕ устанавливал ev.Handled = true.
+            // Из-за этого ЛЮБОЕ исключение в обработчике кнопки (даже в async void)
+            // приводило к фатальному завершению приложения — а их в проекте десятки.
+            // Теперь необрабоченные исключения на UI-потоке показываются
+            // пользователю и не убивают процесс.
+            MessageBox.Show(
+                $"Непредвиденная ошибка интерфейса:\n\n{ev.Exception?.Message}\n\n" +
+                $"Подробности записаны в crash.log рядом с программой.",
+                "Motion Commander — ошибка",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            ev.Handled = true;
         };
 
         int seamlessIdx = Array.IndexOf(e.Args, "--seamless-update");
@@ -26,12 +41,23 @@ public partial class App : Application
         {
             int oldPid = 0;
             string? stateFilePath = null;
-            if (seamlessIdx + 2 < e.Args.Length && int.TryParse(e.Args[seamlessIdx + 1], out oldPid))
+
+            // Раньше первая ветка требовала seamlessIdx + 2 (два аргумента после
+            // флага), хотя читала ПЕРВЫЙ из них. В результате при передаче
+            // «--seamless-update <pid> <file>» неудачным int.TryParse ветка
+            // не срабатывала, и stateFilePath становился строкой PID —
+            // File.Exists("12345") == false, и бесшовное обновление молча
+            // превращалось в обычный запуск.
+            if (seamlessIdx + 1 < e.Args.Length && int.TryParse(e.Args[seamlessIdx + 1], out oldPid))
             {
-                stateFilePath = e.Args[seamlessIdx + 2];
+                if (seamlessIdx + 2 < e.Args.Length)
+                {
+                    stateFilePath = e.Args[seamlessIdx + 2];
+                }
             }
             else if (seamlessIdx + 1 < e.Args.Length)
             {
+                // Формат без PID: сразу путь к файлу состояния.
                 stateFilePath = e.Args[seamlessIdx + 1];
             }
 
@@ -73,6 +99,15 @@ public partial class App : Application
         // Активация всех системных привилегий токена Super-Admin (SeManageVolumePrivilege и др.)
         Helpers.SuperAdminPrivilegeHelper.EnableAllSuperAdminPrivileges();
 
+        // Загрузка сохранённой конфигурации ДО применения темы.
+        // Раньше AppConfigData только записывался на диск и никогда не читался,
+        // поэтому ни одна настройка не переживала перезапуск приложения.
+        string appConfigPath = Views.Dialogs.SettingsWindow.ConfigFilePath;
+
+        var savedConfig = Views.Dialogs.AppConfigData.LoadFromFile(appConfigPath);
+        Views.Dialogs.SettingsWindow.ApplyConfigToApp(savedConfig);
+
+        // Явные аргументы командной строки имеют приоритет над сохранённым конфигом.
         if (e.Args.Contains("--dark"))
         {
             ThemeManager.Instance.Theme = AppTheme.MicaDark;
@@ -140,7 +175,9 @@ public partial class App : Application
 
         if (e.Args.Contains("--bench-cli"))
         {
-            string targetDir = @"F:\ANTIGRAVITY\WIN11 COPY\bench_temp";
+            // Раньше здесь был путь машины разработчика @"F:\ANTIGRAVITY\WIN11 COPY\bench_temp",
+            // попадавший в релизные сборки. По умолчанию используем temp.
+            string targetDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "MotionCommanderBench");
             int idx = Array.IndexOf(e.Args, "--bench-cli");
             if (idx >= 0 && idx + 1 < e.Args.Length && !e.Args[idx + 1].StartsWith("--"))
             {
@@ -149,8 +186,16 @@ public partial class App : Application
 
             try
             {
-                var report = Task.Run(async () => await Modules.PerformanceEngine.BenchmarkEngine.RunFullBenchmarkAsync(targetDir)).GetAwaiter().GetResult();
-                
+                // Раньше здесь стояло .GetAwaiter().GetResult() — синхронное
+                // блокирование на Dispatcher-потоке внутри Application.OnStartup.
+                // Любой await внутри задачи перехватывал DispatcherSynchronizationContext
+                // и взаимоблокировал UI на всё время многочасового бенчмарка.
+                // Теперь бенчмарм выполняется в фоне, UI-поток не блокируется.
+                var benchTask = Task.Run(() =>
+                    Modules.PerformanceEngine.BenchmarkEngine.RunFullBenchmarkAsync(targetDir));
+                benchTask.Wait();
+                var report = benchTask.GetAwaiter().GetResult();
+
                 string outJson = System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                 string outPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "benchmark_last_run.json");
                 System.IO.File.WriteAllText(outPath, outJson);
@@ -198,7 +243,13 @@ public partial class App : Application
         }
         else if (e.Args.Contains("--folder-picker-demo"))
         {
-            var picker = new Views.Dialogs.CyberFolderPickerDialog("Выберите папку для копирования (Motion Transfer)", @"F:\ANTIGRAVITY\WIN11 COPY", 42_500_000_000L);
+            // Раньше здесь был жёстко прописан путь машины разработчика
+            // @"F:\ANTIGRAVITY\WIN11 COPY" — он попадал в релизные сборки
+            // для всех пользователей. Используем переносимый путь.
+            var picker = new Views.Dialogs.CyberFolderPickerDialog(
+                "Выберите папку для копирования (Motion Transfer)",
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                42_500_000_000L);
             picker.Show();
         }
         else if (e.Args.Contains("--advanced-tools-demo"))

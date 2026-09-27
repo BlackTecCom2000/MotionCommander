@@ -40,7 +40,6 @@ public partial class MainWindow : Window
     private double _currentSpeedMb;
     private double _peakSpeedMb;
     private CancellationTokenSource? _transferCts;
-    private bool _transferIsPaused;
 
     public MainWindow(string? initialPath = null, int initialTab = 0)
     {
@@ -137,30 +136,63 @@ public partial class MainWindow : Window
                 if (state != null)
                 {
                     this.WindowStartupLocation = WindowStartupLocation.Manual;
-                    if (!double.IsNaN(state.WindowLeft) && !double.IsNaN(state.WindowTop))
+
+                    // Раньше Width/Height/WindowState восстанавливались ВНУТРИ
+                    // проверки позиции на NaN, поэтому состояние с корректным
+                    // размером, но непригодной позицией, теряло геометрию.
+                    // Позиция и размер восстанавливаются независимо.
+                    if (!double.IsNaN(state.WindowLeft) && !double.IsNaN(state.WindowTop)
+                        && !double.IsInfinity(state.WindowLeft) && !double.IsInfinity(state.WindowTop))
                     {
                         this.Left = state.WindowLeft;
                         this.Top = state.WindowTop;
+                    }
+
+                    if (!double.IsNaN(state.WindowWidth) && state.WindowWidth > 0)
+                    {
                         this.Width = Math.Max(this.MinWidth, state.WindowWidth);
+                    }
+
+                    if (!double.IsNaN(state.WindowHeight) && state.WindowHeight > 0)
+                    {
                         this.Height = Math.Max(this.MinHeight, state.WindowHeight);
+                    }
+
+                    if (state.WindowState != default)
+                    {
                         this.WindowState = state.WindowState;
                     }
+
                     SelectTab(state.ActiveTabIndex);
                 }
             }
 
-            // Signal old process to die
-            try
+            // Завершение старого процесса. Раньше PID 0 (возникает, когда
+            // аргумент не распознан) всегда порождал ArgumentException,
+            // проглатываемый молча — теперь проверяем явно.
+            if (oldPid > 0)
             {
-                var oldProcess = Process.GetProcessById(oldPid);
-                if (!oldProcess.HasExited)
+                try
                 {
-                    oldProcess.Kill();
+                    using var oldProcess = Process.GetProcessById(oldPid);
+                    if (!oldProcess.HasExited)
+                    {
+                        oldProcess.Kill();
+                        oldProcess.WaitForExit(5000);
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // Процесс с таким PID уже не существует — это штатно.
                 }
             }
-            catch { }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            // Раньше здесь стоял пустой catch { }, скрывавший любую ошибку
+            // восстановления (повреждённый JSON, отказ в доступе) без следа.
+            System.Diagnostics.Debug.WriteLine($"State restore failed: {ex.Message}");
+        }
     }
 
 
@@ -257,19 +289,29 @@ public partial class MainWindow : Window
 
     public void SelectTab(int index)
     {
+        // Индекс 5 в приложении не существует: отдельной вкладки настроек
+        // в TopNav нет (настройки открываются отдельным диалогом). Раньше
+        // этот индекс молча проваливался в TabFilesRadio, из-за чего флаги
+        // --tab-settings и --check-update-demo открывали вкладку «Файлы».
+        // Теперь индекс 5 корректно открывает вкладку «Инструменты».
         RadioButton target = index switch
         {
             1 => TabTransferRadio,
             2 => TabStorageRadio,
             3 => TabDiagnosticsRadio,
-            4 => TabToolsRadio,
+            4 or 5 => TabToolsRadio,
             _ => TabFilesRadio
         };
         SwitchTab(target);
     }
 
+    /// <summary>
+    /// Открывает окно настроек. Раньше это был пустой метод (заглушка),
+    /// поэтому --tab-settings-bottom не делал ничего.
+    /// </summary>
     public void ScrollSettingsToBottom()
     {
+        OpenSettingsWindow();
     }
 
 
@@ -734,11 +776,36 @@ public partial class MainWindow : Window
         HapticAudio.PlayClick();
         if (MessageBox.Show($"Удалить {items.Count} элементов?", "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
         {
+            // Раньше результат DeleteItem и текст ошибки выбрасывались через out _,
+            // после чего список обновлялся как будто всё удалилось. Занятый или
+            // защищённый файл молча оставался на месте, а пользователю сообщалось
+            // об успехе. Теперь собираем отчёт по каждому элементу.
+            var failures = new List<string>();
+
             foreach (var item in items)
             {
-                FileSystemService.DeleteItem(item.FullPath, false, out _);
+                if (!FileSystemService.DeleteItem(item.FullPath, false, out string error))
+                {
+                    failures.Add($"{item.Name}: {error}");
+                }
             }
+
             NavigateTo(_currentPath, false);
+
+            if (failures.Count > 0)
+            {
+                string text = failures.Count <= 8
+                    ? string.Join("\n", failures)
+                    : string.Join("\n", failures.Take(8)) + $"\n…и ещё {failures.Count - 8}";
+
+                MessageBox.Show(
+                    $"Не удалось удалить {failures.Count} из {items.Count} элементов:\n\n{text}",
+                    "Ошибка удаления", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                HapticAudio.PlaySuccess();
+            }
         }
     }
 
@@ -965,8 +1032,24 @@ public partial class MainWindow : Window
         if (FileBrowserList.SelectedItem is FileSystemItem item && !_isInsideArchive)
         {
             HapticAudio.PlayClick();
-            FileSystemService.Duplicate(item.FullPath, out _, out _);
-            NavigateTo(_currentPath, false);
+
+            // Раньше и флаг успеха, и текст ошибки отбрасывались через out _.
+            if (FileSystemService.Duplicate(item.FullPath, out string newPath, out string error))
+            {
+                NavigateTo(_currentPath, false);
+                HapticAudio.PlaySuccess();
+
+                if (!string.IsNullOrWhiteSpace(newPath))
+                {
+                    PathBox.Text = newPath;
+                }
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Не удалось создать копию для «{item.Name}»:\n\n{error}",
+                    "Ошибка дублирования", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
     }
 
@@ -1282,18 +1365,47 @@ public partial class MainWindow : Window
         element.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
+    /// <summary>
+    /// Возвращает реальное название процессора.
+    ///
+    /// Раньше здесь жёстко стоял литерал «Intel Core», из-за чего на AMD,
+    /// Apple Silicon (Asahi) и ARM-машинах вкладка «Диагностика» показывала
+    /// «Intel Core» независимо от фактического оборудования.
+    /// </summary>
+    private static string GetProcessorName()
+    {
+        try
+        {
+            using var searcher = new System.Management.ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
+            using var results = searcher.Get();
+            foreach (var item in results)
+            {
+                using var obj = item;
+                string? name = obj["Name"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(name)) return name.Trim();
+            }
+        }
+        catch
+        {
+            // WMI недоступен или отказал — используем запасной вариант.
+        }
+
+        return Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")?.Trim()
+               ?? "Неизвестный процессор";
+    }
+
     private void RefreshDiagnosticsUI()
     {
         var disks = HardwareAnalyzer.GetPhysicalDisks();
         DiagDisksList.ItemsSource = disks;
 
         var sys = SystemResourceMonitor.GetSnapshot();
-        DiagCpuName.Text = $"Intel Core ({HardwareAnalyzer.LogicalCoreCount} потоков)";
-        DiagCpuProgress.Value = sys.CpuTotalPercent;
+        DiagCpuName.Text = $"{GetProcessorName()} ({HardwareAnalyzer.LogicalCoreCount} потоков)";
+        DiagCpuProgress.SetSafe(sys.CpuTotalPercent);
         DiagCpuLoadText.Text = $"Загрузка CPU: {sys.CpuTotalPercent:F0}%";
 
         DiagRamText.Text = $"{sys.TotalMemoryGb:F1} ГБ RAM ({sys.MemoryUsagePercent:F0}% занято)";
-        DiagRamProgress.Value = sys.MemoryUsagePercent;
+        DiagRamProgress.SetSafe(sys.MemoryUsagePercent);
         DiagRamDetailText.Text = $"Свободно физической памяти: {sys.AvailableMemoryGb:F1} ГБ";
 
         if (BenchTargetCombo.Items.Count == 0)
@@ -1316,7 +1428,7 @@ public partial class MainWindow : Window
         BenchStatusText.Text = "Инициализация тестов…";
 
         var statusProg = new Progress<string>(s => BenchStatusText.Text = s);
-        var pctProg = new Progress<double>(p => BenchProgress.Value = p);
+        var pctProg = new Progress<double>(p => BenchProgress.SetSafe(p));
 
         try
         {
@@ -1339,12 +1451,18 @@ public partial class MainWindow : Window
 
     // ---------- БЫСТРЫЙ ДОСТУП К ОКНУ НАСТРОЕК ----------
 
-    private void OpenSettingsWindow_Click(object sender, RoutedEventArgs e)
+    /// <summary>Открывает окно настроек. Публичный метод — используется также флагами CLI.</summary>
+    public void OpenSettingsWindow()
     {
-        HapticAudio.PlayClick();
         var dlg = new SettingsWindow { Owner = this };
         dlg.ShowDialog();
         RefreshToolsExplorerStatus();
+    }
+
+    private void OpenSettingsWindow_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        OpenSettingsWindow();
     }
 
     // ---------- ДВИЖОК ПЕРЕДАЧ (TAB 2) ----------
@@ -1354,20 +1472,45 @@ public partial class MainWindow : Window
         _speedSamples.Clear();
         for (int i = 0; i < 60; i++) _speedSamples.Enqueue(0);
 
+        // Защита от повторной инициализации (OnLoaded может вызываться многократно).
+        _speedGraphTimer?.Stop();
+
         _speedGraphTimer = new System.Windows.Threading.DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(33) // ~30 FPS
         };
-        _speedGraphTimer.Tick += (_, _) =>
-        {
-            if (_speedSamples.Count >= 60)
-            {
-                _speedSamples.Dequeue();
-            }
-            _speedSamples.Enqueue(_currentSpeedMb);
-            RenderSpeedGraph();
-        };
+        _speedGraphTimer.Tick += OnSpeedGraphTick;
         _speedGraphTimer.Start();
+    }
+
+    /// <summary>
+    /// Освобождение ресурсов при закрытии окна.
+    ///
+    /// Без этого DispatcherTimer 30 FPS работал бесконечно: Dispatcher удерживает
+    /// таймер, а лямбда Tick замыкается на this, поэтому MainWindow никогда не
+    /// собирался GC, а RenderSpeedGraph() продолжала перерисовывать отсоединённый
+    /// canvas после закрытия окна.
+    /// </summary>
+    protected override void OnClosed(EventArgs e)
+    {
+        if (_speedGraphTimer != null)
+        {
+            _speedGraphTimer.Stop();
+            _speedGraphTimer.Tick -= OnSpeedGraphTick;
+            _speedGraphTimer = null;
+        }
+
+        base.OnClosed(e);
+    }
+
+    private void OnSpeedGraphTick(object? sender, EventArgs e)
+    {
+        if (_speedSamples.Count >= 60)
+        {
+            _speedSamples.Dequeue();
+        }
+        _speedSamples.Enqueue(_currentSpeedMb);
+        RenderSpeedGraph();
     }
 
     private void LiveSpeedCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -1547,16 +1690,17 @@ public partial class MainWindow : Window
             var ofd = new Microsoft.Win32.OpenFileDialog { Title = "Выберите исходный файл (или нажмите Отмена для выбора папки)" };
             if (ofd.ShowDialog() == true)
             {
+                // ShowDialog() == true гарантирует непустой FileName.
                 src = ofd.FileName;
-                TransferSourceBox.Text = src;
+                TransferSourceBox!.Text = src;
             }
             else
             {
                 var pickedSrc = Win11CopyDialog.Views.Dialogs.CyberFolderPickerDialog.PickFolder(this, "Выберите исходную папку для передачи");
                 if (!string.IsNullOrEmpty(pickedSrc))
                 {
-                    src = pickedSrc;
-                    TransferSourceBox.Text = src;
+                    src = pickedSrc!;
+                    TransferSourceBox!.Text = src;
                 }
                 else
                 {
@@ -1572,8 +1716,8 @@ public partial class MainWindow : Window
             var pickedDst = Win11CopyDialog.Views.Dialogs.CyberFolderPickerDialog.PickFolder(this, "Выберите целевую папку (куда передавать данные)");
             if (!string.IsNullOrEmpty(pickedDst))
             {
-                dst = pickedDst;
-                TransferDestBox.Text = dst;
+                dst = pickedDst!;
+                TransferDestBox!.Text = dst;
             }
             else
             {
@@ -1590,7 +1734,6 @@ public partial class MainWindow : Window
         StartTransferBtn.IsEnabled = false;
         PauseTransferBtn.IsEnabled = true;
         CancelTransferBtn.IsEnabled = true;
-        _transferIsPaused = false;
         PauseTransferBtn.Content = "⏸ Пауза";
 
         _peakSpeedMb = 0;
@@ -1609,14 +1752,17 @@ public partial class MainWindow : Window
 
         void OnProgressTick(object? s, EventArgs e)
         {
-            Dispatcher.Invoke(() =>
+            // НЕБЛОКИРУЮЩИЙ маршалинг: ProgressTick приходит с потока, который
+            // пишет байты на диск. Синхронный Dispatcher.Invoke замедлял копирование
+            // и создавал риск дедлока при UI-сталлах (модальные окна, ShowDialog).
+            Dispatcher.BeginInvoke(() =>
             {
                 double speedMb = motion.Engine.CurrentSpeed / (1024.0 * 1024.0);
                 _currentSpeedMb = speedMb;
                 if (speedMb > _peakSpeedMb) _peakSpeedMb = speedMb;
 
                 double pct = motion.Engine.OverallProgress;
-                LiveTransferProgressBar.Value = pct;
+                LiveTransferProgressBar.SetSafe(pct);
 
                 HudCurrentSpeedText.Text = $"{speedMb:F1} МБ/с";
                 HudPeakSpeedText.Text = $"{_peakSpeedMb:F1} МБ/с";
@@ -1673,16 +1819,17 @@ public partial class MainWindow : Window
         HapticAudio.PlayClick();
         if (_activeMotionWindow?.Engine != null)
         {
+            // Состояние паузы берётся из движка (Engine.IsPaused).
+            // Раньше оно ещё и дублировалось в поле _transferIsPaused,
+            // которое нигде не читалось, — источник рассинхронизации (CS0414).
             if (_activeMotionWindow.Engine.IsPaused)
             {
                 _activeMotionWindow.Engine.Resume();
-                _transferIsPaused = false;
                 PauseTransferBtn.Content = "⏸ Пауза";
             }
             else
             {
                 _activeMotionWindow.Engine.Pause();
-                _transferIsPaused = true;
                 PauseTransferBtn.Content = "▶ Продолжить";
                 _currentSpeedMb = 0;
                 BottleneckStatusText.Text = "⏸ Поток данных временно приостановлен пользователем.";

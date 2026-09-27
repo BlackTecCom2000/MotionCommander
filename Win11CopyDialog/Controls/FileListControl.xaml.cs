@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,18 +12,28 @@ namespace Win11CopyDialog.Controls;
 
 public sealed partial class FileListControl : UserControl, INotifyPropertyChanged
 {
+    // ВАЖНО: значение по умолчанию для коллекции в PropertyMetadata указывать НЕЛЬЗЯ.
+    // WPF не копирует объект по умолчанию — все экземпляры FileListControl
+    // разделяли ОДНУ И ТУ ЖЕ коллекцию, из-за чего изменения в одном окне
+    // отражались в других (и наоборот, очистка гасила чужое содержимое).
     public static readonly DependencyProperty ItemsProperty =
         DependencyProperty.Register(nameof(Items), typeof(ObservableCollection<FileEntry>), typeof(FileListControl),
-            new PropertyMetadata(new ObservableCollection<FileEntry>(), OnItemsChanged));
+            new PropertyMetadata(null, OnItemsChanged));
 
     public static readonly DependencyProperty CurrentPathProperty =
         DependencyProperty.Register(nameof(CurrentPath), typeof(string), typeof(FileListControl),
             new PropertyMetadata("", OnPathChanged));
 
+    private ObservableCollection<FileEntry>? _items;
+
     public ObservableCollection<FileEntry> Items
     {
-        get => (ObservableCollection<FileEntry>)GetValue(ItemsProperty);
-        set => SetValue(ItemsProperty, value);
+        get => _items ??= (ObservableCollection<FileEntry>?)GetValue(ItemsProperty) ?? new ObservableCollection<FileEntry>();
+        set
+        {
+            SetValue(ItemsProperty, value);
+            RaisePropertyChanged();
+        }
     }
 
     public string CurrentPath
@@ -47,6 +58,9 @@ public sealed partial class FileListControl : UserControl, INotifyPropertyChange
     private string _sortProperty = "Name";
     private ListSortDirection _sortDirection = ListSortDirection.Ascending;
     private readonly List<FileEntry> _clipboard = new();
+
+    /// <summary>true — буфер заполнен через «Вырезать», false — через «Копировать».</summary>
+    private bool _clipboardIsCut;
 
     public FileListControl()
     {
@@ -101,6 +115,25 @@ public sealed partial class FileListControl : UserControl, INotifyPropertyChange
         ApplySort();
     }
 
+    /// <summary>
+    /// Заменяет представление списка (GridView) для переключения между
+    /// табличным и плиточным режимом.
+    ///
+    /// <para>Свойство View существует именно у ListView, а не у
+    /// ICollectionView, поэтому его нельзя сменить снаружи контрола —
+    /// требуется публичная точка входа.</para>
+    /// </summary>
+    public void SetView(GridView? view)
+    {
+        if (FileListView == null) return;
+
+        FileListView.View = view;
+
+        // После смены представления GridView колонки сбрасывают сортировку,
+        // поэтому переприменяем её явно.
+        ApplySort();
+    }
+
     private void FileListView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (FileListView.SelectedItem is FileEntry entry)
@@ -112,7 +145,14 @@ public sealed partial class FileListControl : UserControl, INotifyPropertyChange
         if (e.Key == Key.Enter && FileListView.SelectedItem is FileEntry enterEntry)
             ItemActivated?.Invoke(enterEntry);
         else if (e.Key == Key.Delete && FileListView.SelectedItems.Count > 0)
-            Delete(FileListView.SelectedItems.Cast<FileEntry>().First());
+        {
+            // Раньше здесь стояло .First(): при множественном выделении
+            // удалялся только ПЕРВЫЙ элемент, а остальные молча игнорировались.
+            foreach (var entry in FileListView.SelectedItems.Cast<FileEntry>().ToList())
+            {
+                Delete(entry);
+            }
+        }
         else if (e.Key == Key.F2 && FileListView.SelectedItem is FileEntry renameEntry)
             Rename(renameEntry);
         else if (e.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
@@ -134,12 +174,22 @@ public sealed partial class FileListControl : UserControl, INotifyPropertyChange
         if (entry != null) ItemActivated?.Invoke(entry);
     }
 
+    /// <summary>Копирует выделенные элементы в буфер обмена.</summary>
+    /// <param name="isCut">true — «вырезать» (исходники удаляются после вставки), false — «копировать».</param>
     private void CopyCut(bool isCut)
     {
         _clipboard.Clear();
         foreach (var item in FileListView.SelectedItems.Cast<FileEntry>())
             _clipboard.Add(item);
-        // В реальной реализации: запомнить isCut для Paste
+
+        // Раньше параметр isCut просто принимался и НИКУДА не сохранялся
+        // (стоял комментарий «в реальной реализации…»), поэтому «Вырезать»
+        // и «Копировать» были полностью неразличимы.
+        _clipboardIsCut = isCut;
+
+        // L-11: CanExecute зависит от _clipboard, но CommandManager не знает,
+        // что состояние изменилось, и пункт «Вставить» оставался неактивным.
+        CommandManager.InvalidateRequerySuggested();
     }
 
     private void Paste()
@@ -177,7 +227,14 @@ public sealed partial class FileListControl : UserControl, INotifyPropertyChange
         MessageBox.Show(msg, "Свойства", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    /// <summary>
+    /// Событие было объявлено, но никогда не возбуждалось (предупреждение CS0067).
+    /// Теперь оно действительно работает, что нужно биндингам в XAML.
+    /// </summary>
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void RaisePropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 internal sealed class RelayCommand<T> : ICommand
