@@ -61,6 +61,12 @@ public partial class WizTreeAnalyzerWindow : Window
     private CancellationTokenSource? _scanCts;
     private bool _isScanning;
 
+    /// <summary>
+    /// Окно закрывается: с этого момента ни один фоновый поток scan не имеет
+    /// права трогать элементы интерфейса.
+    /// </summary>
+    private bool _isClosing;
+
     public WizTreeAnalyzerWindow(string? initialPath = null)
     {
         InitializeComponent();
@@ -68,11 +74,84 @@ public partial class WizTreeAnalyzerWindow : Window
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
 
         TargetFolderBox.Text = string.IsNullOrEmpty(initialPath) ? "C:\\" : initialPath;
+
+        // Закрытие возможно не только через кнопку ✕ / Close_Click, но и через
+        // Alt+F4, системное меню и выключение приложения. Раньше _scanCts здесь
+        // НЕ отменялся: полное сканирование C:\ продолжалось после закрытия
+        // окна, держало замыкание на это окно и с 10 Гц дёргало Dispatcher,
+        // чтобы обновить StatusText уже закрытого окна, а его finally правил
+        // элементы мёртвого окна.
+        Closing += Window_Closing;
+        Closed += Window_Closed;
+    }
+
+    /// <summary>
+    /// Окно ещё можно безопасно обновлять? После Close() IsLoaded становится
+    /// false, а IsVisible — false ещё до закрытия (окно скрыто), поэтому обе
+    /// проверки обязательны для любого обращения к UI из фонового потока.
+    /// </summary>
+    private bool IsUiAlive => !_isClosing && IsLoaded && IsVisible;
+
+    /// <summary>Отменяет текущее сканирование, если оно идёт.</summary>
+    private void CancelActiveScan()
+    {
+        CancellationTokenSource? cts = _scanCts;
+        if (cts is null) return;
+
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Источник уже освобождён — отменять нечего.
+        }
+    }
+
+    /// <summary>
+    /// Освобождает источник отмены конкретного сканирования. Обращения к уже
+    /// освобождённому CancellationToken (IsCancellationRequested,
+    /// ThrowIfCancellationRequested) безопасны, поэтому гонка с «догоняющим»
+    /// фоновым Task.Run ничего не ломает.
+    /// </summary>
+    private void ReleaseScanCts(CancellationTokenSource cts)
+    {
+        if (ReferenceEquals(_scanCts, cts))
+        {
+            _scanCts = null;
+        }
+
+        try
+        {
+            cts.Dispose();
+        }
+        catch
+        {
+            // Ничего критичного: освобождение источника отмены.
+        }
+    }
+
+    private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        _isClosing = true;
+        CancelActiveScan();
+    }
+
+    private void Window_Closed(object? sender, EventArgs e)
+    {
+        _isClosing = true;
+        CancelActiveScan();
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
+
+        // Закрытие во время сканирования: гасим CTS заранее, чтобы фоновый
+        // Task.Run не продолжал обход диска "в пустоту".
+        _isClosing = true;
+        CancelActiveScan();
+
         Close();
     }
 
@@ -93,7 +172,7 @@ public partial class WizTreeAnalyzerWindow : Window
 
         if (_isScanning)
         {
-            _scanCts?.Cancel();
+            CancelActiveScan();
             return;
         }
 
@@ -109,8 +188,9 @@ public partial class WizTreeAnalyzerWindow : Window
         ScanProgressBar.Visibility = Visibility.Visible;
         StatusText.Text = "Сканирование структуры дискового пространства...";
 
-        _scanCts = new CancellationTokenSource();
-        var ct = _scanCts.Token;
+        var cts = new CancellationTokenSource();
+        _scanCts = cts;
+        var ct = cts.Token;
 
         var allFiles = new List<WizFileInfo>();
 
@@ -126,14 +206,33 @@ public partial class WizTreeAnalyzerWindow : Window
             var sw = Stopwatch.StartNew();
             var rootNode = await Task.Run(() => ScanDirectoryTree(root, allFiles, ct, p =>
             {
+                // Фоновый поток: после отмены (в т.ч. из-за закрытия окна)
+                // очередь Dispatcher больше не пополняем.
+                if (ct.IsCancellationRequested) return;
+
                 long now = Environment.TickCount64;
                 if (now - lastUiUpdateTicks < UiUpdateIntervalTicks) return;
                 lastUiUpdateTicks = now;
 
-                Dispatcher.Post(() => StatusText.Text = $"Сканирование: {p}");
+                // Helpers.UiDispatcher.Post — расширение, а НЕ Dispatcher.Post.
+                // Оно само проверяет HasShutdownStarted, поэтому при выходе из
+                // приложения fire-and-forget вызов не роняет процесс.
+                Dispatcher.Post(() =>
+                {
+                    // Повторная проверка: между постановкой в очередь и её
+                    // обработкой окно могло закрыться.
+                    if (ct.IsCancellationRequested || !IsUiAlive) return;
+                    StatusText.Text = $"Сканирование: {p}";
+                });
             }), ct);
 
             sw.Stop();
+
+            // Пользователь мог нажать «Прервать» или закрыть окно — UI больше не трогаем.
+            if (ct.IsCancellationRequested || !IsUiAlive)
+            {
+                return;
+            }
 
             if (rootNode != null)
             {
@@ -165,17 +264,32 @@ public partial class WizTreeAnalyzerWindow : Window
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "Сканирование прервано пользователем.";
+            if (IsUiAlive)
+            {
+                StatusText.Text = "Сканирование прервано пользователем.";
+            }
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Ошибка: {ex.Message}";
+            if (IsUiAlive)
+            {
+                StatusText.Text = $"Ошибка: {ex.Message}";
+            }
         }
         finally
         {
-            _isScanning = false;
-            ScanBtn.Content = "⚡ Начать сканирование";
-            ScanProgressBar.Visibility = Visibility.Collapsed;
+            // finally тоже выполняется для закрытого окна (await на отменённом
+            // Task.Run бросает OperationCanceledException немедленно, пока
+            // фоновый обход ещё сворачивается). Поэтому состояние кнопок
+            // восстанавливаем только у живого окна.
+            if (IsUiAlive)
+            {
+                _isScanning = false;
+                ScanBtn.Content = "⚡ Начать сканирование";
+                ScanProgressBar.Visibility = Visibility.Collapsed;
+            }
+
+            ReleaseScanCts(cts);
         }
     }
 

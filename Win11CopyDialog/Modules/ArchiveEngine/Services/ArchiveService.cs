@@ -81,7 +81,8 @@ public static class ArchiveService
             var filesToPack = CollectFilesToPack(sourcePaths);
             long totalBytes = filesToPack.Sum(f => f.length);
             long processedBytes = 0;
-            var prog = new ArchiveProgress { TotalBytes = totalBytes };
+
+            var gate = new ProgressThrottle(progress, ct);
 
             var compType = ResolveCompressionType(format, levelPreset);
             string? dir = Path.GetDirectoryName(destinationArchive);
@@ -94,28 +95,29 @@ public static class ArchiveService
             using var writer = WriterFactory.OpenWriter(outStream, writerType, writerOptions);
 
             DateTime startTime = DateTime.Now;
+            string currentFile = string.Empty;
+            double lastSpeed = 0;
 
             foreach (var (fullPath, relativePath, length) in filesToPack)
             {
                 ct.ThrowIfCancellationRequested();
-                prog.CurrentFile = Path.GetFileName(fullPath);
+                currentFile = Path.GetFileName(fullPath);
 
                 using var inStream = File.OpenRead(fullPath);
                 writer.Write(relativePath, inStream, null);
 
                 processedBytes += length;
-                prog.BytesProcessed = processedBytes;
-                prog.CompressedBytes = outStream.Position;
 
                 double sec = (DateTime.Now - startTime).TotalSeconds;
-                if (sec > 0.1) prog.CurrentSpeedBytesPerSec = processedBytes / sec;
+                lastSpeed = sec > 0.1 ? processedBytes / sec : 0;
 
-                progress?.Report(prog);
+                // Троттлинг внутри gate: наружу уходит не чаще 10 раз в секунду.
+                gate.Report(currentFile, processedBytes, totalBytes, outStream.Position, lastSpeed);
             }
 
-            prog.BytesProcessed = totalBytes;
-            prog.CompressedBytes = outStream.Position;
-            progress?.Report(prog);
+            // Финальный отчёт принудительный: UI обязан закончить на 100 %,
+            // даже если весь архив упаковался быстрее одного интервала.
+            gate.ReportFinal(currentFile, totalBytes, totalBytes, outStream.Position, lastSpeed);
         }, ct);
     }
 
@@ -139,10 +141,15 @@ public static class ArchiveService
 
             long totalBytes = archive.Entries.Where(e => !e.IsDirectory).Sum(e => e.Size);
             long processedBytes = 0;
-            var prog = new ArchiveProgress { TotalBytes = totalBytes };
             DateTime startTime = DateTime.Now;
 
+            var gate = new ProgressThrottle(progress, ct);
+
             var specificSet = specificKeys != null ? new HashSet<string>(specificKeys, StringComparer.OrdinalIgnoreCase) : null;
+
+            string currentFile = string.Empty;
+            long lastCompressed = 0;
+            double lastSpeed = 0;
 
             foreach (var entry in archive.Entries)
             {
@@ -153,22 +160,22 @@ public static class ArchiveService
                 if (specificSet != null && !specificSet.Contains(entry.Key) && !specificSet.Contains(normKey))
                     continue;
 
-                prog.CurrentFile = Path.GetFileName(normKey);
+                currentFile = Path.GetFileName(normKey);
+                lastCompressed = entry.CompressedSize;
 
                 entry.WriteToDirectory(destinationDirectory, new ExtractionOptions { Overwrite = overwrite, ExtractFullPath = true });
 
                 processedBytes += entry.Size;
-                prog.BytesProcessed = processedBytes;
-                prog.CompressedBytes = entry.CompressedSize;
 
                 double sec = (DateTime.Now - startTime).TotalSeconds;
-                if (sec > 0.1) prog.CurrentSpeedBytesPerSec = processedBytes / sec;
+                lastSpeed = sec > 0.1 ? processedBytes / sec : 0;
 
-                progress?.Report(prog);
+                gate.Report(currentFile, processedBytes, totalBytes, lastCompressed, lastSpeed);
             }
 
-            prog.BytesProcessed = totalBytes;
-            progress?.Report(prog);
+            // Финальный отчёт принудительный — иначе полоса могла бы остаться
+            // на 99 % из-за подавления последнего отчёта троттлингом.
+            gate.ReportFinal(currentFile, totalBytes, totalBytes, lastCompressed, lastSpeed);
         }, ct);
     }
 
@@ -189,21 +196,26 @@ public static class ArchiveService
                 using var archive = ArchiveFactory.OpenArchive(archivePath, opt);
                 long totalBytes = archive.Entries.Where(e => !e.IsDirectory).Sum(e => e.Size);
                 long processed = 0;
-                var prog = new ArchiveProgress { TotalBytes = totalBytes };
+
+                var gate = new ProgressThrottle(progress, ct);
+
+                string currentFile = string.Empty;
 
                 foreach (var entry in archive.Entries)
                 {
                     ct.ThrowIfCancellationRequested();
                     if (entry.IsDirectory || string.IsNullOrEmpty(entry.Key)) continue;
-                    prog.CurrentFile = Path.GetFileName(entry.Key);
+                    currentFile = Path.GetFileName(entry.Key);
 
                     using var s = entry.OpenEntryStream();
                     s.CopyTo(Stream.Null);
 
                     processed += entry.Size;
-                    prog.BytesProcessed = processed;
-                    progress?.Report(prog);
+                    gate.Report(currentFile, processed, totalBytes, entry.CompressedSize, 0);
                 }
+
+                // Принудительный финал: полоса проверки доходит до 100 %.
+                gate.ReportFinal(currentFile, totalBytes, totalBytes, 0, 0);
                 return true;
             }
             catch
@@ -211,6 +223,69 @@ public static class ArchiveService
                 return false;
             }
         }, ct);
+    }
+
+    /// <summary>
+    /// Гейт отчётности прогресса: наружу уходит НОВЫЙ неизменяемый снимок
+    /// не чаще ~10 раз в секунду.
+    /// Раньше в UI отправлялся ОДИН И ТОТ ЖЕ экземпляр ArchiveProgress, который
+    /// воркер продолжал мутировать после Report(): UI-поток читал поля объекта
+    /// «на лету» и получал разорванные пары «файл / размер». Плюс отчёт был на
+    /// каждый файл, и архив на 50 000 файлов забивал очередь Dispatcher.
+    /// </summary>
+    private sealed class ProgressThrottle
+    {
+        private const long IntervalMs = 100; // ~10 Гц, как в WizTreeAnalyzerWindow
+
+        private readonly IProgress<ArchiveProgress>? _progress;
+        private readonly CancellationToken _ct;
+        private long _lastReportMs;
+
+        public ProgressThrottle(IProgress<ArchiveProgress>? progress, CancellationToken ct)
+        {
+            _progress = progress;
+            _ct = ct;
+        }
+
+        /// <summary>Публикует снимок, если с прошлого раза прошло >= 100 мс.</summary>
+        public void Report(string currentFile, long bytesProcessed, long totalBytes, long compressedBytes, double speedBytesPerSec)
+        {
+            if (!ShouldReport()) return;
+            _progress!.Report(Snapshot(currentFile, bytesProcessed, totalBytes, compressedBytes, speedBytesPerSec));
+        }
+
+        /// <summary>Финальный снимок — игнорирует троттлинг.</summary>
+        public void ReportFinal(string currentFile, long bytesProcessed, long totalBytes, long compressedBytes, double speedBytesPerSec)
+        {
+            if (_progress == null) return;
+            _progress.Report(Snapshot(currentFile, bytesProcessed, totalBytes, compressedBytes, speedBytesPerSec));
+        }
+
+        private bool ShouldReport()
+        {
+            if (_progress == null) return false;
+            // После отмены очередь UI не пополняем.
+            if (_ct.IsCancellationRequested) return false;
+
+            long now = Environment.TickCount64;
+            if (now - _lastReportMs < IntervalMs) return false;
+            _lastReportMs = now;
+            return true;
+        }
+
+        private static ArchiveProgress Snapshot(string currentFile, long bytesProcessed, long totalBytes, long compressedBytes, double speedBytesPerSec)
+        {
+            // Новая сущность на каждый отчёт: её больше никто не меняет,
+            // поэтому UI не может прочитать «половину» обновления.
+            return new ArchiveProgress
+            {
+                CurrentFile = currentFile,
+                BytesProcessed = bytesProcessed,
+                TotalBytes = totalBytes,
+                CompressedBytes = compressedBytes,
+                CurrentSpeedBytesPerSec = speedBytesPerSec
+            };
+        }
     }
 
     private static List<(string fullPath, string relativePath, long length)> CollectFilesToPack(IEnumerable<string> sourcePaths)

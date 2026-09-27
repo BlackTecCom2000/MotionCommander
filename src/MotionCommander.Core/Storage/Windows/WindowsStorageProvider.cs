@@ -7,6 +7,49 @@ namespace MotionCommander.Core.Storage.Windows;
 public sealed class WindowsStorageProvider : IStorageProvider
 {
     /// <summary>
+    /// Максимальное ожидание внешней утилиты по умолчанию.
+    /// Раньше ожидание не было ничем ограничено: зависший diskpart, ожидающий
+    /// ввода, или «залипший» defrag навсегда блокировали вызывающий код.
+    /// </summary>
+    private static readonly TimeSpan ExternalCommandTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// defrag.exe /O — это штатно долгая оптимизация тома (дефрагментация
+    /// HDD на терабайты занимает десятки минут), поэтому у неё свой лимит.
+    /// </summary>
+    private static readonly TimeSpan DefragTimeout = TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// Скрипты diskpart (format/delete) тоже могут идти долго, особенно
+    /// форматирование больших томов без ключа quick.
+    /// </summary>
+    private static readonly TimeSpan DiskpartTimeout = TimeSpan.FromMinutes(10);
+
+    /// <summary>Сколько ждём освобождения каналов после выхода процесса.</summary>
+    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Аварийно снимает зависшую утилиту вместе со всеми потомками.
+    /// Процесс может завершиться между проверкой HasExited и вызовом Kill,
+    /// поэтому всё обёрнуто в try/catch.
+    /// </summary>
+    private static void TryKill(Process proc)
+    {
+        try
+        {
+            if (!proc.HasExited)
+            {
+                proc.Kill(entireProcessTree: true);
+                proc.WaitForExit(2000);
+            }
+        }
+        catch
+        {
+            // Процесс уже завершился или недоступен — делать больше нечего.
+        }
+    }
+
+    /// <summary>
     /// Возвращает реальные физические накопители.
     ///
     /// <para><b>Что было не так.</b> Метод перечислял только логические тома
@@ -507,7 +550,7 @@ public sealed class WindowsStorageProvider : IStorageProvider
         psi.ArgumentList.Add("/O");
         psi.ArgumentList.Add("/U");
 
-        return await RunAndReportAsync(psi, progress) == 0;
+        return await RunAndReportAsync(psi, progress, DefragTimeout) == 0;
     }
 
     public async Task<bool> FormatPartitionAsync(string devicePathOrLetter, string fileSystem, string label, bool quick)
@@ -535,7 +578,7 @@ public sealed class WindowsStorageProvider : IStorageProvider
 
             // Раньше результат игнорировался и всегда возвращался true —
             // вызывающий код показывал «✔ Успешно» даже при упавшем diskpart.
-            return await RunAndReportAsync(psi, null) == 0;
+            return await RunAndReportAsync(psi, null, DiskpartTimeout) == 0;
         }
         finally
         {
@@ -566,7 +609,7 @@ public sealed class WindowsStorageProvider : IStorageProvider
             psi.ArgumentList.Add("/s");
             psi.ArgumentList.Add(scriptFile);
 
-            return await RunAndReportAsync(psi, null) == 0;
+            return await RunAndReportAsync(psi, null, DiskpartTimeout) == 0;
         }
         finally
         {
@@ -598,28 +641,78 @@ public sealed class WindowsStorageProvider : IStorageProvider
     /// Запускает процесс и читает stdout/stderr ОДНОВРЕМЕННО.
     /// Последовательное чтение вызывает deadlock, когда дочерний процесс
     /// заполняет буфер stderr и блокируется до завершения.
+    ///
+    /// <para><b>Почему именно такой порядок.</b> StreamReader.ReadToEndAsync
+    /// не отменяется после начала чтения: токен проверяется только в момент
+    /// старта, поэтому уже начатое чтение нельзя прервать. Поэтому сначала
+    /// дожидаемся ВЫХОДА процесса (это отменяется через токен), и только
+    /// потом читаем вывод — к этому моменту каналы уже закрыты и чтение
+    /// обязано завершиться. Таймаут обязателен: без него зависшая утилита
+    /// держит вызывающий код вечно, а отмены у чтения нет.</para>
     /// </summary>
-    private static async Task<int> RunAndReportAsync(ProcessStartInfo psi, IProgress<string>? progress)
+    private static async Task<int> RunAndReportAsync(
+        ProcessStartInfo psi, IProgress<string>? progress, TimeSpan? timeout = null)
     {
+        using var cts = new CancellationTokenSource(timeout ?? ExternalCommandTimeout);
         using var proc = new Process { StartInfo = psi };
-        proc.Start();
 
+        try
+        {
+            if (!proc.Start()) return -1;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // Утилита не найдена или недоступна.
+            return -1;
+        }
+        catch (InvalidOperationException)
+        {
+            return -1;
+        }
+
+        // Обе задачи чтения стартуют ОДНОВРЕМЕННО: если процесс заполнит буфер
+        // stderr и заблокируется, последовательное чтение stdout до EOF никогда
+        // не завершится (классический pipe deadlock).
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         var stderrTask = proc.StandardError.ReadToEndAsync();
 
-        await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
-        await proc.WaitForExitAsync().ConfigureAwait(false);
+        try
+        {
+            await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Таймаут — это провал, а НЕ «пустой успешный вывод».
+            TryKill(proc);
+            progress?.Report(
+                $"Утилита {psi.FileName} не ответила за {(timeout ?? ExternalCommandTimeout).TotalSeconds:0} с и была прервана.");
+            return -1;
+        }
 
-        if (proc.ExitCode != 0 && progress != null)
+        // Процесс завершился, каналы закрыты. Ограничиваем и сам дренаж.
+        var reads = Task.WhenAll(stdoutTask, stderrTask);
+        if (await Task.WhenAny(reads, Task.Delay(DrainTimeout, cts.Token)).ConfigureAwait(false) != reads)
+        {
+            TryKill(proc);
+            progress?.Report(
+                $"Вывод утилиты {psi.FileName} не получен за {DrainTimeout.TotalSeconds:0} с.");
+            return -1;
+        }
+
+        // reads завершён, поэтому .Result здесь безопасен.
+        await reads.ConfigureAwait(false);
+        int exitCode = proc.ExitCode;
+
+        if (exitCode != 0 && progress != null)
         {
             var err = stderrTask.Result.Trim();
             if (err.Length > 0)
             {
                 if (err.Length > 300) err = err[..300] + "...";
-                progress.Report($"Ошибка утилиты (код {proc.ExitCode}): {err}");
+                progress.Report($"Ошибка утилиты (код {exitCode}): {err}");
             }
         }
 
-        return proc.ExitCode;
+        return exitCode;
     }
 }

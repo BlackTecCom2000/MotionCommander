@@ -7,6 +7,43 @@ namespace MotionCommander.Core.Storage.Linux;
 
 public sealed class LinuxStorageProvider : IStorageProvider
 {
+    /// <summary>
+    /// Максимальное ожидание внешней утилиты (lsblk, mkfs.*, parted).
+    /// Раньше ожидание не было ограничено: зависший parted или mkfs держали
+    /// вызывающий код бесконечно, и отмены у него не было вовсе.
+    /// </summary>
+    private static readonly TimeSpan ExternalCommandTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// fstrim -av обходит все смонтированные ФС, поэтому на больших массивах
+    /// он штатно работает дольше обычного: для него отдельный лимит.
+    /// </summary>
+    private static readonly TimeSpan FstrimTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>Сколько ждём освобождения каналов после выхода процесса.</summary>
+    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Аварийно снимает зависшую утилиту вместе со всеми потомками.
+    /// Процесс может завершиться между проверкой HasExited и вызовом Kill,
+    /// поэтому всё обёрнуто в try/catch.
+    /// </summary>
+    private static void TryKill(Process proc)
+    {
+        try
+        {
+            if (!proc.HasExited)
+            {
+                proc.Kill(entireProcessTree: true);
+                proc.WaitForExit(2000);
+            }
+        }
+        catch
+        {
+            // Процесс уже завершился или недоступен — делать больше нечего.
+        }
+    }
+
     public async Task<List<StorageDiskInfo>> GetPhysicalDisksAsync()
     {
         var result = new List<StorageDiskInfo>();
@@ -14,8 +51,13 @@ public sealed class LinuxStorageProvider : IStorageProvider
         try
         {
             // 1. Попытка использования lsblk в JSON-формате
-            string lsblkOutput = (await RunProcessAsync("lsblk", new[]
-            { "-J", "-b", "-o", "NAME,PATH,SIZE,ROTA,TYPE,MOUNTPOINT,FSTYPE,LABEL,MODEL,TRAN" })).output;
+            var lsblk = await RunProcessAsync("lsblk", new[]
+            { "-J", "-b", "-o", "NAME,PATH,SIZE,ROTA,TYPE,MOUNTPOINT,FSTYPE,LABEL,MODEL,TRAN" });
+
+            // Таймаут или ошибка запуска — это НЕ «пустой вывод»: при коде != 0
+            // реальных данных нет, и ниже сработает запасной путь через /sys/block.
+            string lsblkOutput = lsblk.exitCode == 0 ? lsblk.output : "";
+
             if (!string.IsNullOrWhiteSpace(lsblkOutput))
             {
                 using var doc = JsonDocument.Parse(lsblkOutput);
@@ -240,8 +282,24 @@ public sealed class LinuxStorageProvider : IStorageProvider
     public async Task<bool> OptimizeDiskAsync(int diskIndex, IProgress<string>? progress = null)
     {
         progress?.Report("Выполнение fstrim для сброса свободных блоков на Linux...");
-        string output = (await RunProcessAsync("fstrim", new[] { "-av" })).output;
-        progress?.Report(string.IsNullOrWhiteSpace(output) ? "Оптимизация Trim завершена успешно." : output.Trim());
+
+        var res = await RunProcessAsync("fstrim", new[] { "-av" }, FstrimTimeout);
+
+        // Раньше здесь возврашался безусловный true: зависший или упавший fstrim
+        // показывался как успешная оптимизация. Таймаут — это тоже провал.
+        if (res.exitCode != 0)
+        {
+            string reason = res.output.Trim();
+            if (reason.Length > 300) reason = reason[..300] + "...";
+            progress?.Report(reason.Length > 0
+                ? $"fstrim не выполнил TRIM (код {res.exitCode}): {reason}"
+                : $"fstrim не выполнил TRIM (код {res.exitCode}).");
+            return false;
+        }
+
+        progress?.Report(string.IsNullOrWhiteSpace(res.output)
+            ? "Оптимизация Trim завершена успешно."
+            : res.output.Trim());
         return true;
     }
 
@@ -301,38 +359,78 @@ public sealed class LinuxStorageProvider : IStorageProvider
         return trimmed;
     }
 
-    private static async Task<(int exitCode, string output)> RunProcessAsync(string fileName, string[] args)
+    /// <summary>
+    /// Запускает процесс и читает stdout/stderr ОДНОВРЕМЕННО, иначе возможен
+    /// классический pipe deadlock при заполнении буфера stderr.
+    ///
+    /// <para><b>Почему именно такой порядок.</b> StreamReader.ReadToEndAsync
+    /// не отменяется после начала чтения: токен проверяется только в момент
+    /// старта, поэтому уже начатое чтение нельзя прервать. Сначала дожидаемся
+    /// ВЫХОДА процесса с таймаутом (это отменяется через токен), и только потом
+    /// читаем вывод — к этому моменту каналы закрыты и чтение обязано
+    /// завершиться. Таймаут обязателен: без него зависшая утилита держит
+    /// вызывающий код вечно, и отмены у чтения не существует.</para>
+    /// </summary>
+    private static async Task<(int exitCode, string output)> RunProcessAsync(
+        string fileName, string[] args, TimeSpan? timeout = null)
     {
+        using var cts = new CancellationTokenSource(timeout ?? ExternalCommandTimeout);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        foreach (var a in args) psi.ArgumentList.Add(a);
+
+        using var proc = new Process { StartInfo = psi };
+
         try
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = fileName,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            foreach (var a in args) psi.ArgumentList.Add(a);
-
-            using var proc = new Process { StartInfo = psi };
-            proc.Start();
-
-            // Обе задачи чтения стартуют ОДНОВРЕМЕННО. Иначе, если процесс
-            // заполнит буфер stderr и заблокируется, чтение stdout до EOF
-            // никогда не завершится (классический pipe deadlock).
-            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
-            var stderrTask = proc.StandardError.ReadToEndAsync();
-
-            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
-            await proc.WaitForExitAsync().ConfigureAwait(false);
-
-            return (proc.ExitCode, stdoutTask.Result + "\n" + stderrTask.Result);
+            if (!proc.Start())
+                return (-1, $"{fileName}: не удалось запустить процесс.");
         }
-        catch
+        catch (System.ComponentModel.Win32Exception)
         {
-            return (-1, "");
+            // Утилита не найдена или недоступна.
+            return (-1, $"{fileName}: утилита не найдена или недоступна.");
         }
+        catch (InvalidOperationException)
+        {
+            return (-1, $"{fileName}: не удалось запустить процесс.");
+        }
+
+        // Обе задачи чтения стартуют ОДНОВРЕМЕННО. Иначе, если процесс
+        // заполнит буфер stderr и заблокируется, чтение stdout до EOF
+        // никогда не завершится (классический pipe deadlock).
+        var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+        var stderrTask = proc.StandardError.ReadToEndAsync();
+
+        try
+        {
+            await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Таймаут — это провал, а НЕ «пустой успешный вывод».
+            TryKill(proc);
+            return (-1, $"{fileName}: не ответил за {(timeout ?? ExternalCommandTimeout).TotalSeconds:0} с и был прерван.");
+        }
+
+        // Процесс завершился, каналы закрыты. Ограничиваем и сам дренаж.
+        var reads = Task.WhenAll(stdoutTask, stderrTask);
+        if (await Task.WhenAny(reads, Task.Delay(DrainTimeout, cts.Token)).ConfigureAwait(false) != reads)
+        {
+            TryKill(proc);
+            return (-1, $"{fileName}: вывод не получен за {DrainTimeout.TotalSeconds:0} с.");
+        }
+
+        // reads завершён, поэтому .Result здесь безопасен.
+        await reads.ConfigureAwait(false);
+        return (proc.ExitCode, stdoutTask.Result + "\n" + stderrTask.Result);
     }
 }

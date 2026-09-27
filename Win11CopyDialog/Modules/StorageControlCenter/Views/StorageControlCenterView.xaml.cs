@@ -64,65 +64,108 @@ public partial class StorageControlCenterView : UserControl
 
     private async void StorageControlCenterView_Loaded(object sender, RoutedEventArgs e)
     {
-        await RefreshDisksAsync();
-        _telemetryTimer.Start();
-
-        var args = Environment.GetCommandLineArgs();
-        for (int i = 0; i < args.Length; i++)
+        // Раньше здесь не было try/catch: любое исключение из RefreshDisksAsync
+        // (WMI/SMART отдают их регулярно) всплывало в глобальный обработчик —
+        // пользователь получал модальное окно ошибки просто при открытии вкладки.
+        try
         {
-            if (args[i] == "--disk" && i + 1 < args.Length && int.TryParse(args[i + 1], out int dIdx))
+            await RefreshDisksAsync();
+
+            var args = Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
             {
-                var target = _disks.FirstOrDefault(d => d.DiskNumber == dIdx);
-                if (target != null) SelectDisk(target);
-                else if (dIdx >= 0 && dIdx < _disks.Count) SelectDisk(_disks[dIdx]);
+                if (args[i] == "--disk" && i + 1 < args.Length && int.TryParse(args[i + 1], out int dIdx))
+                {
+                    var target = _disks.FirstOrDefault(d => d.DiskNumber == dIdx);
+                    if (target != null) SelectDisk(target);
+                    else if (dIdx >= 0 && dIdx < _disks.Count) SelectDisk(_disks[dIdx]);
+                }
+            }
+
+            if (args.Contains("--subtab-partitions") || args.Contains("--partitions"))
+            {
+                SelectSubTab(1);
+            }
+            else if (args.Contains("--subtab-benchmark"))
+            {
+                SelectSubTab(2);
+            }
+            else if (args.Contains("--subtab-optimizer"))
+            {
+                SelectSubTab(3);
+            }
+            else if (args.Contains("--subtab-cleanup"))
+            {
+                SelectSubTab(4);
+            }
+            else if (args.Contains("--subtab-safety"))
+            {
+                SelectSubTab(5);
             }
         }
-
-        if (args.Contains("--subtab-partitions") || args.Contains("--partitions"))
+        catch (Exception)
         {
-            SelectSubTab(1);
+            // Вкладка остаётся рабочей: карточки пустые, но ничего не сломано.
+            // Подробности пользователь увидит при следующем нажатии «Обновить».
         }
-        else if (args.Contains("--subtab-benchmark"))
+        finally
         {
-            SelectSubTab(2);
-        }
-        else if (args.Contains("--subtab-optimizer"))
-        {
-            SelectSubTab(3);
-        }
-        else if (args.Contains("--subtab-cleanup"))
-        {
-            SelectSubTab(4);
-        }
-        else if (args.Contains("--subtab-safety"))
-        {
-            SelectSubTab(5);
+            // Таймер телеметрии запускается всегда — TelemetryTimer_Tick сам
+            // выходит при пустом _disks, зависшего UI на ошибке опроса нет.
+            if (_telemetryTimer.IsEnabled == false) _telemetryTimer.Start();
         }
     }
 
     private void StorageControlCenterView_Unloaded(object sender, RoutedEventArgs e)
     {
         _telemetryTimer.Stop();
-        _benchCts?.Cancel();
-        _wipeCts?.Cancel();
+
+        // Гонка: CTS принадлежит запущенной операции, а не этому обработчику.
+        // Здесь можно только ПРОСИТЬ об отмене. Освобождать источник нельзя:
+        // фоновая задача всё ещё держит его токен и получит
+        // ObjectDisposedException на ct.ThrowIfCancellationRequested().
+        // Поле и Dispose делает владелец в своём finally.
+        SafeCancel(Volatile.Read(ref _benchCts));
+        SafeCancel(Volatile.Read(ref _wipeCts));
 
         // Раньше CTS отменялись, но НЕ обнулялись. Обработчики кнопок
         // используют «_benchCts != null» как признак «тест идёт», поэтому после
-        // переключения вкладки кнопка оставалась с надписью «ОСТАНОВИТЬ ТЕСТ»,
-        // а повторное нажатие лишь вызывало Cancel() на уже мёртвом токене —
-        // тест нельзя было запустить заново без переоткрытия вкладки.
+        // переключения вкладки кнопка оставалась с надписью «ОСТАНОВИТЬ ТЕСТ».
+        // Теперь поле чистит finally операции, поэтому метку кнопки можно
+        // вернуть сразу — новый запуск всё равно заблокирован до конца
+        // отменяемой операции.
         ResetRunningOperationsUi();
     }
 
-    /// <summary>Возвращает UI операций (бенчмарк/очистка) в исходное состояние.</summary>
+    /// <summary>
+    /// Отмена источника токена, который уже мог быть освобождён владельцем.
+    /// Без этой обёртки Cancel() на освобождённом CTS ронял обработчик
+    /// кнопки/окна с ObjectDisposedException.
+    /// </summary>
+    private static void SafeCancel(CancellationTokenSource? cts)
+    {
+        if (cts == null) return;
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Владелец уже освободил источник в своём finally — это нормально.
+        }
+        catch (AggregateException)
+        {
+            // Исключение из callback'а отмены не должно ронять UI.
+        }
+    }
+
+    /// <summary>
+    /// Возвращает UI операций (бенчмарк/очистка) в исходное состояние.
+    /// Поля _benchCts/_wipeCts здесь НЕ трогаются: ими владеют операции,
+    /// обнуляющие поле через Interlocked.CompareExchange в своём finally.
+    /// </summary>
     private void ResetRunningOperationsUi()
     {
-        _benchCts?.Dispose();
-        _benchCts = null;
-
-        _wipeCts?.Dispose();
-        _wipeCts = null;
-
         if (StartBenchBtn != null)
         {
             StartBenchBtn.Content = "🚀 Запустить бенчмарк";
@@ -191,29 +234,45 @@ public partial class StorageControlCenterView : UserControl
 
         var cts = new CancellationTokenSource();
         var previous = Interlocked.Exchange(ref _fragmentationCts, cts);
-        previous?.Cancel();
-        previous?.Dispose();
+
+        // Гонка (была): previous?.Dispose() здесь освобождал источник, который
+        // ПРЕДЫДУЩИЙ замер всё ещё использовал внутри вызова процесса defrag —
+        // тот получал ObjectDisposedException на своём токене. Освобождать
+        // источник имеет право только тот поток, который его создал,
+        // поэтому ниже previous лишь отменяется, а Dispose делает его владелец
+        // в собственном finally.
+        SafeCancel(previous);
+
+        var token = cts.Token;
+        bool wasCanceled;
 
         try
         {
-            await StorageDiscoveryService.AnalyzeFragmentationAsync(disks, progress: null, cts.Token);
+            await StorageDiscoveryService.AnalyzeFragmentationAsync(disks, progress: null, token);
+            wasCanceled = false;
         }
         catch (OperationCanceledException)
         {
+            wasCanceled = true;
             return;
         }
         catch
         {
             // Фрагментация — справочные данные; её отсутствие не должно
             // ломать интерфейс. HasFragmentation остаётся снятым.
+            wasCanceled = true;
             return;
         }
         finally
         {
+            // Поле обнуляется только если в нём всё ещё наш источник:
+            // иначе можно было бы стереть токен уже НОВОГО замера.
+            SafeCancel(cts);
             Interlocked.CompareExchange(ref _fragmentationCts, null, cts);
+            cts.Dispose();
         }
 
-        if (cts.IsCancellationRequested) return;
+        if (wasCanceled) return;
         if (!IsLoaded) return;
 
         // Результат применяем на UI-потоке.
@@ -874,7 +933,23 @@ public partial class StorageControlCenterView : UserControl
 
     private async void RefreshDrives_Click(object sender, RoutedEventArgs e)
     {
-        await RefreshDisksAsync();
+        // Раньше исключение из RefreshDisksAsync уходило в глобальный обработчик,
+        // а кнопка оставалась заблокированной навсегда.
+        RefreshDrivesBtn.IsEnabled = false;
+        try
+        {
+            await RefreshDisksAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось обновить список накопителей: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            // UI восстанавливается в finally — кнопка не должна остаться
+            // заблокированной ни при какой ошибке.
+            RefreshDrivesBtn.IsEnabled = true;
+        }
     }
 
     private void ExportReport_Click(object sender, RoutedEventArgs e)
@@ -892,11 +967,21 @@ public partial class StorageControlCenterView : UserControl
     // ================= БЕНЧМАРК =================
     private async void StartBenchmark_Click(object sender, RoutedEventArgs e)
     {
-        if (_benchCts != null)
+        // Гонка (была): обработчик «стоп» делал _benchCts.Cancel(); _benchCts = null;
+        // затем можно было начать НОВЫЙ тест, а finally СТАРОГО теста
+        // выполнял _benchCts = null и стирал токен нового. Кнопка показывала
+        // «ЗАПУСТИТЬ», а идущий тест уже нельзя было отменить.
+        // Теперь поле обнуляет только владелец и только если поле всё ещё
+        // указывает на ЕГО источник (Interlocked.CompareExchange).
+        if (Volatile.Read(ref _benchCts) != null)
         {
-            _benchCts.Cancel();
-            _benchCts = null;
-            StartBenchBtn.Content = "⚡ ЗАПУСТИТЬ ТЕСТ СКОРОСТИ";
+            // Стоп только просит об отмене. Никаких Dispose()/= null здесь:
+            // источник ещё использует фоновая задача, а поле чистит
+            // finally владельца. Пока он не обнулён, повторное нажатие
+            // просто повторяет отмену, а не запускает второй тест.
+            SafeCancel(Volatile.Read(ref _benchCts));
+            StartBenchBtn.Content = "⏹ ОСТАНОВКА...";
+            BenchProgressStatusText.Text = "Остановка теста...";
             return;
         }
 
@@ -915,7 +1000,11 @@ public partial class StorageControlCenterView : UserControl
             FileSizeBytes = sizeBytes
         };
 
-        _benchCts = new CancellationTokenSource();
+        // Свой экземпляр CTS: операция работает только с ним, поле — лишь
+        // «объявление» о том, что тест идёт (для кнопки стоп и Unloaded).
+        var myCts = new CancellationTokenSource();
+        Interlocked.Exchange(ref _benchCts, myCts);
+
         StartBenchBtn.Content = "⏹ ОСТАНОВИТЬ ТЕСТ";
         BenchProgressCard.Visibility = Visibility.Visible;
         BenchProgressBar.Value = 0;
@@ -929,7 +1018,7 @@ public partial class StorageControlCenterView : UserControl
 
         try
         {
-            var res = await StorageBenchmarkService.RunBenchmarkAsync(config, progress, _benchCts.Token);
+            var res = await StorageBenchmarkService.RunBenchmarkAsync(config, progress, myCts.Token);
             BenchmarkResultsList.ItemsSource = res.Items;
             BenchScoreSummaryText.Text = $"Общий рейтинг: {res.OverallPerformanceScore:F0} баллов";
         }
@@ -943,9 +1032,20 @@ public partial class StorageControlCenterView : UserControl
         }
         finally
         {
-            _benchCts = null;
-            StartBenchBtn.Content = "⚡ ЗАПУСТИТЬ ТЕСТ СКОРОСТИ";
-            BenchProgressCard.Visibility = Visibility.Collapsed;
+            SafeCancel(myCts);
+
+            // Возвращаем поле в null только если там всё ещё наш источник:
+            // иначе (теоретически) стёрли бы токен следующего теста.
+            bool isCurrent = Interlocked.CompareExchange(ref _benchCts, null, myCts) == myCts;
+
+            if (isCurrent)
+            {
+                StartBenchBtn.Content = "⚡ ЗАПУСТИТЬ ТЕСТ СКОРОСТИ";
+                BenchProgressCard.Visibility = Visibility.Collapsed;
+            }
+
+            // Освобождает ТОЛЬКО владелец источника.
+            myCts.Dispose();
         }
     }
 
@@ -985,12 +1085,24 @@ public partial class StorageControlCenterView : UserControl
     // ================= ОЧИСТКА =================
     private async void LoadCleanupCategories()
     {
-        CleanupTotalReclaimableText.Text = "Сканирование временных файлов...";
-        var items = await StorageCleanupService.ScanCleanupCategoriesAsync();
-        CleanupCategoriesList.ItemsSource = items;
+        // Этот метод вызывается и из RefreshDisksAsync, и из CleanNow_Click.
+        // Раньше он был «голым» await: исключение из сканирования всплывало
+        // в глобальный обработчик и подменялось модальным окном ошибки,
+        // хотя это фоновые справочные данные.
+        try
+        {
+            CleanupTotalReclaimableText.Text = "Сканирование временных файлов...";
+            var items = await StorageCleanupService.ScanCleanupCategoriesAsync();
+            CleanupCategoriesList.ItemsSource = items;
 
-        long total = items.Sum(i => i.SizeBytes);
-        CleanupTotalReclaimableText.Text = $"Найдено для очистки: {Formatters.Bytes(total)}";
+            long total = items.Sum(i => i.SizeBytes);
+            CleanupTotalReclaimableText.Text = $"Найдено для очистки: {Formatters.Bytes(total)}";
+        }
+        catch (Exception ex)
+        {
+            CleanupCategoriesList.ItemsSource = null;
+            CleanupTotalReclaimableText.Text = $"Не удалось просканировать временные файлы: {ex.Message}";
+        }
     }
 
     private async void CleanNow_Click(object sender, RoutedEventArgs e)
@@ -998,10 +1110,26 @@ public partial class StorageControlCenterView : UserControl
         if (CleanupCategoriesList.ItemsSource is not IEnumerable<StorageCleanupItem> items) return;
 
         CleanNowBtn.IsEnabled = false;
-        var (cleanedBytes, deletedFiles) = await StorageCleanupService.CleanSelectedAsync(items);
-        CleanNowBtn.IsEnabled = true;
+        try
+        {
+            var (cleanedBytes, deletedFiles) = await StorageCleanupService.CleanSelectedAsync(items);
 
-        MessageBox.Show($"Очистка успешно завершена!\n\nОсвобождено места: {Formatters.Bytes(cleanedBytes)}\nУдалено временных файлов: {deletedFiles}", "Очистка кэша", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"Очистка успешно завершена!\n\nОсвобождено места: {Formatters.Bytes(cleanedBytes)}\nУдалено временных файлов: {deletedFiles}", "Очистка кэша", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            // Раньше исключение из очистки уходило вверх: кнопка навсегда
+            // оставалась в состоянии «выполняется», а пользователь видел
+            // глобальное окно ошибки без указания, что именно очистка упала.
+            MessageBox.Show($"Очистка временных файлов прервана ошибкой: {ex.Message}", "Ошибка очистки", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            // Кнопка разблокируется ЛЮБЫМ исходом — иначе повторная очистка
+            // была бы невозможна до перезапуска приложения.
+            CleanNowBtn.IsEnabled = true;
+        }
+
         LoadCleanupCategories();
     }
 
@@ -1018,8 +1146,16 @@ public partial class StorageControlCenterView : UserControl
             var (files, _) = await StorageExplorerService.AnalyzeStorageUsageAsync(root);
             LargeFilesListView.ItemsSource = files;
         }
+        catch (Exception ex)
+        {
+            // Раньше был только finally: исключение уходило в глобальный
+            // обработчик (модальное окно), хотя состояние кнопки было в порядке.
+            LargeFilesListView.ItemsSource = null;
+            MessageBox.Show($"Сканирование крупных файлов на {root} прервано ошибкой: {ex.Message}", "Ошибка сканирования", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         finally
         {
+            // finally, а не happy path: любая ошибка тоже обязана вернуть кнопку.
             ScanLargeFilesBtn.IsEnabled = true;
         }
     }
@@ -1027,11 +1163,15 @@ public partial class StorageControlCenterView : UserControl
     // ================= WIPE =================
     private async void StartWipe_Click(object sender, RoutedEventArgs e)
     {
-        if (_wipeCts != null)
+        // Ровно та же гонка, что и в бенчмарке: стоп обнулял поле, новый запуск
+        // создавал новый CTS, а finally старой операции стирал его — wipe
+        // продолжал работать, но уже не отменялся, а кнопка врала «ЗАПУСТИТЬ».
+        if (Volatile.Read(ref _wipeCts) != null)
         {
-            _wipeCts.Cancel();
-            _wipeCts = null;
-            StartWipeBtn.Content = "🛡 ЗАПУСТИТЬ ОЧИСТКУ СВОБОДНОГО МЕСТА";
+            // Только отмена. Dispose()/обнуление — дело владельца (finally).
+            SafeCancel(Volatile.Read(ref _wipeCts));
+            StartWipeBtn.Content = "⏹ ОСТАНОВКА...";
+            WipeStatusText.Text = "Остановка очистки...";
             return;
         }
 
@@ -1046,7 +1186,10 @@ public partial class StorageControlCenterView : UserControl
 
         if (confirm != MessageBoxResult.Yes) return;
 
-        _wipeCts = new CancellationTokenSource();
+        // Свой экземпляр CTS: поле — только признак «wipe идёт».
+        var myCts = new CancellationTokenSource();
+        Interlocked.Exchange(ref _wipeCts, myCts);
+
         StartWipeBtn.Content = "⏹ ОСТАНОВИТЬ WIPE";
         WipeProgressBorder.Visibility = Visibility.Visible;
         WipeProgressBar.Value = 0;
@@ -1060,18 +1203,35 @@ public partial class StorageControlCenterView : UserControl
 
         try
         {
-            var (success, msg) = await DiskWipeService.WipeFreeSpaceAsync(targetLetter, progress, _wipeCts.Token);
+            var (success, msg) = await DiskWipeService.WipeFreeSpaceAsync(targetLetter, progress, myCts.Token);
             MessageBox.Show(msg, "Очистка свободного места", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
         catch (OperationCanceledException)
         {
             WipeStatusText.Text = "Операция отменена";
         }
+        catch (Exception ex)
+        {
+            // Раньше любое исключение из DiskWipeService уходило в глобальный
+            // обработчик, пока кнопка оставалась в состоянии «идёт операция».
+            WipeStatusText.Text = $"Ошибка очистки: {ex.Message}";
+            MessageBox.Show($"Очистка свободного места прервана ошибкой: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         finally
         {
-            _wipeCts = null;
-            StartWipeBtn.Content = "🛡 ЗАПУСТИТЬ ОЧИСТКУ СВОБОДНОГО МЕСТА";
-            WipeProgressBorder.Visibility = Visibility.Collapsed;
+            SafeCancel(myCts);
+
+            // Поле обнуляет только владелец и только если поле всё ещё его.
+            bool isCurrent = Interlocked.CompareExchange(ref _wipeCts, null, myCts) == myCts;
+
+            if (isCurrent)
+            {
+                StartWipeBtn.Content = "🛡 ЗАПУСТИТЬ ОЧИСТКУ СВОБОДНОГО МЕСТА";
+                WipeProgressBorder.Visibility = Visibility.Collapsed;
+            }
+
+            // Освобождает ТОЛЬКО владелец источника.
+            myCts.Dispose();
         }
     }
 

@@ -317,13 +317,18 @@ public static class FileService
         long copiedBytes = 0;
         int bytesRead;
         
-        while ((bytesRead = await sourceStream.ReadAsync(buffer, ct)) > 0)
+        while ((bytesRead = await sourceStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
         {
             ct.ThrowIfCancellationRequested();
-            await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+            // ConfigureAwait(false) держит цикл копирования ВНЕ UI-потока.
+            // Без него каждый блок в 1 МБ возвращал управление UI на
+            // синхронном контексте: на многогигабайтном файле это десятки
+            // тысяч переключений на UI-поток, то есть измеримая задержка
+            // ввода и снижение скорости копирования.
+            await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
             copiedBytes += bytesRead;
-            progress.Report(new CopyProgress 
-            { 
+            progress.Report(new CopyProgress
+            {
                 CurrentFile = Path.GetFileName(src),
                 TotalBytes = totalBytes,
                 CopiedBytes = copiedBytes,

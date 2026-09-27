@@ -278,7 +278,13 @@ public sealed class ParallelTransferEngine : IDisposable
         {
             try
             {
-                await Task.Delay(33, ct); // ~30 кадров в секунду
+                // ConfigureAwait(false) ОБЯЗАТЕЛЕН.
+                // Без него продолжение возвращалось в SynchronizationContext
+                // вызывающего (UI-поток WPF), и весь цикл опроса - P/Invoke
+                // GetSystemTimes, анализ узкого места и рассылка события -
+                // выполнялся НА UI-ПОТОКЕ 30 раз в секунду на всё время
+                // копирования. Это самый заметный источник подтормаживаний.
+                await Task.Delay(33, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

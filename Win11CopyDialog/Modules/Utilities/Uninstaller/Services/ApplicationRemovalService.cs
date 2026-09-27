@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Win11CopyDialog.Modules.Utilities.Uninstaller.Models;
 
@@ -8,7 +9,16 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Services
 {
     public class ApplicationRemovalService
     {
-        public async Task<bool> RunStandardUninstallAsync(InstalledApplication app)
+        /// <summary>
+        /// Максимальное время ожидания завершения деинсталлятора.
+        /// MSI сам по себе медленный, но он также может запросить перезагрузку
+        /// или показать модальное окно UAC и ПРОЖИВАТЬ вечно. Раньше здесь стоял
+        /// WaitForExit() без таймаута, из-за чего Uninstall_Click висел в await
+        /// бесконечно, а поток пула был занят навсегда.
+        /// </summary>
+        private const int UninstallTimeoutMs = 120_000;
+
+        public async Task<bool> RunStandardUninstallAsync(InstalledApplication app, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(app.UninstallString))
                 return false;
@@ -16,7 +26,7 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Services
             if (app.IsSystemComponent)
                 throw new InvalidOperationException("Попытка удаления системного компонента заблокирована.");
 
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
                 try
                 {
@@ -52,13 +62,59 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Services
                     };
 
                     using var process = Process.Start(psi);
-                    if (process != null)
+                    if (process is null)
                     {
-                        process.WaitForExit();
-                        return process.ExitCode == 0 || process.ExitCode == 1605 || process.ExitCode == 3010; // Common MSI success codes
+                        return false;
                     }
 
-                    return false;
+                    // Токен — не только токен старта Task.Run: проверяем его и здесь,
+                    // иначе отмена операции не влияет на уже запущенный процесс.
+                    if (ct.IsCancellationRequested)
+                    {
+                        KillProcessTree(process);
+                        return false;
+                    }
+
+                    using var timeoutCts = new CancellationTokenSource(UninstallTimeoutMs);
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+                    try
+                    {
+                        // Сначала дожидаемся ВЫХОДА процесса, и только потом
+                        // читаем его результат (ExitCode/вывод).
+                        //
+                        // Ловушка StreamReader.ReadToEndAsync(ct): токен
+                        // проверяется лишь в момент старта чтения. Начатое
+                        // чтение отмена НЕ прерывает — оно висит, пока писатель
+                        // не закроет канал. Зависший деинсталлятор, который не
+                        // пишет и не выходит, держал бы канал открытым вечно,
+                        // и никакой отмены это бы не спасло. Поэтому «читать с
+                        // токеном на спасение» бесполезно: сначала гарантированный
+                        // выход, затем чтение уже мёртвого процесса.
+                        //
+                        // Здесь вывод и не читается вовсе: UseShellExecute = true
+                        // (иначе elevation через Verb = "runas" не работает)
+                        // запрещает перенаправление потоков.
+                        await process.WaitForExitAsync(linkedCts.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Таймаут или отмена: деинсталлятор завис (или просит
+                        // перезагрузку и ждёт её). Убиваем всё дерево процессов.
+                        KillProcessTree(process);
+
+                        if (ct.IsCancellationRequested)
+                        {
+                            Debug.WriteLine($"Uninstall cancelled: {app.DisplayName}");
+                            return false;
+                        }
+
+                        Debug.WriteLine($"Uninstall timed out after {UninstallTimeoutMs} ms: {app.DisplayName}");
+                        return false;
+                    }
+
+                    // ExitCode читается ТОЛЬКО после успешного ограниченного ожидания.
+                    return process.ExitCode == 0 || process.ExitCode == 1605 || process.ExitCode == 3010; // Common MSI success codes
                 }
                 catch (Exception ex)
                 {
@@ -66,7 +122,7 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Services
                     Debug.WriteLine($"Uninstall Error: {ex.Message}");
                     return false;
                 }
-            });
+            }, ct);
         }
 
         public async Task<bool> RunForceUninstallAsync(InstalledApplication app, bool dryRun)
@@ -130,6 +186,26 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Services
 
                 return success;
             });
+        }
+
+        /// <summary>
+        /// Принудительно завершает процесс и всех его потомков (деинсталлятор
+        /// часто запускает msiexec/helper-процессы). Ошибки глотаются: метод
+        /// вызывается в ветках, где уже формируется итоговый результат операции.
+        /// </summary>
+        private static void KillProcessTree(Process process)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch
+            {
+                // Процесс уже завершён или недоступен — не критично.
+            }
         }
     }
 }

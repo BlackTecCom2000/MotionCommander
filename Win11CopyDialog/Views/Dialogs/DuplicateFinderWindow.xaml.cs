@@ -47,6 +47,12 @@ public partial class DuplicateFinderWindow : Window
     private bool _isScanning;
     private readonly List<DuplicateFileItem> _items = new();
 
+    /// <summary>
+    /// Окно закрывается: с этого момента фоновый поиск дубликатов не имеет
+    /// права трогать элементы интерфейса.
+    /// </summary>
+    private bool _isClosing;
+
     public DuplicateFinderWindow(string? initialPath = null)
     {
         InitializeComponent();
@@ -55,11 +61,82 @@ public partial class DuplicateFinderWindow : Window
 
         SearchFolderBox.Text = string.IsNullOrEmpty(initialPath) ? "C:\\" : initialPath;
         UpdateSelectionCount();
+
+        // Закрытие бывает не только через ✕ / Close_Click, но и по Alt+F4,
+        // системному меню и при выходе из приложения. Раньше _scanCts здесь не
+        // отменялся: полный обход диска продолжался после закрытия окна, держал
+        // замыкание на это окно, а его finally правил элементы мёртвого окна.
+        Closing += Window_Closing;
+        Closed += Window_Closed;
+    }
+
+    /// <summary>
+    /// Окно ещё можно безопасно обновлять? После Close() IsLoaded становится
+    /// false, а IsVisible — false у скрытого окна; обе проверки обязательны
+    /// для любого обращения к UI из фонового потока.
+    /// </summary>
+    private bool IsUiAlive => !_isClosing && IsLoaded && IsVisible;
+
+    /// <summary>Отменяет текущий поиск, если он идёт.</summary>
+    private void CancelActiveSearch()
+    {
+        CancellationTokenSource? cts = _scanCts;
+        if (cts is null) return;
+
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Источник уже освобождён — отменять нечего.
+        }
+    }
+
+    /// <summary>
+    /// Освобождает источник отмены конкретного поиска. Обращения к уже
+    /// освобождённому CancellationToken (IsCancellationRequested,
+    /// ThrowIfCancellationRequested) безопасны, поэтому гонка с «догоняющим»
+    /// фоновым Task.Run ничего не ломает.
+    /// </summary>
+    private void ReleaseScanCts(CancellationTokenSource cts)
+    {
+        if (ReferenceEquals(_scanCts, cts))
+        {
+            _scanCts = null;
+        }
+
+        try
+        {
+            cts.Dispose();
+        }
+        catch
+        {
+            // Ничего критичного: освобождение источника отмены.
+        }
+    }
+
+    private void Window_Closing(object? sender, CancelEventArgs e)
+    {
+        _isClosing = true;
+        CancelActiveSearch();
+    }
+
+    private void Window_Closed(object? sender, EventArgs e)
+    {
+        _isClosing = true;
+        CancelActiveSearch();
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
+
+        // Закрытие во время поиска: гасим CTS заранее, чтобы фоновый
+        // Task.Run не продолжал хеширование диска "в пустоту".
+        _isClosing = true;
+        CancelActiveSearch();
+
         Close();
     }
 
@@ -80,7 +157,7 @@ public partial class DuplicateFinderWindow : Window
 
         if (_isScanning)
         {
-            _scanCts?.Cancel();
+            CancelActiveSearch();
             return;
         }
 
@@ -107,14 +184,21 @@ public partial class DuplicateFinderWindow : Window
         _items.Clear();
         DuplicatesListView.ItemsSource = null;
 
-        _scanCts = new CancellationTokenSource();
-        var ct = _scanCts.Token;
+        var cts = new CancellationTokenSource();
+        _scanCts = cts;
+        var ct = cts.Token;
 
         var sw = Stopwatch.StartNew();
 
         try
         {
             var duplicates = await Task.Run(() => ScanDuplicates(root, minBytes, ct), ct);
+
+            // Пользователь мог нажать «Прервать» или закрыть окно — UI больше не трогаем.
+            if (ct.IsCancellationRequested || !IsUiAlive)
+            {
+                return;
+            }
 
             _items.Clear();
             _items.AddRange(duplicates);
@@ -128,17 +212,32 @@ public partial class DuplicateFinderWindow : Window
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "Поиск дубликатов прерван пользователем.";
+            if (IsUiAlive)
+            {
+                StatusText.Text = "Поиск дубликатов прерван пользователем.";
+            }
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"Ошибка: {ex.Message}";
+            if (IsUiAlive)
+            {
+                StatusText.Text = $"Ошибка: {ex.Message}";
+            }
         }
         finally
         {
-            _isScanning = false;
-            StartSearchBtn.Content = "⚡ Искать дубликаты";
-            SearchProgress.Visibility = Visibility.Collapsed;
+            // finally отрабатывает и для закрытого окна: await на отменённом
+            // Task.Run бросает OperationCanceledException немедленно, пока
+            // фоновый обход ещё сворачивается. Состояние кнопок восстанавливаем
+            // только у живого окна.
+            if (IsUiAlive)
+            {
+                _isScanning = false;
+                StartSearchBtn.Content = "⚡ Искать дубликаты";
+                SearchProgress.Visibility = Visibility.Collapsed;
+            }
+
+            ReleaseScanCts(cts);
         }
     }
 

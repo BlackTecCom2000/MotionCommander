@@ -166,13 +166,32 @@ public static class AppPaths
     // ================= Каталоги данных =================
 
     private static string? _dataDirectory;
+    private static readonly object _dirLock = new();
+
     /// <summary>
     /// Каталог для изменяемого состояния: настройки, логи, staging автообновления, кэш.
     /// В портативном режиме — рядом с программой; иначе — в профиле пользователя.
     /// Если выбранный каталог недоступен для записи, автоматически используется профиль,
     /// чтобы приложение не падало на read-only носителе (флешке с защитой от записи).
+    ///
+    /// <para>Инициализация под блокировкой. Раньше стояло `??=`, что не является
+    /// потокобезопасной ленивой инициализацией: ResolveDataDirectory() внутри
+    /// выполняет НАСТОЯЩУЮ проверку доступности каталога, создавая пробный файл,
+    /// то есть делает дисковый ввод-вывод. Два потока могли войти одновременно,
+    /// и второй увидел бы незавершённое состояние.</para>
     /// </summary>
-    public static string DataDirectory => _dataDirectory ??= ResolveDataDirectory();
+    public static string DataDirectory
+    {
+        get
+        {
+            var cached = Volatile.Read(ref _dataDirectory);
+            if (cached != null) return cached;
+            lock (_dirLock)
+            {
+                return _dataDirectory ??= ResolveDataDirectory();
+            }
+        }
+    }
 
     private static string ResolveDataDirectory()
     {
@@ -225,13 +244,21 @@ public static class AppPaths
 
     // ================= Проверки =================
 
-    /// <summary>Проверяет возможность создать файл в каталоге. Не использует FileAccess, только реальную запись.</summary>
+    /// <summary>
+    /// Проверяет возможность создать файл в каталоге, выполняя реальную запись.
+    ///
+    /// <para>Имя пробного файла включает GUID. Раньше туда подставлялся только
+    /// Environment.ProcessId, поэтому ДВЕ одновременные проверки в одном
+    /// процессе сталкивались: вторая получала IOException от FileMode.CreateNew,
+    /// проглатывала его и возвращала false. Итог: приложение считало каталог
+    /// недоступным для записи и молча уходило в другой путь данных.</para>
+    /// </summary>
     public static bool IsDirectoryWritable(string path)
     {
         try
         {
             if (!Directory.Exists(path)) return false;
-            string probe = Path.Combine(path, $".write-probe-{Environment.ProcessId}.tmp");
+            string probe = Path.Combine(path, $".write-probe-{Environment.ProcessId}-{Guid.NewGuid():N}.tmp");
             using (var fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose))
             {
                 fs.WriteByte(0);

@@ -94,12 +94,19 @@ public static class BenchmarkEngine
         }
         finally
         {
-            // Очистка тестовых данных
-            try
+            // Очистка тестовых данных.
+            // Task.Run: удаление примерно гигабайта файлов синхронно внутри
+            // finally выполнялось НА UI-ПОТОКЕ, потому что блок захватывал
+            // контекст вызывающего. Пользователь видел «зависшее» окно на все
+            // время рекурсивного удаления.
+            await Task.Run(() =>
             {
-                if (Directory.Exists(benchRoot)) Directory.Delete(benchRoot, true);
-            }
-            catch { }
+                try
+                {
+                    if (Directory.Exists(benchRoot)) Directory.Delete(benchRoot, true);
+                }
+                catch { }
+            }).ConfigureAwait(false);
         }
 
         return report;
@@ -128,7 +135,7 @@ public static class BenchmarkEngine
                 long blockStart = Stopwatch.GetTimestamp();
 
                 int toWrite = (int)Math.Min(bufferSize, totalBytes - written);
-                await fs.WriteAsync(pBuf.Memory.Slice(0, toWrite), ct);
+                await fs.WriteAsync(pBuf.Memory.Slice(0, toWrite), ct).ConfigureAwait(false);
 
                 double lat = (Stopwatch.GetTimestamp() - blockStart) * 1000.0 / Stopwatch.Frequency;
                 if (lat > maxLatency) maxLatency = lat;

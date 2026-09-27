@@ -240,10 +240,15 @@ public partial class App : Application
                 // Любой await внутри задачи перехватывал DispatcherSynchronizationContext
                 // и взаимоблокировал UI на всё время многочасового бенчмарка.
                 // Теперь бенчмарм выполняется в фоне, UI-поток не блокируется.
-                var benchTask = Task.Run(() =>
-                    Modules.PerformanceEngine.BenchmarkEngine.RunFullBenchmarkAsync(targetDir));
-                benchTask.Wait();
-                var report = benchTask.GetAwaiter().GetResult();
+                //
+                // Ожидание ровно ОДНО. Схема benchTask.Wait(); а затем
+                // GetAwaiter().GetResult() была вдвойне лишней, и главное:
+                // Wait() заворачивает исключение в AggregateException, поэтому
+                // в файл ошибки попадала не настоящая причина сбоя, а обёртка.
+                // GetAwaiter().GetResult() бросает исходное исключение.
+                var report = Task.Run(() =>
+                    Modules.PerformanceEngine.BenchmarkEngine.RunFullBenchmarkAsync(targetDir))
+                    .GetAwaiter().GetResult();
 
                 string outJson = System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
                 string outPath = System.IO.Path.Combine(Helpers.AppPaths.BenchmarkDirectory, "benchmark_last_run.json");
