@@ -5,7 +5,17 @@
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
         <!-- Запуск и контроль прав через SuperAdminPrivilegeHelper и runas -->
-        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+        <!-- ТРЕБУЕТСЯ АДМИНИСТРАТОР.
+         Раньше здесь стоял asInvoker, и Windows никогда не предлагала
+         повышение сама: запрос делал код при запуске, а при отказе
+         пользователя программа продолжала работу без прав, и данные
+         S.M.A.R.T. оказывались недоступны без предупреждения.
+
+         С requireAdministrator запрос повышения делает сама оболочка
+         до запуска кода. Если пользователь откажется, процесс не
+         стартует вовсе — это честнее, чем показывать половину пустых
+         показателей. -->
+    <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
       </requestedPrivileges>
     </security>
   </trustInfo>

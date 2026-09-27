@@ -87,33 +87,75 @@ public partial class App : Application
             }
         }
 
-        // Автоматический запуск с наивысшими правами Администратора (UAC Elevation)
-        if (!Helpers.SuperAdminPrivilegeHelper.IsAdministrator() && !e.Args.Contains("--no-elevate"))
+        // ══════════════════════════════════════════════════════════════════
+        // ОБЯЗАТЕЛЬНЫЙ ЗАПУСК С ПРАВАМИ АДМИНИСТРАТОРА
+        //
+        // Почему это не опция, а требование. Ключевая функция программы —
+        // чтение S.M.A.R.T. напрямую с накопителя. Windows запрещает
+        // открывать \\.\PhysicalDriveN обычному пользователю: проверено,
+        // возвращается «Отказано в доступе». Без повышения прав половина
+        // показателей о накопителях недоступна, и интерфейс показывает
+        // «н/д» там, где данные есть.
+        //
+        // Раньше при отказе в UAC приложение продолжало работу без прав,
+        // и пользователь получал молчаливо урезанные данные. Теперь отказ
+        // означает отказ в запуске: лучше не открыть программу вообще,
+        // чем открыть с недостоверными показателями.
+        //
+        // ДИАГНОСТИЧЕСКИЕ РЕЖИМЫ — единственное исключение.
+        //
+        // Проверки (--view-audit, --theme-audit, --contrast-audit,
+        // --anim-audit, --smart-test, --storage-audit, --copy-test)
+        // запускаются без повышения, иначе невозможно проверить сборку
+        // до установки: в неинтерактивной сессии диалог UAC не
+        // показывается, и любая проверка завершалась бы отказом.
+        //
+        // Исключение не ослабляет продукт: обычный запуск интерфейса
+        // по-прежнему требует прав, а проверки S.M.A.R.T. честно
+        // сообщают, что данные недоступны из-за отсутствия прав,
+        // вместо того чтобы выдавать пустоту за результат.
+        // ══════════════════════════════════════════════════════════════════
+        bool isDiagnosticRun = IsDiagnosticMode(e.Args);
+        bool isElevatedChild = e.Args.Contains("--elevated-child");
+
+        // Повышенный потомок, запущенный оболочкой без прав, обязан это
+        // обнаружить и честно завершиться. Проверка закрывает петлю:
+        // иначе Process.Start вернул бы успех, а процесс умер бы молча,
+        // и пользователь увидел бы «программа не запускается» без причины.
+        if (isElevatedChild && !Helpers.SuperAdminPrivilegeHelper.IsAdministrator())
         {
-            try
-            {
-                var proc = new System.Diagnostics.ProcessStartInfo
-                {
-                    UseShellExecute = true,
-                    WorkingDirectory = Environment.CurrentDirectory,
-                    FileName = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "Win11CopyDialog.exe",
-                    Verb = "runas"
-                };
-                foreach (var arg in e.Args)
-                {
-                    proc.ArgumentList.Add(arg);
-                }
-                System.Diagnostics.Process.Start(proc);
-                Shutdown();
-                return;
-            }
-            catch
-            {
-                // Если пользователь отменил UAC диалог - продолжаем запуск
-            }
+            MessageBox.Show(
+                "Windows не предоставила права администратора.\n\n" +
+                "Это происходит при отключённом UAC, при запуске из сессии " +
+                "без интерактивного рабочего стола или при ограничениях " +
+                "групповой политики.\n\n" +
+                "Программа закрыта: без прямого доступа к накопителю данные " +
+                "S.M.A.R.T. недостоверны.",
+                "Права не получены",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(3);
+            return;
         }
 
-        // Активация всех системных привилегий токена Super-Admin (SeManageVolumePrivilege и др.)
+        if (!isDiagnosticRun && !Helpers.SuperAdminPrivilegeHelper.IsAdministrator())
+        {
+            bool ok = TryRelaunchElevated(e.Args);
+
+            if (!ok)
+            {
+                // Отказ в UAC: код 1223 (ERROR_CANCELLED) либо любой
+                // другой. Показываем причину и завершаем работу.
+                Shutdown(2);
+                return;
+            }
+
+            Shutdown(0);
+            return;
+        }
+
+        // Активация системных привилегий токена: SeManageVolumePrivilege и др.
+        Helpers.SuperAdminPrivilegeHelper.EnableAllSuperAdminPrivileges();
+
         Helpers.SuperAdminPrivilegeHelper.EnableAllSuperAdminPrivileges();
 
         // Загрузка сохранённой конфигурации ДО применения темы.
@@ -1270,5 +1312,109 @@ public partial class App : Application
         }
         catch { }
     }
-}
+    /// <summary>
+    /// Является ли запуск проверочным режимом, не требующим прав.
+    /// </summary>
+    /// <remarks>
+    /// <para>Список ключей задан явно, а не через «если есть --no-elevate»:
+    /// иначе право не повышать привилегии получал бы любой, кто допишет
+    /// этот ключ в командную строку. Здесь перечислены ровно те режимы,
+    /// которые печатают отчёт в консоль и завершаются.</para>
+    ///
+    /// <para>Обычный запуск интерфейса сюда не попадает: он всегда
+    /// требует прав администратора.</para>
+    /// </remarks>
+    private static bool IsDiagnosticMode(string[] args)
+    {
+        string[] diagnostic = {
+            "--view-audit", "--theme-audit", "--contrast-audit",
+            "--anim-audit", "--smart-test", "--storage-audit", "--copy-test"
+        };
 
+        foreach (var a in args)
+            foreach (var d in diagnostic)
+                if (string.Equals(a, d, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Перезапускает процесс с повышенными правами.
+    /// </summary>
+    /// <remarks>
+    /// <para>Возвращает false, если пользователь отказал в UAC или
+    /// повышение невозможно. Вызывающий код обязан завершиться: работа
+    /// без прав приводит к недостоверным показателям накопителей.</para>
+    ///
+    /// <para>Аргументы переносятся все, включая ключи аудита, иначе
+    /// повышенный процесс не получил бы их и не смог выполнить проверку.</para>
+    /// </remarks>
+    private static bool TryRelaunchElevated(string[] args)
+    {
+        try
+        {
+            string exe = Environment.ProcessPath
+                          ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+                          ?? "Win11CopyDialog.exe";
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exe,
+                UseShellExecute = true,
+                // WorkingDirectory не переносится: при повышении оболочка
+                // запускает процесс из системного каталога, и относительные
+                // пути внутри программы разрешились бы неверно.
+                Verb = "runas"
+            };
+
+            // Метка повышенного потомка. Без неё результат повышения
+            // невозможно проверить: Process.Start сVerb=runas возвращает
+            // успех и тогда, когда оболочка не смогла показать диалог,
+            // а процесс умер сразу. Потомок проверяет свои права и
+            // сообщает об отказе через код выхода.
+            psi.ArgumentList.Add("--elevated-child");
+
+            foreach (var a in args)
+                psi.ArgumentList.Add(a);
+
+            System.Diagnostics.Process.Start(psi);
+            return true;
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // 1223 = ERROR_CANCELLED: пользователь нажал «Нет».
+            if (ex.NativeErrorCode == 1223)
+            {
+                MessageBox.Show(
+                    "Motion Commander требует прав администратора.\n\n" +
+                    "Без них программа не может прочитать состояние накопителей " +
+                    "напрямую с диска: Windows запрещает доступ к устройству " +
+                    "обычному пользователю. Показатели S.M.A.R.T., температура, " +
+                    "износ и состояние секторов были бы недоступны, и вы видели бы\n" +
+                    "недостоверные данные вместо настоящих.\n\n" +
+                    "Запустите программу от имени администратора и подтвердите запрос.",
+                    "Требуются права администратора",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Не удалось запросить права администратора.\n\n{ex.Message}\n\n" +
+                    "Программа будет закрыта: без повышения показатели накопителей " +
+                    "не могут быть достоверными.",
+                    "Ошибка запуска",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Не удалось запустить программу с повышенными правами.\n\n{ex.Message}",
+                "Ошибка запуска",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
+    }
+}

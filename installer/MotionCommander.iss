@@ -1,6 +1,6 @@
 ﻿#define MyAppName "Motion Commander"
 #ifndef MyAppVersion
-#define MyAppVersion "3.8.25"
+#define MyAppVersion "3.8.26"
 #endif
 #define MyAppPublisher "BlackTecCom - Jaborov Daler"
 #define MyAppURL "https://github.com/BlackTecCom2000/MotionCommander"

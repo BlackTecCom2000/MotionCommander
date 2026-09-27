@@ -1,23 +1,22 @@
 ﻿{
-    "version":  "3.8.25",
+    "version":  "3.8.26",
     "releaseDate":  "2026-09-28",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Новая космическая сцена: планета с настоящим сферическим терминатором, объемная туманность, звезды с цветом по температуре, параллакс от курсора и падающие звезды. Прежний фон рисовал белые квадраты одинакового размера без свечения и без глубины.",
-                      "Контраст впервые считается численно, а не подбирается на глаз. Аудит обнаружил 12 нечитаемых сочетаний: розовый акцент на белом давал 2,87:1 при требуемых 4,5:1. Светлеть нельзя - цвет приблизился бы к фону, поэтому акцент затемняется для использования как текст.",
-                      "Все 128 проверенных пар текста и фона проходят WCAG AA. Добавлены ресурсы AccentText, SuccessText, WarningText, DangerText, InfoText - затемненные версии для надписей, тогда как исходные цвета сохранены для плашек и рамок.",
-                      "Новый аудит --contrast-audit проверяет контраст всех тем численно и показывает, решает ли алгоритм проблему или нужен ручной подбор.",
-                      "ContrastText больше не угадывает по порогу яркости 0,42: теперь сравниваются контраст черного и белого, и выбирается лучший.",
-                      "Космический фон отключается в режиме Эконом, при скрытом окне и по настройке уменьшения движения. В статичном режиме сцена остается красивой, но не тратит ресурсы.",
-                      "StarfieldControl сохранен в проекте как запасной путь: если новая сцена покажет себя хуже, фон вернется одним изменением в разметке.",
-                      "Исправлено чтение сырых значений S.M.A.R.T. по абсолютным индексам блока вместо смещения своего атрибута, из-за чего всем атрибутам приписывалось значение первого."
+                      "Программа теперь запускается только с правами администратора: манифест приложения переведен с asInvoker на requireAdministrator, поэтому запрос повышения делает сама Windows до старта кода.",
+                      "При отказе в UAC программа не запускается. Раньше она продолжала работу без прав, и показатели S.M.A.R.T. оказывались недоступны без предупреждения - пользователь видел половину пустых значений, принимая их за состояние дисков.",
+                      "Повышенный процесс проверяет свои права и завершается с кодом 3, если Windows не предоставила доступ. Без этой проверки Process.Start возвращал успех даже тогда, когда процесс умирал молча.",
+                      "Диагностические режимы (--view-audit, --theme-audit, --contrast-audit, --anim-audit, --smart-test, --storage-audit, --copy-test) запускаются без повышения, иначе проверку невозможно выполнить до установки. Перечень ключей задан явно, чтобы отключить повышение нельзя было случайным аргументом.",
+                      "Космическая сцена: планета с настоящим сферическим терминатором, объемная туманность, звезды с цветом по температуре, параллакс от курсора, падающие звезды.",
+                      "Контраст всех 128 пар текста и фона проходит WCAG AA - раньше розовый акцент на белом давал 2,87:1 при требуемых 4,5:1.",
+                      "Установщик один файл: MotionCommander-v3.8.26-Setup.exe содержит все компоненты, ставится с правами администратора в Program Files, создает группу в меню Пуск и ключ в PATH."
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.25-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Patch.zip",
     "patchSizeMb":  3.16,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.25-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.25-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.25-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.26-Setup.exe"
 }
