@@ -14,7 +14,7 @@ namespace Win11CopyDialog.Controls;
 /// </summary>
 public sealed class LiveDiskIconModel : INotifyPropertyChanged
 {
-    private double _activity;          // 0..1, доля времени накопителя занята
+    private double _activity;
     private double _readMBps;
     private double _writeMBps;
     private bool _hasTelemetry;
@@ -70,7 +70,8 @@ public sealed class LiveDiskIconModel : INotifyPropertyChanged
 
 /// <summary>
 /// Иконка накопителя, «оживающая» по фактической нагрузке.
-///
+/// </summary>
+/// <remarks>
 /// <para><b>Что здесь честного.</b> Вращение кольца задаётся реальной
 /// долей занятости диска (PercentDiskTime), а яркость направлений чтения и
 /// записи — реальными скоростями. Если накопитель простаивает, иконка
@@ -80,7 +81,7 @@ public sealed class LiveDiskIconModel : INotifyPropertyChanged
 /// нагрузка; кисти берутся из кэша (Helpers.FrameBrushCache), поэтому в
 /// кадре нет аллокаций. При нулевой активности кадры не выдаются вовсе,
 /// и фоновое потребление равно нулю.</para>
-/// </summary>
+/// </remarks>
 public sealed class LiveDiskIcon : FrameworkElement
 {
     private readonly LiveDiskIconModel _model = new();
@@ -95,13 +96,12 @@ public sealed class LiveDiskIcon : FrameworkElement
         Loaded += (_, _) =>
         {
             _last = DateTime.Now;
-            _running = true;
-            CompositionTarget.Rendering += OnRendering;
+            Start();
         };
-        Unloaded += (_, _) =>
+        Unloaded += (_, _) => Stop();
+        IsVisibleChanged += (_, _) =>
         {
-            _running = false;
-            CompositionTarget.Rendering -= OnRendering;
+            if (IsVisible) Start(); else Stop();
         };
     }
 
@@ -129,6 +129,24 @@ public sealed class LiveDiskIcon : FrameworkElement
     public static readonly DependencyProperty ShowFlowProperty = DependencyProperty.Register(
         nameof(ShowFlow), typeof(bool), typeof(LiveDiskIcon), new FrameworkPropertyMetadata(true));
 
+    private void Start()
+    {
+        if (_running || !IsVisible) return;
+        var win = Window.GetWindow(this);
+        if (win == null || win.WindowState == WindowState.Minimized || !win.IsVisible) return;
+
+        CompositionTarget.Rendering += OnRendering;
+        _running = true;
+        _last = DateTime.Now;
+    }
+
+    private void Stop()
+    {
+        if (!_running) return;
+        CompositionTarget.Rendering -= OnRendering;
+        _running = false;
+    }
+
     private void OnRendering(object? sender, EventArgs e)
     {
         if (!_running) return;
@@ -136,21 +154,28 @@ public sealed class LiveDiskIcon : FrameworkElement
         // Не выдавать кадры, если иконка не видна или накопитель простаивает.
         if (!IsVisible || Visibility != Visibility.Visible)
         {
-            StopLoop();
+            Stop();
+            return;
+        }
+
+        var win = Window.GetWindow(this);
+        if (win == null || win.WindowState == WindowState.Minimized || !win.IsVisible)
+        {
+            Stop();
             return;
         }
 
         if (_model.Activity <= 0.001)
         {
             // Нагрузки нет: останавливаем цикл, чтобы не жечь CPU впустую.
-            StopLoop();
+            Stop();
             return;
         }
 
         // В режиме «Эконом» — вдвое меньше кадров.
         if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy)
         {
-            if ((DateTime.Now.Ticks / 166666) % 2 == 0) return;
+            if ((Environment.TickCount64 / 166666) % 2 == 0) return;
         }
 
         var now = DateTime.Now;
@@ -162,20 +187,68 @@ public sealed class LiveDiskIcon : FrameworkElement
         InvalidateVisual();
     }
 
-    private void StopLoop()
-    {
-        if (!_running) return;
-        _running = false;
-        CompositionTarget.Rendering -= OnRendering;
-        _last = DateTime.Now;
-    }
+    // ===================== Геометрия дуг =====================
 
-    private void EnsureLoop()
+    /// <summary>
+    /// Кэш геометрии дуг.
+    /// </summary>
+    /// <remarks>
+    /// Дуга строится один раз на пару (радиус, процент занятости) и
+    /// замораживается. Ключ квантуется: радиус — до целых пикселей, занятость —
+    /// до 1 % (100 значений). При реальной телеметрии это десятки записей,
+    /// а не рост памяти с частотой кадров.
+    /// </remarks>
+    private static class ArcCache
     {
-        if (_running) return;
-        _running = true;
-        _last = DateTime.Now;
-        CompositionTarget.Rendering += OnRendering;
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<(int, int), Geometry> _cache = new();
+
+        public static Geometry? Get(int radius, int percent)
+        {
+            if (radius < 1) return null;
+            percent = Math.Clamp(percent, 0, 100);
+            if (percent == 0) return null;
+
+            var key = (radius, percent);
+            if (_cache.TryGetValue(key, out var hit)) return hit;
+
+            try
+            {
+                double sweep = percent * 360.0 / 100.0;
+                // Полный оборот строить нельзя: у эллипса начало и конец
+                // совпадают, и такая геометрия рисуется некорректно.
+                if (sweep >= 359.5) sweep = 359.5;
+
+                const double startDeg = -90.0;
+                double sweepRad = sweep * Math.PI / 180.0;
+                double sx = Math.Cos(startDeg * Math.PI / 180.0) * radius;
+                double sy = Math.Sin(startDeg * Math.PI / 180.0) * radius;
+                double ex = Math.Cos((startDeg + sweep) * Math.PI / 180.0) * radius;
+                double ey = Math.Sin((startDeg + sweep) * Math.PI / 180.0) * radius;
+
+                var g = new StreamGeometry();
+                using (var ctx = g.Open())
+                {
+                    ctx.BeginFigure(new Point(sx, sy), false, false);
+                    ctx.ArcTo(
+                        new Point(ex, ey),
+                        new Size(radius, radius),
+                        0,
+                        sweep > 180.0,
+                        SweepDirection.Clockwise,
+                        true,
+                        false);
+                }
+                g.Freeze();
+
+                return _cache.GetOrAdd(key, g);
+            }
+            catch
+            {
+                // Геометрия не построилась — иконка покажет кольцо без дуги,
+                // что честнее, чем падение отрисовки на пустом элементе.
+                return null;
+            }
+        }
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -206,18 +279,13 @@ public sealed class LiveDiskIcon : FrameworkElement
                             : ColorOf(success);
 
             var ring = FrameBrushCache.Pen4(ringColor, 0.35 + act * 0.65, 2.0);
-
-            // У DrawingContext НЕТ метода DrawArc (он есть у Graphics только).
-            // Дуга строится как геометрия и кэшируется по паре
-            // (радиус в целых пикселях, процент занятости), поэтому в кадре
-            // не происходит ни одной аллокации.
             int pct = (int)Math.Round(Math.Clamp(act, 0, 1) * 100);
             var arc = ArcCache.Get((int)Math.Round(radius), pct);
             if (arc != null)
                 dc.DrawGeometry(null, ring, arc);
 
             // 2. Вращающийся бегунок на кольце — видно движение только под нагрузкой.
-            EnsureLoop();
+            Start();
             double ang = _phase * 180 / Math.PI;
             var pt = new Point(
                 center.X + Math.Cos(ang * Math.PI / 180) * radius,
@@ -228,7 +296,7 @@ public sealed class LiveDiskIcon : FrameworkElement
         else
         {
             // Накопитель простаивает: индикатор отсутствует, а не мигает.
-            StopLoop();
+            Stop();
         }
 
         // 3. Корпус накопителя.
@@ -284,71 +352,4 @@ public sealed class LiveDiskIcon : FrameworkElement
 
     private static Color ColorOf(Brush b)
         => b is SolidColorBrush scb ? scb.Color : Colors.Gray;
-}
-
-/// <summary>
-/// Кэш геометрии дуг для <see cref="LiveDiskIcon"/>.
-/// </summary>
-/// <remarks>
-/// <para>Дуга строится один раз на пару (радиус, процент занятости) и
-/// замораживается. Ключ квантуется: радиус — до целых пикселей, занятость —
-/// до 1 % (100 значений). При реальной телеметрии это десятки записей,
-/// а не рост памяти с частотой кадров.</para>
-/// </remarks>
-internal static class ArcCache
-{
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(int, int), Geometry> _cache = new();
-
-    public static Geometry? Get(int radius, int percent)
-    {
-        if (radius < 1) return null;
-        percent = Math.Clamp(percent, 0, 100);
-        if (percent == 0) return null;
-
-        var key = (radius, percent);
-        if (_cache.TryGetValue(key, out var hit)) return hit;
-
-        try
-        {
-            double sweep = percent * 360.0 / 100.0;
-            // Полный оборот строить нельзя: у эллипса начало и конец
-            // совпадают, и такая геометрия рисуется некорректно.
-            if (sweep >= 359.5) sweep = 359.5;
-
-            var startDeg = -90.0;
-            var sweepRad = sweep * Math.PI / 180.0;
-            double sx = Math.Cos(startDeg * Math.PI / 180.0) * radius;
-            double sy = Math.Sin(startDeg * Math.PI / 180.0) * radius;
-            double ex = Math.Cos((startDeg + sweep) * Math.PI / 180.0) * radius;
-            double ey = Math.Sin((startDeg + sweep) * Math.PI / 180.0) * radius;
-
-            var g = new StreamGeometry();
-            using (var ctx = g.Open())
-            {
-                ctx.BeginFigure(new Point(sx, sy), false, false);
-                // У StreamGeometryContext.ArcTo есть только перегрузка
-                // с isLargeArc и isSmoothJoin: 4-й аргумент — bool,
-                // а не SweepDirection. С углом разворота больше полуоборота
-                // дуга должна быть «большой», иначе WPF рисует короткую.
-                bool isLargeArc = sweep > 180.0;
-                ctx.ArcTo(
-                    new Point(ex, ey),
-                    new Size(radius, radius),
-                    0,
-                    isLargeArc,
-                    SweepDirection.Clockwise,
-                    true,
-                    false);
-            }
-            g.Freeze();
-
-            return _cache.GetOrAdd(key, g);
-        }
-        catch
-        {
-            // Геометрия не построилась — иконка покажет кольцо без дуги,
-            // что честнее, чем падение отрисовки на пустом элементе.
-            return null;
-        }
-    }
 }

@@ -85,6 +85,19 @@ public sealed class ThemeManager : INotifyPropertyChanged
     /// <summary>Семантические роли темы. Apply() выводит из них все токены ресурсов.</summary>
     private sealed record Palette
     {
+        /// <summary>
+        /// Преобразует закрытую палитру в публичное представление.
+        /// </summary>
+        /// <remarks>
+        /// Единственный мост наружу: наружу отдаётся структура только для
+        /// чтения, а сама палитра остаётся под контролем ThemeManager.
+        /// </remarks>
+        public ThemeColors ToColors() => new(
+            Window, Card, Border, Primary, Secondary,
+            PreferredAccent ?? Primary,
+            Success, Warning, Danger, Info,
+            IsDark, WindowRadius, HasLiveBackdrop);
+
         public required string Name { get; init; }
         public required bool IsDark { get; init; }
         public required Color Window { get; init; }
@@ -324,6 +337,37 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
     private Palette Current => Palettes[_theme];
 
+    /// <summary>
+    /// Палитра темы для внешнего чтения: аудит контраста, инструменты
+    /// экспорта, сторонние модули.
+    /// </summary>
+    /// <remarks>
+    /// Раньше палитра была полностью закрытой, и проверить цвета извне
+    /// было невозможно: единственный способ узнать контраст — запустить
+    /// приложение и посмотреть глазами на экран. Теперь цвета доступны
+    /// для вычислений, но сама палитра остаётся неизменяемой снаружи.
+    /// </remarks>
+    public ThemeColors GetColors(AppTheme theme) => Palettes[theme].ToColors();
+
+    /// <summary>Палитра текущей темы.</summary>
+    public ThemeColors CurrentColors => Current.ToColors();
+
+    /// <summary>Публичное представление палитры: только чтение.</summary>
+    public readonly record struct ThemeColors(
+        Color Window,
+        Color Card,
+        Color Border,
+        Color Text,
+        Color TextMuted,
+        Color Accent,
+        Color Success,
+        Color Warning,
+        Color Danger,
+        Color Info,
+        bool IsDark,
+        double WindowRadius,
+        bool HasLiveBackdrop);
+
     private ThemeManager()
     {
         _accent = Accents.First(a => a.Name == "Motion Glass Blue");
@@ -481,6 +525,25 @@ public sealed class ThemeManager : INotifyPropertyChanged
         d["AccentPressedBrush"] = Br(accentPressed);
         d["AccentForegroundBrush"] = Br(accentText);
         d["AccentMutedBrush"] = Br(Tint(accent, 0x35));
+
+        // Акцент как ЦВЕТ ТЕКСТА. Отдельный ресурс нужен потому, что сам
+        // акцент в светлых темах как текст нечитаем: розовый на белом
+        // даёт 2.87:1, бирюзовый — 2.06:1. Светлеть нельзя, приближение
+        // к фону только ухудшает. Здесь акцент затемняется до прохождения
+        // порога WCAG AA, а AccentBrush остаётся для заливок и рамок,
+        // где порог к тексту не применяется.
+        d["AccentTextBrush"] = Br(Helpers.Contrast.EnsureReadable(accent, p.Card));
+
+        // Семантические цвета как ТЕКСТ. Проблема та же: в светлых темах
+        // зелёный «успех» и янтарный «предупреждение» на белой карточке
+        // дают 3.3–3.5:1 при требуемых 4.5:1. Светлеть бесполезно —
+        // цвет приблизится к фону. Затемнённые версии применяются там,
+        // где цвет используется как надпись, а исходные остаются для
+        // плашек, рамок и точек статуса.
+        d["SuccessTextBrush"] = Br(Helpers.Contrast.EnsureReadable(p.Success, p.Card));
+        d["WarningTextBrush"] = Br(Helpers.Contrast.EnsureReadable(p.Warning, p.Card));
+        d["DangerTextBrush"]  = Br(Helpers.Contrast.EnsureReadable(p.Danger, p.Card));
+        d["InfoTextBrush"]    = Br(Helpers.Contrast.EnsureReadable(p.Info, p.Card));
         Color glow = Tint(accent, dark ? (byte)0x40 : (byte)0x28);
         d["GlowAccentColor"] = glow;
         d["GlowAccentBrush"] = Br(glow);
@@ -678,17 +741,47 @@ public sealed class ThemeManager : INotifyPropertyChanged
         return Color.FromRgb((byte)Math.Clamp(f(c.R), 0, 255), (byte)Math.Clamp(f(c.G), 0, 255), (byte)Math.Clamp(f(c.B), 0, 255));
     }
 
-    /// <summary>Читаемый цвет текста поверх акцента (WCAG-подобный порог относительной яркости).</summary>
+    /// <summary>
+    /// Читаемый цвет текста поверх акцента.
+    /// </summary>
+    /// <remarks>
+    /// <para>Раньше здесь стояло угадывание по порогу яркости 0.42:
+    /// «если светлее — чёрный, иначе белый». Порог был взят на глаз и не
+    /// соответствовал WCAG: при акценте на границе читаемость оказывалась
+    /// 2.5:1 при требуемых 4.5:1.</para>
+    ///
+    /// <para>Теперь сравниваются оба кандидата численно, и выбирается тот,
+    /// у которого отношение контраста выше. Если ни один не достигает
+    /// порога, выбирается лучший из доступных — частично читаемый текст
+    /// лучше, чем вредное решение по порогу.</para>
+    /// </remarks>
     private static Color ContrastText(Color bg)
     {
-        double L = (0.2126 * Lin(bg.R) + 0.7152 * Lin(bg.G) + 0.0722 * Lin(bg.B));
-        return L > 0.42 ? C("#101014") : C("#FFFFFF");
-        static double Lin(byte v)
-        {
-            double s = v / 255.0;
-            return s <= 0.04045 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
-        }
+        var dark = C("#101014");
+        var light = C("#FFFFFF");
+
+        double darkRatio = Helpers.Contrast.Ratio(dark, bg);
+        double lightRatio = Helpers.Contrast.Ratio(light, bg);
+
+        return lightRatio >= darkRatio ? light : dark;
     }
+
+    /// <summary>
+    /// Цвет акцента, пригодный для ТЕКСТА на подложке.
+    /// </summary>
+    /// <remarks>
+    /// <para>Акцент сам по себе часто не проходит WCAG AA как текст:
+    /// розовый <c>#E6679B</c> на белом даёт 2.87:1, а бирюзовый
+    /// <c>#00C2D6</c> на белом — 2.06:1. Светлеть такой цвет нельзя,
+    /// он только приблизится к фону.</para>
+    ///
+    /// <para>Поэтому для текста используется затемнённая версия акцента,
+    /// а сам акцент остаётся для заливок, рамок и значков, где порог
+    /// WCAG к тексту не применяется. Без этого разделения акцентный
+    /// текст был нечитаем в светлых темах.</para>
+    /// </remarks>
+    public Color AccentAsText(ThemeColors colors)
+        => Helpers.Contrast.EnsureReadable(colors.Accent, colors.Card);
 
     // ================= Сохранение =================
 

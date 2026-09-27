@@ -202,6 +202,16 @@ public partial class App : Application
             return;
         }
 
+        // --contrast-audit: численная проверка контраста всех тем по WCAG AA.
+        // Контраст раньше нигде не считался, поэтому нечитаемость
+        // обнаруживалась только глазами на конкретном экране.
+        if (e.Args.Contains("--contrast-audit"))
+        {
+            RunContrastAudit();
+            Shutdown(0);
+            return;
+        }
+
         // --anim-audit: численная проверка пружинных функций плавности.
         // Проверяет, что кривые действительно пружинные (есть перелёт у
         // колебательных, нет у апериодических), не содержат NaN и
@@ -751,6 +761,115 @@ public partial class App : Application
         }
 
         return problems;
+    }
+
+    /// <summary>
+    /// --contrast-audit: проверяет контраст всех тем численно.
+    ///
+    /// <para>Для каждой темы считается отношение контраста между фоном
+    /// карточки и каждым цветом, который реально используется как текст или
+    /// как значок. Порог WCAG AA — 4.5:1 для обычного текста и 3:1 для
+    /// крупного.</para>
+    ///
+    /// <para>Проверяется и то, что происходит на самом деле: если исходный
+    /// цвет не проходит порог, применяется EnsureReadable и сравнивается
+    /// результат. Так видно не только проблему, но и то, решена ли она
+    /// алгоритмом.</para>
+    /// </summary>
+    private void RunContrastAudit()
+    {
+        System.Console.WriteLine("CONTRAST AUDIT - контраст по WCAG 2.1 AA");
+        System.Console.WriteLine(new string('=', 78));
+
+        int failures = 0;
+        int checkedPairs = 0;
+        int fixedByAlgorithm = 0;
+
+        foreach (AppTheme theme in ThemeManager.AllThemes)
+        {
+            var p = ThemeManager.Instance.GetColors(theme);
+            var window = p.Window;
+            var card = p.Card;
+            var accent = p.Accent;
+
+            // Пары, которые действительно встречаются в интерфейсе.
+            var pairs = new (string Name, System.Windows.Media.Color Fg, System.Windows.Media.Color Bg, bool Large)[]
+            {
+                // Сырой акцент. Для ЗАЛИВОК и рамок порог WCAG к тексту
+                // не применяется, поэтому низкий контраст здесь допустим.
+                ("акцент-заливка (порог 3:1)", accent, card, true),
+
+                // Акцент как ЦВЕТ ТЕКСТА — с применённой коррекцией.
+                // Именно это значение попадает в AccentTextBrush.
+                ("акцент-текст (коррекция)",
+                    Helpers.Contrast.EnsureReadable(accent, card), card, false),
+
+                ("текст на фоне окна",   p.Text,        window, false),
+                ("текст на карточке",    p.Text,        card,    false),
+                // Семантические цвета как ТЕКСТ — с коррекцией.
+                // Именно эти значения попадают в *TextBrush.
+                ("успех-текст (коррекция)",
+                    Helpers.Contrast.EnsureReadable(p.Success, card), card, false),
+                ("ошибка-текст (коррекция)",
+                    Helpers.Contrast.EnsureReadable(p.Danger, card), card, false),
+                ("предупреждение-текст (коррекция)",
+                    Helpers.Contrast.EnsureReadable(p.Warning, card), card, false),
+                ("инфо-текст (коррекция)",
+                    Helpers.Contrast.EnsureReadable(p.Info, card), card, false),
+            };
+
+            System.Console.WriteLine();
+            System.Console.WriteLine($"  {theme}");
+            System.Console.WriteLine($"    фон окна    #{window.R:X2}{window.G:X2}{window.B:X2}" +
+                                     $"   карточка #{card.R:X2}{card.G:X2}{card.B:X2}");
+            System.Console.WriteLine($"    {"элемент",-22} {"контраст",9} {"порог",7}  итог");
+            System.Console.WriteLine($"    {new string('-', 70)}");
+
+            foreach (var (name, fg, bg, large) in pairs)
+            {
+                checkedPairs++;
+                double ratio = Helpers.Contrast.Ratio(fg, bg);
+                double target = large ? Helpers.Contrast.AaLarge : Helpers.Contrast.AaNormal;
+                bool pass = ratio >= target;
+
+                if (!pass)
+                {
+                    // Проверяем, решает ли алгоритм подъёма яркости проблему.
+                    var fixedColor = Helpers.Contrast.EnsureReadable(fg, bg, large);
+                    double fixedRatio = Helpers.Contrast.Ratio(fixedColor, bg);
+                    if (fixedRatio >= target)
+                    {
+                        fixedByAlgorithm++;
+                    }
+                    else
+                    {
+                        failures++;
+                    }
+
+                    System.Console.WriteLine(
+                        $"    {name,-22} {ratio,8:F2}:1 {target,6:F1}:1  НЕ ПРОХОДИТ" +
+                        (fixedRatio >= target
+                            ? $" -> алгоритм даёт {fixedRatio:F2}:1"
+                            : " -> алгоритм НЕ СПАСАЕТ, нужен ручной подбор"));
+                }
+                else
+                {
+                    System.Console.WriteLine($"    {name,-22} {ratio,8:F2}:1 {target,6:F1}:1  OK");
+                }
+            }
+        }
+
+        System.Console.WriteLine();
+        System.Console.WriteLine(new string('=', 78));
+        System.Console.WriteLine($"  проверено пар: {checkedPairs}");
+        System.Console.WriteLine($"  не прошли порог: {failures}" +
+                                 (fixedByAlgorithm > 0 ? $", из них алгоритм исправляет {fixedByAlgorithm}" : ""));
+        System.Console.WriteLine(failures == 0
+            ? "CONTRAST AUDIT: OK - весь текст проходит WCAG AA"
+            : failures == fixedByAlgorithm
+                ? $"CONTRAST AUDIT: {failures} пар не проходят, все исправляются EnsureReadable"
+                : $"CONTRAST AUDIT: ПРОБЛЕМ: {failures} пар не читаются даже после коррекции");
+        System.Console.Out.Flush();
     }
 
     private void RunAnimationAudit()
