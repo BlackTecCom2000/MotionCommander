@@ -104,13 +104,28 @@ public sealed class TransferVisualizer : FrameworkElement
     private double _parallaxX;
     private double _parallaxY;
 
-    // Кэшированные кисти
-    private Brush _accent = new SolidColorBrush(Color.FromRgb(0, 120, 212));
-    private Brush _track = new SolidColorBrush(Color.FromRgb(227, 227, 227));
-    private Brush _card = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-    private Brush _secondary = new SolidColorBrush(Color.FromRgb(96, 94, 92));
-    private Brush _success = new SolidColorBrush(Color.FromRgb(16, 124, 16));
-    private Brush _warning = new SolidColorBrush(Color.FromRgb(234, 163, 0));
+    // Кэшированные кисти. Все заморожены: незамороженная кисть клонируется WPF
+    // при каждом обращении, а в кадре это сотни аллокаций.
+    private Brush _accent = FrameBrushCache.Frozen(Color.FromRgb(0, 120, 212));
+    private Brush _track = FrameBrushCache.Frozen(Color.FromRgb(227, 227, 227));
+    private Brush _card = FrameBrushCache.Frozen(Color.FromRgb(255, 255, 255));
+    private Brush _secondary = FrameBrushCache.Frozen(Color.FromRgb(96, 94, 92));
+    private Brush _success = FrameBrushCache.Frozen(Color.FromRgb(16, 124, 16));
+    private Brush _warning = FrameBrushCache.Frozen(Color.FromRgb(234, 163, 0));
+
+    // Перья, зависящие только от _track: пересоздавать их в кадре незачем.
+    private Pen _ringPen = MakePen(FrameBrushCache.Frozen(Color.FromRgb(227, 227, 227)), 7);
+    private Pen _nodeRingPen = MakePen(FrameBrushCache.Frozen(Color.FromRgb(227, 227, 227)), 1.5);
+    private Pen _flowPen = MakePen(FrameBrushCache.Frozen(Color.FromRgb(0, 120, 212)), 2.5, PenLineCap.Round, PenLineJoin.Round);
+    private Pen _flowPen7 = MakePen(FrameBrushCache.Frozen(Color.FromRgb(0, 120, 212)), 7, PenLineCap.Round);
+    private Pen _trackPen3 = MakePen(FrameBrushCache.Frozen(Color.FromRgb(227, 227, 227)), 3, PenLineCap.Flat, PenLineJoin.Round);
+
+    private static Pen MakePen(Brush b, double thickness, PenLineCap cap = PenLineCap.Flat, PenLineJoin join = PenLineJoin.Miter)
+    {
+        var p = new Pen(b, thickness) { StartLineCap = cap, EndLineCap = cap, LineJoin = join };
+        if (p.CanFreeze) p.Freeze();
+        return p;
+    }
 
     public TransferVisualizer()
     {
@@ -140,14 +155,33 @@ public sealed class TransferVisualizer : FrameworkElement
             _last = DateTime.Now;
             _running = true;
             CompositionTarget.Rendering += OnRendering;
+            // Раньше анимация крутилась всегда, даже когда окно свёрнуто или
+            // вкладка скрыта: 60 FPS впустую на фоне. Теперь рендер идёт
+            // только когда элемент действительно нарисован.
+            IsVisibleChanged += OnVisibilityChanged;
         };
         Unloaded += (_, _) =>
         {
             _running = false;
             CompositionTarget.Rendering -= OnRendering;
             ThemeManager.Instance.PropertyChanged -= OnThemeChanged;
+            IsVisibleChanged -= OnVisibilityChanged;
         };
     }
+
+    /// <summary>Окно свёрнуто или элемент скрыт — рендер тратит CPU впустую.</summary>
+    private bool ShouldRender =>
+        IsVisible && IsLoaded && Visibility == Visibility.Visible &&
+        Window.GetWindow(this) is { WindowState: not WindowState.Minimized, IsVisible: true };
+
+    private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        _last = DateTime.Now;   // не накапливать dt за время скрытия
+        if (ShouldRender) InvalidateVisual();
+    }
+
+    /// <summary>Режим «Эконом»: 30 FPS вместо 60 вдвое снижает нагрузку без заметной потери плавности.</summary>
+    private bool _skipFrame;
 
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
@@ -174,10 +208,39 @@ public sealed class TransferVisualizer : FrameworkElement
     {
         var r = Application.Current?.Resources;
         if (r == null) return;
-        if (r["AccentBrush"] is Brush a) _accent = a;
-        if (r["GraphGridBrush"] is Brush g) _track = g;
-        if (r["CardBackgroundBrush"] is Brush c) _card = c;
-        if (r["SecondaryTextBrush"] is Brush s) _secondary = s;
+        if (Lookup(r, "AccentBrush") is Brush a) _accent = a;
+        if (Lookup(r, "GraphGridBrush") is Brush g) _track = g;
+        if (Lookup(r, "CardBackgroundBrush") is Brush c) _card = c;
+        if (Lookup(r, "SecondaryTextBrush") is Brush s) _secondary = s;
+
+        // Перья зависят от акцента и трека — пересобираем после смены темы.
+        _ringPen = MakePen(_track, 7);
+        _nodeRingPen = MakePen(_track, 1.5);
+        _trackPen3 = MakePen(_track, 3, PenLineCap.Flat, PenLineJoin.Round);
+        _flowPen = MakePen(_accent, 2.5, PenLineCap.Round, PenLineJoin.Round);
+        _flowPen7 = MakePen(_accent, 7, PenLineCap.Round);
+
+        // Кисти старой темы больше не нужны.
+        FrameBrushCache.Trim();
+        FrameTextCache.Trim();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Поиск по всей цепочке словарей. Application.Resources["Key"] НЕ ищет в
+    /// объединённых словарях, поэтому часть токенов молча не находилась.
+    /// </summary>
+    private static object? Lookup(ResourceDictionary dict, string key, int depth = 0)
+    {
+        if (depth > 4) return null;
+        if (dict.Contains(key)) { try { return dict[key]; } catch { return null; } }
+        foreach (var m in dict.MergedDictionaries)
+        {
+            if (m == null) continue;
+            var v = Lookup(m, key, depth + 1);
+            if (v != null) return v;
+        }
+        return null;
     }
 
     private void OnEnterState(TransferState st)
@@ -207,6 +270,17 @@ public sealed class TransferVisualizer : FrameworkElement
     private void OnRendering(object? sender, EventArgs e)
     {
         if (!_running) return;
+
+        // В свёрнутом окне или на скрытой вкладке кадры не нужны.
+        if (!ShouldRender) return;
+
+        // Режим «Эконом»: рендерим каждый второй кадр (~30 FPS).
+        if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy)
+        {
+            _skipFrame = !_skipFrame;
+            if (_skipFrame) return;
+        }
+
         var now = DateTime.Now;
         double dt = Math.Min(0.05, (now - _last).TotalSeconds);
         _last = now;
@@ -325,6 +399,8 @@ public sealed class TransferVisualizer : FrameworkElement
         var center = new Point(w / 2, h / 2);
 
         // 1. КОСМИЧЕСКОЕ ЗВЁЗДНОЕ ПОЛЕ С 3D-ПАРАЛЛАКСОМ (Starfield Space Depth)
+        // Кисти берутся из кэша с квантованной прозрачностью. Раньше здесь
+        // создавалось и замораживалось 48 кистей на КАЖДЫЙ кадр.
         foreach (var star in _stars)
         {
             double sx = star.X * w + _parallaxX * star.Z;
@@ -333,22 +409,21 @@ public sealed class TransferVisualizer : FrameworkElement
             if (sy < 0) sy += h; if (sy > h) sy -= h;
 
             double twinkle = 0.25 + 0.75 * Math.Abs(Math.Sin(_time * star.TwinkleRate));
-            byte alpha = (byte)(twinkle * star.Z * 120);
-            var starBrush = new SolidColorBrush(Color.FromArgb(alpha, accColor.R, accColor.G, accColor.B));
-            starBrush.Freeze();
-            dc.DrawEllipse(starBrush, null, new Point(sx, sy), 0.9 + star.Z * 1.1, 0.9 + star.Z * 1.1);
+            double alpha = twinkle * star.Z * (120 / 255.0);
+            var starBrush = FrameBrushCache.Solid(accColor, alpha);
+            double r = 0.9 + star.Z * 1.1;
+            dc.DrawEllipse(starBrush, null, new Point(sx, sy), r, r);
         }
 
         // 2. ГЛУБОКАЯ КОСМИЧЕСКАЯ НЕОНОВАЯ ВИЗУАЛИЗАЦИЯ (Cosmic Nebula Core)
         var vignette = new RadialGradientBrush(
             Color.FromArgb((byte)(24 + _energy * 30), accColor.R, accColor.G, accColor.B),
             Color.FromArgb(0, accColor.R, accColor.G, accColor.B));
-        vignette.Freeze();
+        if (vignette.CanFreeze) vignette.Freeze();
         dc.DrawEllipse(vignette, null, center, w * 0.48, h * 0.58);
 
         // 3. ТОНКАЯ КИБЕР-СЕТКА И ПРИЦЕЛЫ (Sci-Fi Coordinates)
-        var hudPen = new Pen(new SolidColorBrush(Color.FromArgb(0x18, accColor.R, accColor.G, accColor.B)), 1);
-        hudPen.Brush.Freeze();
+        var hudPen = FrameBrushCache.Pen4(accColor, 0x18 / 255.0, 1);
         dc.DrawLine(hudPen, new Point(30, 20), new Point(30, 36));
         dc.DrawLine(hudPen, new Point(22, 28), new Point(38, 28));
         dc.DrawLine(hudPen, new Point(w - 30, 20), new Point(w - 30, 36));
@@ -365,19 +440,15 @@ public sealed class TransferVisualizer : FrameworkElement
         path.Freeze();
 
         // Базовый трек
-        dc.DrawGeometry(null, new Pen(_track, 3) { LineJoin = PenLineJoin.Round }, path);
+        dc.DrawGeometry(null, _trackPen3, path);
 
         // 5. КВАНТОВЫЙ ГИПЕРПРОСТРАНСТВЕННЫЙ ТОННЕЛЬ (3D Quantum Helix Conduit)
         if (_energy > 0.02)
         {
             // Неоновое свечение основного пути
-            var glowPen = new Pen(new SolidColorBrush(Color.FromArgb((byte)(40 + _energy * 70), accColor.R, accColor.G, accColor.B)), 9 + _energy * 4)
-            {
-                LineJoin = PenLineJoin.Round
-            };
-            glowPen.Brush.Freeze();
+            var glowPen = FrameBrushCache.Pen4(accColor, (40 + _energy * 70) / 255.0, 9 + _energy * 4, PenLineCap.Flat, PenLineJoin.Round);
             dc.DrawGeometry(null, glowPen, path);
-            dc.DrawGeometry(null, new Pen(flowBrush, 2.5) { LineJoin = PenLineJoin.Round }, path);
+            dc.DrawGeometry(null, _flowPen, path);
 
             // Двойная спиральная волна гиперпространственного туннеля (Quantum Helix)
             var helixGeom1 = new StreamGeometry();
@@ -415,8 +486,7 @@ public sealed class TransferVisualizer : FrameworkElement
             helixGeom1.Freeze();
             helixGeom2.Freeze();
 
-            var helixPen = new Pen(new SolidColorBrush(Color.FromArgb((byte)(_energy * 90), accColor.R, accColor.G, accColor.B)), 1.2);
-            helixPen.Brush.Freeze();
+            var helixPen = FrameBrushCache.Pen4(accColor, _energy * 90 / 255.0, 1.2);
             dc.DrawGeometry(null, helixPen, helixGeom1);
             dc.DrawGeometry(null, helixPen, helixGeom2);
         }
@@ -425,12 +495,7 @@ public sealed class TransferVisualizer : FrameworkElement
         if (_particles.Count > 0)
         {
             var gg = new GeometryGroup();
-            var tailPen = new Pen(new SolidColorBrush(Color.FromArgb((byte)(70 + _energy * 130), accColor.R, accColor.G, accColor.B)), 1.8)
-            {
-                StartLineCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round
-            };
-            tailPen.Brush.Freeze();
+            var tailPen = FrameBrushCache.Pen4(accColor, (70 + _energy * 130) / 255.0, 1.8, PenLineCap.Round);
 
             foreach (var p in _particles)
             {
@@ -446,12 +511,12 @@ public sealed class TransferVisualizer : FrameworkElement
                     dc.DrawLine(tailPen, tailPos, pos);
                 }
 
+                // До 130 EllipseGeometry на кадр. Само по себе это дешёвый
+                // объект, но GeometryGroup пересобирает каждый кадр целиком.
                 gg.Children.Add(new EllipseGeometry(pos, p.Size, p.Size));
             }
 
-            double alpha = 0.55 + _energy * 0.45;
-            var pb = new SolidColorBrush(Color.FromArgb((byte)(alpha * 255), accColor.R, accColor.G, accColor.B));
-            pb.Freeze();
+            var pb = FrameBrushCache.Solid(accColor, 0.55 + _energy * 0.45);
             dc.DrawGeometry(pb, null, gg);
         }
 
@@ -459,12 +524,17 @@ public sealed class TransferVisualizer : FrameworkElement
         if (State == TransferState.Preparing)
         {
             double sx = ((_time * 130) % (w + 120)) - 60;
-            var grad = new LinearGradientBrush(
-                Color.FromArgb(0, accColor.R, accColor.G, accColor.B),
-                Color.FromArgb(65, accColor.R, accColor.G, accColor.B),
-                new Point(0, 0), new Point(1, 0));
-            grad.Freeze();
-            dc.DrawRectangle(grad, null, new Rect(sx - 40, 8, 80, h - 16));
+            // Градиент не зависит от позиции луча, поэтому кэшируется.
+            if (_scanGrad is null || _scanGradColor != accColor)
+            {
+                _scanGrad = new LinearGradientBrush(
+                    Color.FromArgb(0, accColor.R, accColor.G, accColor.B),
+                    Color.FromArgb(65, accColor.R, accColor.G, accColor.B),
+                    new Point(0, 0), new Point(1, 0));
+                if (_scanGrad.CanFreeze) _scanGrad.Freeze();
+                _scanGradColor = accColor;
+            }
+            dc.DrawRectangle(_scanGrad, null, new Rect(sx - 40, 8, 80, h - 16));
         }
 
         // 8. ГОЛОГРАФИЧЕСКИЕ КИБЕР-УЗЛЫ SRC И DST (Cyber Hologram Nodes)
@@ -475,8 +545,7 @@ public sealed class TransferVisualizer : FrameworkElement
         double ringR = Math.Min(54, h / 2 - 20);
 
         // Внешний лимб с делениями компаса
-        var reticlePen = new Pen(new SolidColorBrush(Color.FromArgb(0x35, accColor.R, accColor.G, accColor.B)), 1.2);
-        reticlePen.Brush.Freeze();
+        var reticlePen = FrameBrushCache.Pen4(accColor, 0x35 / 255.0, 1.2);
         dc.DrawEllipse(null, reticlePen, center, ringR + 10, ringR + 10);
         for (int a = 0; a < 360; a += 30)
         {
@@ -486,12 +555,11 @@ public sealed class TransferVisualizer : FrameworkElement
         }
 
         // Базовое кольцо прогресса
-        dc.DrawEllipse(null, new Pen(_track, 7), center, ringR, ringR);
+        dc.DrawEllipse(null, _ringPen, center, ringR, ringR);
 
         // Дыхание в покое
         double breathe = 0.12 + 0.06 * Math.Sin(_time * 2.2);
-        var haloPen = new Pen(new SolidColorBrush(Color.FromArgb((byte)((done ? 0.4 : breathe) * 255), accColor.R, accColor.G, accColor.B)), 13);
-        haloPen.Brush.Freeze();
+        var haloPen = FrameBrushCache.Pen4(accColor, done ? 0.4 : breathe, 13);
         dc.DrawEllipse(null, haloPen, center, ringR, ringR);
 
         // Двойная неоновая дуга прогресса
@@ -510,25 +578,14 @@ public sealed class TransferVisualizer : FrameworkElement
             arc.Figures.Add(fig);
             arc.Freeze();
 
-            var outerArcPen = new Pen(new SolidColorBrush(Color.FromArgb(90, accColor.R, accColor.G, accColor.B)), 12)
-            {
-                StartLineCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round
-            };
-            outerArcPen.Brush.Freeze();
+            var outerArcPen = FrameBrushCache.Pen4(accColor, 90 / 255.0, 12, PenLineCap.Round);
             dc.DrawGeometry(null, outerArcPen, arc);
 
-            dc.DrawGeometry(null, new Pen(flowBrush, 7)
-            {
-                StartLineCap = PenLineCap.Round,
-                EndLineCap = PenLineCap.Round
-            }, arc);
+            dc.DrawGeometry(null, _flowPen7, arc);
 
             if (sweep < 358)
             {
-                var headHalo = new SolidColorBrush(Color.FromArgb(130, accColor.R, accColor.G, accColor.B));
-                headHalo.Freeze();
-                dc.DrawEllipse(headHalo, null, endP, 8, 8);
+                dc.DrawEllipse(FrameBrushCache.Solid(accColor, 130 / 255.0), null, endP, 8, 8);
                 dc.DrawEllipse(Brushes.White, null, endP, 4, 4);
             }
         }
@@ -538,17 +595,17 @@ public sealed class TransferVisualizer : FrameworkElement
         {
             double t = Motion.Clamp01(_pulseT);
             double e = Motion.EaseOutCubic(t);
-            var pen = new Pen(new SolidColorBrush(Color.FromArgb((byte)((1 - e) * 200), accColor.R, accColor.G, accColor.B)), 3.5);
-            ((SolidColorBrush)pen.Brush).Freeze();
+            var pen = FrameBrushCache.Pen4(accColor, (1 - e) * (200 / 255.0), 3.5);
             dc.DrawEllipse(null, pen, center, ringR + e * 80, ringR + e * 80);
         }
 
         // 11. ФОТОННЫЕ ВСПЫШКИ (Burst Photons)
+        // До 70 вспышек: раньше на каждое создавалась и замораживалась своя кисть.
         foreach (var b in _bursts)
         {
-            var brush = new SolidColorBrush(Color.FromArgb((byte)(b.Life * 255), accColor.R, accColor.G, accColor.B));
-            brush.Freeze();
-            dc.DrawEllipse(brush, null, b.P, 3.0 * b.Life + 0.6, 3.0 * b.Life + 0.6);
+            var brush = FrameBrushCache.Solid(accColor, b.Life);
+            double rr = 3.0 * b.Life + 0.6;
+            dc.DrawEllipse(brush, null, b.P, rr, rr);
         }
     }
 
@@ -559,15 +616,12 @@ public sealed class TransferVisualizer : FrameworkElement
 
         if (glow > 0.01)
         {
-            var halo = new SolidColorBrush(Color.FromArgb((byte)(glow * 55), col.R, col.G, col.B));
-            halo.Freeze();
-            dc.DrawEllipse(halo, null, c, 40, 40);
+            dc.DrawEllipse(FrameBrushCache.Solid(col, glow * (55 / 255.0)), null, c, 40, 40);
         }
 
         // Вращающееся внешнее голографическое кольцо
         double rot = _time * (isSource ? 1.5 : -1.5);
-        var ringPen = new Pen(new SolidColorBrush(Color.FromArgb(0x40, col.R, col.G, col.B)), 1.5);
-        ringPen.Brush.Freeze();
+        var ringPen = FrameBrushCache.Pen4(col, 0x40 / 255.0, 1.5);
         dc.DrawEllipse(null, ringPen, c, 28, 28);
 
         // Радиальные засечки
@@ -579,25 +633,29 @@ public sealed class TransferVisualizer : FrameworkElement
         }
 
         // Основное тело узла
-        dc.DrawEllipse(_card, new Pen(new SolidColorBrush(Color.FromArgb(0x55, col.R, col.G, col.B)), 2), c, 24, 24);
-        dc.DrawEllipse(null, new Pen(_track, 1.5), c, 15, 15);
+        dc.DrawEllipse(_card, FrameBrushCache.Pen4(col, 0x55 / 255.0, 2), c, 24, 24);
+        dc.DrawEllipse(null, _nodeRingPen, c, 15, 15);
 
         // Активный квантовый ротор
         dc.DrawEllipse(active ? ab : _track, null, c, 6, 6);
 
-        // Технический голографический тег
+        // FormattedText — самая дорогая операция в WPF-рендере. Раньше здесь
+        // создавались четыре объекта на кадр (два узла × подпись и тег) плюс
+        // столько же Typeface и FontFamily. Теперь всё берётся из кэша.
+        double dip = _cachedDpi;
+        if (dip <= 0) { dip = _cachedDpi = VisualTreeHelper.GetDpi(this).PixelsPerDip; }
+
         string tag = isSource ? "[SRC]" : "[DST]";
-        var tagTf = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
-        var tagFt = new FormattedText(tag, System.Globalization.CultureInfo.InvariantCulture,
-            FlowDirection.LeftToRight, tagTf, 9, active ? ab : _secondary, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        var tagFt = FrameTextCache.Tag(tag, active ? ab : _secondary, dip);
         dc.DrawText(tagFt, new Point(c.X - tagFt.Width / 2, c.Y - 40));
 
-        // Подпись узла
-        var typeface = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
-        var ft = new FormattedText(label, System.Globalization.CultureInfo.CurrentUICulture,
-            FlowDirection.LeftToRight, typeface, 11, _secondary, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        var ft = FrameTextCache.Label(label ?? "", _secondary, dip);
         dc.DrawText(ft, new Point(c.X - ft.Width / 2, c.Y + 34));
     }
+
+    private double _cachedDpi;
+    private LinearGradientBrush? _scanGrad;
+    private Color _scanGradColor;
 
     private static Point PointOnCircle(Point c, double r, double deg)
     {

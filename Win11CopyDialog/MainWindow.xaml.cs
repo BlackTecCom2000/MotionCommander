@@ -51,10 +51,48 @@ public partial class MainWindow : Window
         Loaded += OnLoaded;
     }
 
+    /// <summary>
+    /// Показывает или скрывает анимированный звёздный фон.
+    /// Фон имеет смысл только в тёмных «космических» темах; в светлых он
+    /// выглядел ошибкой, а в свёрнутом окне продолжал занимать процессор.
+    /// </summary>
+    private void ApplyLiveBackdropState()
+    {
+        if (LiveStarfield == null) return;
+
+        bool on = ThemeManager.Instance.LiveBackdropEnabled;
+        LiveStarfield.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (!on) LiveStarfield.Opacity = 0;
+        else
+        {
+            LiveStarfield.Opacity = 1;
+            LiveStarfield.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void OnThemePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case null:
+            case nameof(ThemeManager.Theme):
+            case nameof(ThemeManager.AnimationQuality):
+            case nameof(ThemeManager.LiveBackdropEnabled):
+                ApplyLiveBackdropState();
+                BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
+                break;
+        }
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         ThemeManager.Instance.Apply();
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
+
+        // Живой звёздный фон включается только для тем, которые его объявляют,
+        // и выключается в режиме «Эконом». Раньше он анимировался всегда.
+        ApplyLiveBackdropState();
+        ThemeManager.Instance.PropertyChanged += OnThemePropertyChanged;
 
         // Загрузка дисков и быстрого доступа
         RefreshDrivesAndQuickAccess();
@@ -1333,6 +1371,7 @@ public partial class MainWindow : Window
         else if (TabToolsRadio.IsChecked == true) activeView = ToolsView;
 
         bool isFiles = (activeView == FilesView);
+        UpdateSpeedGraphTimer(activeView == DiagnosticsView);
         if (FileBrowserToolbarPanel != null) FileBrowserToolbarPanel.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
         if (SidebarBorder != null) SidebarBorder.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
         if (LeftSplitter != null) LeftSplitter.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
@@ -1500,7 +1539,23 @@ public partial class MainWindow : Window
             _speedGraphTimer = null;
         }
 
+        // Без отписки ThemeManager удерживал бы MainWindow живым после закрытия.
+        ThemeManager.Instance.PropertyChanged -= OnThemePropertyChanged;
+
         base.OnClosed(e);
+    }
+
+    /// <summary>
+    /// График скорости нужен только на вкладке «Диагностика».
+    /// Раньше таймер тикал 30 раз в секунду на ЛЮБОЙ вкладке, то есть
+    /// почти все тики были пустыми: вкладка скрыта, график всё равно
+    /// перерисовывался.
+    /// </summary>
+    private void UpdateSpeedGraphTimer(bool diagnosticsVisible)
+    {
+        if (_speedGraphTimer == null) return;
+        if (diagnosticsVisible) _speedGraphTimer.Start();
+        else _speedGraphTimer.Stop();
     }
 
     private void OnSpeedGraphTick(object? sender, EventArgs e)

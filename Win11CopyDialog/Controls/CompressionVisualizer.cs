@@ -46,6 +46,22 @@ public sealed class CompressionVisualizer : FrameworkElement
     private DateTime _last = DateTime.Now;
     private double _time;
     private bool _running;
+    /// <summary>
+    /// Рендер нужен только когда элемент действительно нарисован.
+    /// Раньше CompositionTarget.Rendering крутился всегда, в том числе в
+    /// свёрнутом окне и на скрытой вкладке, то есть впустую.
+    /// </summary>
+    private bool ShouldRender =>
+        IsVisible && IsLoaded && Visibility == Visibility.Visible &&
+        Window.GetWindow(this) is { WindowState: not WindowState.Minimized, IsVisible: true };
+
+    private bool _skipFrame;
+
+    private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        _last = DateTime.Now;   // не накапливать dt за время скрытия
+        if (ShouldRender) InvalidateVisual();
+    }
 
     // Кисти заморожены: незамороженная кисть клонируется WPF при каждом обращении,
     // что в кадре анимации даёт тысячи лишних аллокаций.
@@ -81,11 +97,13 @@ public sealed class CompressionVisualizer : FrameworkElement
             _last = DateTime.Now;
             _running = true;
             CompositionTarget.Rendering += OnRendering;
+            IsVisibleChanged += OnVisibilityChanged;
         };
         Unloaded += (_, _) =>
         {
             _running = false;
             CompositionTarget.Rendering -= OnRendering;
+            IsVisibleChanged -= OnVisibilityChanged;
         };
 
         // Раньше акцент читался только в Loaded, поэтому смена темы оставляла
@@ -119,6 +137,13 @@ public sealed class CompressionVisualizer : FrameworkElement
     private void OnRendering(object? sender, EventArgs e)
     {
         if (!_running) return;
+        if (!ShouldRender) return;
+
+        if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy)
+        {
+            _skipFrame = !_skipFrame;
+            if (_skipFrame) return;
+        }
         var now = DateTime.Now;
         double dt = Math.Min(0.05, (now - _last).TotalSeconds);
         _last = now;
@@ -159,14 +184,12 @@ public sealed class CompressionVisualizer : FrameworkElement
         var glow = new RadialGradientBrush(
             Color.FromArgb(glowAlpha, acc.R, acc.G, acc.B),
             Color.FromArgb(0, acc.R, acc.G, acc.B));
-        glow.Freeze();
+        if (glow.CanFreeze) glow.Freeze();
         dc.DrawEllipse(glow, null, center, 110 + 40 * progress, 80 + 26 * progress);
 
         // 2. Втягивающиеся частицы данных
-        var pBrush = new SolidColorBrush(Color.FromArgb(180, acc.R, acc.G, acc.B));
-        pBrush.Freeze();
-        var tailPen = new Pen(new SolidColorBrush(Color.FromArgb(80, acc.R, acc.G, acc.B)), 1.2);
-        tailPen.Brush.Freeze();
+        var pBrush = FrameBrushCache.Solid(acc, 180 / 255.0);
+        var tailPen = FrameBrushCache.Pen4(acc, 80 / 255.0, 1.2);
 
         foreach (var p in _particles)
         {
@@ -184,8 +207,7 @@ public sealed class CompressionVisualizer : FrameworkElement
         //    Раньше здесь вычислялся rot = _time * 2.2, который НЕ использовался:
         //    кольцо было неподвижным, несмотря на название в комментарии.
         double rot = _time * 2.2;
-        var ringPen = new Pen(new SolidColorBrush(Color.FromArgb(140, acc.R, acc.G, acc.B)), 1.8);
-        ringPen.Brush.Freeze();
+        var ringPen = FrameBrushCache.Pen4(acc, 140 / 255.0, 1.8);
 
         // Радиус кольца сжимается по мере роста прогресса, а сегменты вращаются.
         double ringRx = 36 - 8 * progress;
@@ -197,8 +219,7 @@ public sealed class CompressionVisualizer : FrameworkElement
         // Дуга прогресса поверх кольца: длина дуги = 360° * progress.
         if (progress > 0.001)
         {
-            var arcBrush = new SolidColorBrush(Color.FromArgb(230, acc.R, acc.G, acc.B));
-            arcBrush.Freeze();
+            var arcBrush = FrameBrushCache.Solid(acc, 230 / 255.0);
 
             double start = -90 + rot * 0.35;
             double sweep = 360 * progress;
@@ -216,8 +237,7 @@ public sealed class CompressionVisualizer : FrameworkElement
             geometry.Figures.Add(figure);
             geometry.Freeze();
 
-            var arcPen = new Pen(arcBrush, 3.0);
-            arcPen.Freeze();
+            var arcPen = FrameBrushCache.PenFor(arcBrush, 3.0);
             dc.DrawGeometry(null, arcPen, geometry);
         }
 
@@ -225,8 +245,7 @@ public sealed class CompressionVisualizer : FrameworkElement
         //    Размер ядра зависит от Ratio (коэффициент сжатия) — раньше
         //    это свойство тоже не читалось и визуализатор его игнорировал.
         double coreRx = 14 + 8 * ratio;
-        var coreBrush = new SolidColorBrush(Color.FromArgb(220, acc.R, acc.G, acc.B));
-        coreBrush.Freeze();
+        var coreBrush = FrameBrushCache.Solid(acc, 220 / 255.0);
         dc.DrawEllipse(coreBrush, null, center, coreRx, coreRx);
 
         dc.DrawEllipse(Brushes.White, null, center, coreRx / 3, coreRx / 3);

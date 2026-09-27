@@ -238,6 +238,7 @@ namespace Win11CopyDialog.Controls
 
             CompositionTarget.Rendering += OnRendering;
             _renderingAttached = true;
+            IsVisibleChanged += OnVisibilityChanged;
         }
 
         private void OnControlUnloaded(object sender, RoutedEventArgs e)
@@ -246,7 +247,22 @@ namespace Win11CopyDialog.Controls
 
             CompositionTarget.Rendering -= OnRendering;
             _renderingAttached = false;
+            IsVisibleChanged -= OnVisibilityChanged;
         }
+
+        /// <summary>
+        /// Звёздное поле не должно считать кадры, когда его не видно.
+        /// Раньше анимация шла и в свёрнутом окне, и на скрытой вкладке.
+        /// </summary>
+        private bool ShouldRender =>
+            IsVisible && IsLoaded && Visibility == Visibility.Visible &&
+            Window.GetWindow(this) is { WindowState: not WindowState.Minimized, IsVisible: true };
+
+        private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+            => _lastTick = DateTime.UtcNow;
+
+        /// <summary>Режим «Эконом»: вдвое меньше кадров.</summary>
+        private bool _skipFrame;
 
         /// <summary>Признак того, что обработчик OnRendering сейчас подписан.</summary>
         private bool _renderingAttached;
@@ -270,6 +286,17 @@ namespace Win11CopyDialog.Controls
         // ── Rendering tick ───────────────────────────────────────────────────
         private void OnRendering(object? sender, EventArgs e)
         {
+            // Скрытое или свёрнутое окно: кадры не нужны.
+            if (!ShouldRender) return;
+
+            // Режим «Эконом»: 30 FPS вместо 60.
+            if (Win11CopyDialog.Models.ThemeManager.Instance.AnimationQuality
+                    == Win11CopyDialog.Models.AnimationQuality.Economy)
+            {
+                _skipFrame = !_skipFrame;
+                if (_skipFrame) return;
+            }
+
             var now = DateTime.UtcNow;
             double dt = (now - _lastTick).TotalSeconds;
             _lastTick = now;

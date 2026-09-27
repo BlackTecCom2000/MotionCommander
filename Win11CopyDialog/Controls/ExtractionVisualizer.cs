@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 using Win11CopyDialog.Helpers;
+using Win11CopyDialog.Models;
 
 namespace Win11CopyDialog.Controls;
 
@@ -35,6 +36,22 @@ public sealed class ExtractionVisualizer : FrameworkElement
     private DateTime _last = DateTime.Now;
     private double _time;
     private bool _running;
+    /// <summary>
+    /// Рендер нужен только когда элемент действительно нарисован.
+    /// Раньше CompositionTarget.Rendering крутился всегда, в том числе в
+    /// свёрнутом окне и на скрытой вкладке, то есть впустую.
+    /// </summary>
+    private bool ShouldRender =>
+        IsVisible && IsLoaded && Visibility == Visibility.Visible &&
+        Window.GetWindow(this) is { WindowState: not WindowState.Minimized, IsVisible: true };
+
+    private bool _skipFrame;
+
+    private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        _last = DateTime.Now;   // не накапливать dt за время скрытия
+        if (ShouldRender) InvalidateVisual();
+    }
 
     // Замороженная кисть: незамороженную WPF клонирует при каждом обращении.
     private Brush _accent = Frozen(Color.FromRgb(16, 185, 129));
@@ -69,11 +86,13 @@ public sealed class ExtractionVisualizer : FrameworkElement
             _last = DateTime.Now;
             _running = true;
             CompositionTarget.Rendering += OnRendering;
+            IsVisibleChanged += OnVisibilityChanged;
         };
         Unloaded += (_, _) =>
         {
             _running = false;
             CompositionTarget.Rendering -= OnRendering;
+            IsVisibleChanged -= OnVisibilityChanged;
         };
 
         // Раньше акцент читался только в Loaded: смена темы оставляла старый цвет.
@@ -104,6 +123,13 @@ public sealed class ExtractionVisualizer : FrameworkElement
     private void OnRendering(object? sender, EventArgs e)
     {
         if (!_running) return;
+        if (!ShouldRender) return;
+
+        if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy)
+        {
+            _skipFrame = !_skipFrame;
+            if (_skipFrame) return;
+        }
         var now = DateTime.Now;
         double dt = Math.Min(0.05, (now - _last).TotalSeconds);
         _last = now;
@@ -141,22 +167,19 @@ public sealed class ExtractionVisualizer : FrameworkElement
         var glow = new RadialGradientBrush(
             Color.FromArgb(glowAlpha, acc.R, acc.G, acc.B),
             Color.FromArgb(0, acc.R, acc.G, acc.B));
-        glow.Freeze();
+        if (glow.CanFreeze) glow.Freeze();
         dc.DrawEllipse(glow, null, center, 120, 80);
 
         // 2. Расширяющиеся концентрические волны
         double wavePhase = (_time * 1.8) % 1.0;
-        var wavePen = new Pen(new SolidColorBrush(Color.FromArgb((byte)((1 - wavePhase) * 120), acc.R, acc.G, acc.B)), 1.5);
-        wavePen.Brush.Freeze();
+        var wavePen = FrameBrushCache.Pen4(acc, (1 - wavePhase) * 120 / 255.0, 1.5);
         dc.DrawEllipse(null, wavePen, center, 20 + wavePhase * 80, 15 + wavePhase * 55);
 
         // 3. Вылетающие наружу частицы файлов со шлейфами.
         //    Начало шлейфа отодвигается по мере роста прогресса — визуальный отклик.
         double tailOffset = 12 - 6 * progress;
-        var pBrush = new SolidColorBrush(Color.FromArgb(200, acc.R, acc.G, acc.B));
-        pBrush.Freeze();
-        var tailPen = new Pen(new SolidColorBrush(Color.FromArgb(90, acc.R, acc.G, acc.B)), 1.4);
-        tailPen.Brush.Freeze();
+        var pBrush = FrameBrushCache.Solid(acc, 200 / 255.0);
+        var tailPen = FrameBrushCache.Pen4(acc, 90 / 255.0, 1.4);
 
         foreach (var p in _particles)
         {
@@ -190,20 +213,16 @@ public sealed class ExtractionVisualizer : FrameworkElement
             geometry.Figures.Add(figure);
             geometry.Freeze();
 
-            var trackPen = new Pen(new SolidColorBrush(Color.FromArgb(50, acc.R, acc.G, acc.B)), 3.0);
-            trackPen.Brush.Freeze();
+            var trackPen = FrameBrushCache.Pen4(acc, 50 / 255.0, 3.0);
             dc.DrawEllipse(null, trackPen, center, rx, ry);
 
-            var arcBrush = new SolidColorBrush(Color.FromArgb(235, acc.R, acc.G, acc.B));
-            arcBrush.Freeze();
-            var arcPen = new Pen(arcBrush, 3.0);
-            arcPen.Freeze();
+            var arcBrush = FrameBrushCache.Solid(acc, 235 / 255.0);
+            var arcPen = FrameBrushCache.PenFor(arcBrush, 3.0);
             dc.DrawGeometry(null, arcPen, geometry);
         }
 
         // 5. Центральное раскрывающеесь ядро архива
-        var coreBrush = new SolidColorBrush(Color.FromArgb(220, acc.R, acc.G, acc.B));
-        coreBrush.Freeze();
+        var coreBrush = FrameBrushCache.Solid(acc, 220 / 255.0);
         dc.DrawEllipse(coreBrush, null, center, 18, 18);
         dc.DrawEllipse(Brushes.White, null, center, 6, 6);
     }

@@ -48,13 +48,28 @@ public sealed class FluidProgressBar : FrameworkElement
             _last = DateTime.Now;
             _running = true;
             CompositionTarget.Rendering += OnRendering;
+            IsVisibleChanged += OnVisibilityChanged;
         };
         Unloaded += (_, _) =>
         {
             _running = false;
             CompositionTarget.Rendering -= OnRendering;
             ThemeManager.Instance.PropertyChanged -= OnThemeChanged;
+            IsVisibleChanged -= OnVisibilityChanged;
         };
+    }
+
+    /// <summary>Кадры нужны только когда полоса действительно видима.</summary>
+    private bool ShouldRender =>
+        IsVisible && IsLoaded && Visibility == Visibility.Visible &&
+        Window.GetWindow(this) is { WindowState: not WindowState.Minimized, IsVisible: true };
+
+    private bool _skipFrame;
+
+    private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        _last = DateTime.Now;
+        if (ShouldRender) InvalidateVisual();
     }
 
     private void OnThemeChanged(object? s, System.ComponentModel.PropertyChangedEventArgs e) =>
@@ -71,6 +86,14 @@ public sealed class FluidProgressBar : FrameworkElement
     private void OnRendering(object? s, EventArgs e)
     {
         if (!_running) return;
+        if (!ShouldRender) return;
+
+        if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy)
+        {
+            _skipFrame = !_skipFrame;
+            if (_skipFrame) return;
+        }
+
         var now = DateTime.Now;
         double dt = Math.Min(0.05, (now - _last).TotalSeconds);
         _last = now;

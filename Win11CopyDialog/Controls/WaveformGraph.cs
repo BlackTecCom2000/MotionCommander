@@ -44,6 +44,22 @@ public sealed class WaveformGraph : FrameworkElement
     private double _time;
     private DateTime _last = DateTime.Now;
     private bool _running;
+    /// <summary>
+    /// Рендер нужен только когда элемент действительно нарисован.
+    /// Раньше CompositionTarget.Rendering крутился всегда, в том числе в
+    /// свёрнутом окне и на скрытой вкладке, то есть впустую.
+    /// </summary>
+    private bool ShouldRender =>
+        IsVisible && IsLoaded && Visibility == Visibility.Visible &&
+        Window.GetWindow(this) is { WindowState: not WindowState.Minimized, IsVisible: true };
+
+    private bool _skipFrame;
+
+    private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        _last = DateTime.Now;   // не накапливать dt за время скрытия
+        if (ShouldRender) InvalidateVisual();
+    }
     private Brush _accent = new SolidColorBrush(Color.FromRgb(0, 120, 212));
     private Brush _grid = new SolidColorBrush(Color.FromRgb(227, 227, 227));
 
@@ -57,11 +73,13 @@ public sealed class WaveformGraph : FrameworkElement
             _last = DateTime.Now;
             _running = true;
             CompositionTarget.Rendering += OnRendering;
+            IsVisibleChanged += OnVisibilityChanged;
         };
         Unloaded += (_, _) =>
         {
             _running = false;
             CompositionTarget.Rendering -= OnRendering;
+            IsVisibleChanged -= OnVisibilityChanged;
             ThemeManager.Instance.PropertyChanged -= OnThemeChanged;
         };
     }
@@ -80,6 +98,13 @@ public sealed class WaveformGraph : FrameworkElement
     private void OnRendering(object? s, EventArgs e)
     {
         if (!_running) return;
+        if (!ShouldRender) return;
+
+        if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy)
+        {
+            _skipFrame = !_skipFrame;
+            if (_skipFrame) return;
+        }
         var now = DateTime.Now;
         _time += Math.Min(0.05, (now - _last).TotalSeconds);
         _last = now;
@@ -92,8 +117,7 @@ public sealed class WaveformGraph : FrameworkElement
         double w = ActualWidth, h = ActualHeight;
         if (w < 20 || h < 20) return;
 
-        var gridPen = new Pen(_grid, 1);
-        gridPen.Freeze();
+        var gridPen = FrameBrushCache.PenFor(_grid, 1);
         for (int i = 1; i <= 3; i++)
         {
             double y = h * i / 4;
@@ -163,8 +187,7 @@ public sealed class WaveformGraph : FrameworkElement
         // светящаяся голова
         var head = pts[n - 1];
         double pulse = 0.6 + 0.4 * Math.Sin(_time * 5);
-        var halo = new SolidColorBrush(Color.FromArgb((byte)(70 * pulse), ac.R, ac.G, ac.B));
-        halo.Freeze();
+        var halo = FrameBrushCache.Solid(ac, 70 * pulse / 255.0);
         dc.DrawEllipse(halo, null, head, 8, 8);
         dc.DrawEllipse(_accent, null, head, 3.4, 3.4);
         var core = new SolidColorBrush(Colors.White);

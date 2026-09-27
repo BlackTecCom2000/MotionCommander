@@ -27,6 +27,7 @@ public partial class MotionCopyWindow : Window
     private string _lastSpeedText = "";
     private string _lastFile = "";
     private DateTime _lastFrame = DateTime.Now;
+    private bool _skipFrame;
     private bool _allowClose;
     private bool _filesExpanded = false;
 
@@ -139,6 +140,20 @@ public partial class MotionCopyWindow : Window
 
     private void OnFrame(object? sender, EventArgs e)
     {
+        // В свёрнутом окне кадры не нужны: 60 FPS текстовых обновлений впустую.
+        if (!IsVisible || WindowState == WindowState.Minimized)
+        {
+            _lastFrame = DateTime.Now;
+            return;
+        }
+
+        // Режим «Эконом»: 30 FPS.
+        if (ThemeManager.Instance.AnimationQuality == AnimationQuality.Economy)
+        {
+            _skipFrame = !_skipFrame;
+            if (_skipFrame) return;
+        }
+
         double dt = Math.Min(0.05, (DateTime.Now - _lastFrame).TotalSeconds);
         _lastFrame = DateTime.Now;
 
