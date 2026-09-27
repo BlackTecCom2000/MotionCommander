@@ -6,50 +6,352 @@ namespace MotionCommander.Core.Storage.Windows;
 
 public sealed class WindowsStorageProvider : IStorageProvider
 {
+    /// <summary>
+    /// Возвращает реальные физические накопители.
+    ///
+    /// <para><b>Что было не так.</b> Метод перечислял только логические тома
+    /// через DriveInfo и затем ПОДСТАВЛЯЛ показатели по формуле
+    /// «если это диск C:, значит NVMe 38 °C, иначе SSD 32 °C», а здоровье
+    /// и оценку писал константами 100 и «A+». Ни один из этих параметров
+    /// не имел отношения к реальному оборудованию.</para>
+    ///
+    /// <para>Теперь используется WMI (MSFT_Disk / Win32_DiskDrive) для
+    /// реальных модели, серийного номера, размера, типа носителя и состояния.
+    /// Показатели, которые контроллер не отдаёт, помечаются как неизмеренные,
+    /// и в вывод попадают как «нет данных», а не как выдуманные числа.</para>
+    /// </summary>
     public Task<List<StorageDiskInfo>> GetPhysicalDisksAsync()
     {
         var result = new List<StorageDiskInfo>();
-        var drives = DriveInfo.GetDrives().Where(d => d.IsReady).ToList();
 
-        int idx = 0;
-        foreach (var d in drives)
+        if (!OperatingSystem.IsWindows())
+            return Task.FromResult(result);
+
+        // ── 1. Реальные физические диски ─────────────────────────────────
+        try
         {
-            string root = d.RootDirectory.FullName.TrimEnd('\\');
-            bool isSystem = root.Equals("C:", StringComparison.OrdinalIgnoreCase);
+            var scope = new System.Management.ManagementScope(@"\\.\root\microsoft\windows\storage");
+            scope.Options.Timeout = TimeSpan.FromSeconds(5);
 
-            var disk = new StorageDiskInfo
+            using var searcher = new System.Management.ManagementObjectSearcher(scope,
+                new System.Management.ObjectQuery(
+                    "SELECT Number, FriendlyName, SerialNumber, BusType, Size, HealthStatus, PartitionStyle FROM MSFT_Disk"));
+
+            using var results = searcher.Get();
+            foreach (System.Management.ManagementObject obj in results)
             {
-                Index = idx++,
-                DeviceId = root,
-                DevicePath = root,
-                Model = string.IsNullOrWhiteSpace(d.VolumeLabel) ? $"Логический диск {root}" : $"{d.VolumeLabel} ({root})",
-                SizeBytes = d.TotalSize,
-                MediaType = isSystem ? DiskMediaType.NVMe : (d.DriveType == DriveType.Removable ? DiskMediaType.FlashMemory : DiskMediaType.SSD),
-                BusType = d.DriveType == DriveType.Removable ? DiskBusType.USB : (isSystem ? DiskBusType.NVMe : DiskBusType.SATA),
-                HealthPercent = 100,
-                HealthGrade = "A+",
-                TemperatureC = isSystem ? 38.0 : 32.0,
-                IsSystemDisk = isSystem,
-                IsRemovable = d.DriveType == DriveType.Removable
-            };
+                using (obj)
+                {
+                    int number = Convert.ToInt32(obj["Number"] ?? -1);
+                    if (number < 0) continue;
 
-            disk.Partitions.Add(new PartitionInfo
+                    long size = Convert.ToInt64(obj["Size"] ?? 0);
+                    int busCode = Convert.ToInt32(obj["BusType"] ?? 0);
+                    ushort healthCode = 0;
+                    try { healthCode = Convert.ToUInt16(obj["HealthStatus"] ?? 0); } catch { }
+
+                    var disk = new StorageDiskInfo
+                    {
+                        Index = number,
+                        DeviceId = number.ToString(),
+                        DevicePath = $@"\\.\PHYSICALDRIVE{number}",
+                        Model = obj["FriendlyName"]?.ToString() ?? $"Диск {number}",
+                        SerialNumber = (obj["SerialNumber"]?.ToString() ?? "").Trim(),
+                        SizeBytes = size,
+                        BusType = MapBusType(busCode),
+                        MediaType = MapMediaType(busCode),
+                        IsSystemDisk = number == 0
+                    };
+
+                    // Реальное состояние из MSFT_Disk.HealthStatus (UInt16-энум).
+                    // 0 = Unknown — состояние НЕИЗВЕСТНО, а не «здоров».
+                    disk.HealthMeasured = healthCode is 1 or 2 or 3;
+                    disk.HealthPercent = healthCode switch
+                    {
+                        1 => 100,
+                        2 => 60,
+                        3 => 10,
+                        _ => 0
+                    };
+                    disk.HealthGrade = !disk.HealthMeasured ? "н/д"
+                        : disk.HealthPercent switch
+                        {
+                            >= 90 => "A",
+                            >= 70 => "B",
+                            >= 50 => "C",
+                            _ => "D"
+                        };
+
+                    // Температура и износ заполняются отдельно, реальными
+                    // счётчиками. Здесь они остаются неизмеренными.
+                    result.Add(disk);
+                }
+            }
+        }
+        catch (System.Management.ManagementException)
+        {
+            // WMI-хранилище недоступно — переходим к Win32_DiskDrive.
+            result.Clear();
+        }
+
+        // ── 2. Запасной путь: Win32_DiskDrive ───────────────────────────
+        if (result.Count == 0)
+        {
+            try
             {
-                PartitionNumber = 1,
-                DevicePath = root,
-                MountPoint = root,
-                VolumeLabel = d.VolumeLabel,
-                FileSystem = d.DriveFormat,
-                SizeBytes = d.TotalSize,
-                FreeBytes = d.AvailableFreeSpace,
-                IsSystem = isSystem
-            });
+                using var searcher = new System.Management.ManagementObjectSearcher(
+                    "SELECT Index, Model, SerialNumber, InterfaceType, Size, MediaType, Status FROM Win32_DiskDrive");
+                using var results = searcher.Get();
 
-            result.Add(disk);
+                foreach (System.Management.ManagementObject obj in results)
+                {
+                    using (obj)
+                    {
+                        int index = Convert.ToInt32(obj["Index"] ?? 0);
+                        string ifType = obj["InterfaceType"]?.ToString() ?? "";
+                        int mediaType = Convert.ToInt32(obj["MediaType"] ?? 0);
+                        string status = obj["Status"]?.ToString()?.Trim() ?? "";
+
+                        DiskBusType bus = ifType.Equals("USB", StringComparison.OrdinalIgnoreCase)
+                            ? DiskBusType.USB
+                            : DiskBusType.Unknown;
+
+                        result.Add(new StorageDiskInfo
+                        {
+                            Index = index,
+                            DeviceId = index.ToString(),
+                            DevicePath = $@"\\.\PHYSICALDRIVE{index}",
+                            Model = obj["Model"]?.ToString() ?? $"Диск {index}",
+                            SerialNumber = (obj["SerialNumber"]?.ToString() ?? "").Trim(),
+                            SizeBytes = Convert.ToInt64(obj["Size"] ?? 0),
+                            BusType = bus,
+                            MediaType = mediaType == 3
+                                ? DiskMediaType.HDD
+                                : bus == DiskBusType.USB ? DiskMediaType.FlashMemory
+                                : DiskMediaType.Unknown,
+                            // Win32_DiskDrive.Status — реальная строка состояния.
+                            HealthMeasured = status.Length > 0,
+                            HealthPercent = status.ToLowerInvariant() switch
+                            {
+                                "ok" => 100,
+                                "degraded" => 60,
+                                _ => status.Length > 0 ? 20 : 0
+                            },
+                            HealthGrade = status.Length == 0 ? "н/д"
+                                : status.Equals("OK", StringComparison.OrdinalIgnoreCase) ? "A" : "D",
+                            IsSystemDisk = index == 0
+                        });
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // ── 3. Дополняем реальными разделами и свободным местом ─────────
+        // Используем MSFT_Partition + MSFT_Volume из хранилища Windows.
+        // Раньше здесь использовался Win32_LogicalDiskToPartition, у которого
+        // нет свойства DiskNumber (это ассоциативный класс со ссылками
+        // Antecedent/Dependent), из-за чего разделы не выводились вовсе.
+        try
+        {
+            var storageScope = new System.Management.ManagementScope(@"\\.\root\microsoft\windows\storage");
+            storageScope.Options.Timeout = TimeSpan.FromSeconds(5);
+
+            // Собираем реальные данные томов: буква -> (метка, ФС, размер, свободно)
+            var volumes = new Dictionary<string, (string label, string fs, long size, long free)>(
+                StringComparer.OrdinalIgnoreCase);
+
+            using (var vSearcher = new System.Management.ManagementObjectSearcher(storageScope,
+                new System.Management.ObjectQuery(
+                    "SELECT DriveLetter, FileSystemLabel, FileSystem, Size, SizeRemaining FROM MSFT_Volume")))
+            {
+                using var vResults = vSearcher.Get();
+                foreach (System.Management.ManagementObject v in vResults)
+                {
+                    using (v)
+                    {
+                        string letter = v["DriveLetter"]?.ToString() ?? "";
+                        if (string.IsNullOrWhiteSpace(letter)) continue;
+
+                        volumes[letter] = (
+                            v["FileSystemLabel"]?.ToString() ?? "",
+                            v["FileSystem"]?.ToString() ?? "Неизвестно",
+                            Convert.ToInt64(v["Size"] ?? 0),
+                            Convert.ToInt64(v["SizeRemaining"] ?? 0));
+                    }
+                }
+            }
+
+            using (var pSearcher = new System.Management.ManagementObjectSearcher(storageScope,
+                new System.Management.ObjectQuery(
+                    "SELECT DiskNumber, PartitionNumber, DriveLetter, Size, IsBoot, IsSystem FROM MSFT_Partition")))
+            {
+                using var pResults = pSearcher.Get();
+                foreach (System.Management.ManagementObject p in pResults)
+                {
+                    using (p)
+                    {
+                        // Обработка ПОСТРОЧНАЯ: одно некорректно прочитанное
+                        // свойство не должно прерывать вывод остальных разделов.
+                        try
+                        {
+                            int diskNum = Convert.ToInt32(p["DiskNumber"] ?? -1);
+                            var target = result.FirstOrDefault(d => d.Index == diskNum);
+                            if (target == null) continue;
+
+                            // ВАЖНО: у MSFT_Partition свойство DriveLetter имеет
+                            // тип char, и для системных разделов (EFI, MSR)
+                            // содержит NUL (код 0), а не пустую строку.
+                            // String.Trim() NUL не удаляет, поэтому убираем
+                            // все непечатаемые символы явно.
+                            string letter = CleanDriveLetter(p["DriveLetter"]);
+                            long size = Convert.ToInt64(p["Size"] ?? 0);
+
+                            bool isBoot = false, isSystem = false;
+                            try { isBoot = Convert.ToBoolean(p["IsBoot"] ?? false); } catch { }
+                            try { isSystem = Convert.ToBoolean(p["IsSystem"] ?? false); } catch { }
+
+                            long free = 0;
+                            string label = "";
+                            string fs = "Без тома";
+
+                            if (letter.Length > 0 && volumes.TryGetValue(letter, out var vol))
+                            {
+                                free = vol.free;
+                                label = vol.label;
+                                fs = vol.fs;
+                                if (vol.size > 0) size = vol.size;
+                            }
+
+                            target.Partitions.Add(new PartitionInfo
+                            {
+                                PartitionNumber = Convert.ToInt32(p["PartitionNumber"] ?? 0),
+                                DevicePath = $@"\\.\PHYSICALDRIVE{diskNum}",
+                                MountPoint = letter,
+                                VolumeLabel = label,
+                                FileSystem = fs,
+                                SizeBytes = size,
+                                FreeBytes = free,
+                                IsBoot = isBoot,
+                                IsSystem = isSystem
+                            });
+                        }
+                        catch
+                        {
+                            // Пропускаем только этот раздел.
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // ── 4. Уточняем тип носителя по признаку шпинделя ────────────────
+        // MSFT_Disk не различает HDD и SATA SSD. Различает MSFT_PhysicalDisk:
+        // SpindleSpeed > 0 — вращающийся диск, 0 — твердотельный.
+        try
+        {
+            var physScope = new System.Management.ManagementScope(@"\\.\root\microsoft\windows\storage");
+            physScope.Options.Timeout = TimeSpan.FromSeconds(5);
+
+            using var searcher = new System.Management.ManagementObjectSearcher(physScope,
+                new System.Management.ObjectQuery("SELECT DeviceId, MediaType, SpindleSpeed FROM MSFT_PhysicalDisk"));
+            using var results = searcher.Get();
+
+            foreach (System.Management.ManagementObject obj in results)
+            {
+                using (obj)
+                {
+                    if (!int.TryParse(obj["DeviceId"]?.ToString(), out int devId)) continue;
+                    var target = result.FirstOrDefault(d => d.Index == devId);
+                    if (target == null) continue;
+
+                    int spindle = 0, mediaType = 0;
+                    try { spindle = Convert.ToInt32(obj["SpindleSpeed"] ?? 0); } catch { }
+                    try { mediaType = Convert.ToInt32(obj["MediaType"] ?? 0); } catch { }
+
+                    if (spindle > 0 || mediaType == 3)
+                    {
+                        // Реальный признак вращающегося диска.
+                        target.MediaType = DiskMediaType.HDD;
+                    }
+                    else if (target.MediaType == DiskMediaType.Unknown && mediaType == 4)
+                    {
+                        target.MediaType = DiskMediaType.SSD;
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // ── 5. Дополняем реальными счётчиками надёжности ────────────────
+        foreach (var disk in result)
+        {
+            var r = RealSmartReader.Read(disk.Index);
+            if (!r.ok) continue;
+
+            if (r.tempC.HasValue)
+            {
+                disk.TemperatureC = r.tempC.Value;
+                disk.TemperatureMeasured = true;
+            }
+
+            if (r.wearPercent.HasValue)
+            {
+                disk.WearLevelPercent = r.wearPercent.Value;
+                disk.WearMeasured = true;
+            }
+
+            if (r.powerOnHours.HasValue) disk.PowerOnHours = r.powerOnHours.Value;
+            if (r.powerCycles.HasValue) disk.PowerCycles = r.powerCycles.Value;
         }
 
         return Task.FromResult(result);
     }
+
+    /// <summary>
+    /// Нормализует букву тома.
+    ///
+    /// У MSFT_Partition свойство DriveLetter имеет тип <c>char</c>, и для
+    /// системных разделов (EFI, MSR, recovery) содержит NUL (код 0), а не
+    /// пустую строку. <c>String.Trim()</c> символ NUL не удаляет, поэтому
+    /// разделы без буквы приходилось выводить как « :\». Здесь явно
+    /// отбрасываются все непечатаемые символы.
+    /// </summary>
+    private static string CleanDriveLetter(object? raw)
+    {
+        string s = raw?.ToString() ?? "";
+
+        foreach (char c in s)
+        {
+            if (char.IsControl(c)) continue;
+            return char.IsLetter(c) ? c.ToString().ToUpperInvariant() : "";
+        }
+
+        return "";
+    }
+
+    private static DiskBusType MapBusType(int code) => code switch
+    {
+        17 => DiskBusType.NVMe,
+        11 => DiskBusType.SATA,
+        7 => DiskBusType.USB,
+        10 => DiskBusType.SAS,
+        14 => DiskBusType.Virtual,
+        _ => DiskBusType.Unknown
+    };
+
+    /// <summary>
+    /// Тип носителя по коду шины. Раньше тип определялся так:
+    /// «если том C:, значит NVMe, иначе SSD» — то есть по букве диска.
+    /// Теперь используется реальный код шины, а не догадка.
+    /// </summary>
+    private static DiskMediaType MapMediaType(int busCode) => busCode switch
+    {
+        17 => DiskMediaType.NVMe,
+        7 => DiskMediaType.FlashMemory,
+        _ => DiskMediaType.Unknown
+    };
 
     public async Task<List<PartitionInfo>> GetPartitionsAsync(int diskIndex)
     {
@@ -62,14 +364,126 @@ public sealed class WindowsStorageProvider : IStorageProvider
     {
         var report = new SmartReport
         {
-            DiskIndex = diskIndex,
-            Model = "Windows Certified Storage Controller",
-            HealthPercent = 100,
-            Grade = "A+",
-            TemperatureC = 36.0
+            DiskIndex = diskIndex
         };
-        report.Recommendations.Add("NVMe PCIe контроллер функционирует в штатном температурном режиме.");
-        report.Recommendations.Add("Нативный ReTrim доступен без деградации ячеек памяти.");
+
+        // Раньше здесь возвращался полностью выдуманный отчёт:
+        // Model = "Windows Certified Storage Controller", HealthPercent = 100,
+        // Grade = "A+", TemperatureC = 36.0 — причём аргумент diskIndex
+        // вообще не использовался, то есть результат был одинаковым для
+        // любого диска. Теперь читаем реальные счётчики надёжности.
+        if (!OperatingSystem.IsWindows())
+        {
+            report.Model = "—";
+            report.Recommendations.Add("WMI доступен только в Windows.");
+            return Task.FromResult(report);
+        }
+
+        var r = RealSmartReader.Read(diskIndex);
+
+        report.Model = r.model ?? $"Диск {diskIndex}";
+
+        if (r.health != null)
+        {
+            // Оценка выводится из РЕАЛЬНОГО состояния, сообщённого Windows.
+            report.HealthPercent = r.health.ToLowerInvariant() switch
+            {
+                "healthy" or "ok" or "good" => 100,
+                "warning" or "caution" or "degraded" => 60,
+                "unhealthy" or "failed" or "critical" => 10,
+                _ => 50
+            };
+        }
+        else
+        {
+            // Нет данных — не выдаём 100 по умолчанию.
+            report.HealthPercent = 0;
+        }
+
+        report.HealthMeasured = r.health != null;
+        report.TemperatureMeasured = r.tempC.HasValue;
+        report.TemperatureC = r.tempC ?? 0;
+
+        if (r.tempC.HasValue)
+        {
+            var attrs = new List<SmartAttributeItem>
+            {
+                new()
+                {
+                    Id = 0xC2,
+                    Name = "Температура",
+                    CurrentValue = "—",
+                    WorstValue = "—",
+                    Threshold = "—",
+                    RawValue = (long)r.tempC.Value,
+                    HasRawValue = true,
+                    Status = "OK"
+                }
+            };
+
+            if (r.powerOnHours.HasValue)
+            {
+                attrs.Add(new SmartAttributeItem
+                {
+                    Id = 0x09,
+                    Name = "Часы работы",
+                    RawValue = r.powerOnHours.Value, HasRawValue = true,
+                    Status = "OK"
+                });
+            }
+
+            if (r.powerCycles.HasValue)
+            {
+                attrs.Add(new SmartAttributeItem
+                {
+                    Id = 0x0C,
+                    Name = "Циклы включения",
+                    RawValue = r.powerCycles.Value, HasRawValue = true,
+                    Status = "OK"
+                });
+            }
+
+            if (r.wearPercent.HasValue)
+            {
+                attrs.Add(new SmartAttributeItem
+                {
+                    Id = 0xE7,
+                    Name = "Износ",
+                    RawValue = (long)r.wearPercent.Value,
+                    HasRawValue = true,
+                    Status = r.wearPercent.Value > 90 ? "Warning" : "OK"
+                });
+            }
+
+            if (r.readErrors.HasValue || r.writeErrors.HasValue)
+            {
+                attrs.Add(new SmartAttributeItem
+                {
+                    Id = 0xF1,
+                    Name = $"Ошибки чтения/записи: {r.readErrors.GetValueOrDefault()}/{r.writeErrors.GetValueOrDefault()}",
+                    RawValue = r.readErrors.GetValueOrDefault() + r.writeErrors.GetValueOrDefault(),
+                    HasRawValue = true,
+                    Status = (r.readErrors.GetValueOrDefault() + r.writeErrors.GetValueOrDefault()) > 0 ? "Warning" : "OK"
+                });
+            }
+
+            report.Attributes = attrs;
+        }
+
+        report.Grade = r.health == null && !r.tempC.HasValue && !r.wearPercent.HasValue
+            ? "н/д"
+            : report.HealthPercent switch
+            {
+                >= 90 => "A",
+                >= 70 => "B",
+                >= 50 => "C",
+                > 0 => "D",
+                _ => "н/д"
+            };
+
+        report.Recommendations.Add(r.note);
+        if (r.source != null) report.Recommendations.Add($"Источник данных: {r.source}.");
+
         return Task.FromResult(report);
     }
 

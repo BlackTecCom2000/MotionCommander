@@ -29,8 +29,10 @@ public static class StorageAdvisorService
                 }
             }
 
-            // 2. Проверка температуры NVMe (Thermal Throttling)
-            if (disk.TemperatureC >= 65.0)
+            // 2. Проверка температуры NVMe (Thermal Throttling).
+            //    Раньше срабатывало на подставном значении 41/34/36/31 °C,
+            //    то есть практически никогда. Теперь — только при реальном замере.
+            if (disk.HasTemperature && disk.TemperatureC >= 65.0)
             {
                 recs.Add(new StorageRecommendation
                 {
@@ -45,80 +47,193 @@ public static class StorageAdvisorService
                 });
             }
 
-            // 3. Проверка фрагментации на HDD
-            if (disk.MediaType == StoragePhysicalMedia.HDD && disk.FragmentationPercent > 8.0)
+            // 3. Проверка фрагментации на HDD.
+            //    Раньше фрагментация была подставной константой (4.8% для HDD),
+            //    и реальный анализатор defrag /A не вызывался вообще.
+            if (disk.HasFragmentation && disk.MediaType == StoragePhysicalMedia.HDD && disk.FragmentationPercent > 8.0)
             {
-                string targetLetter = disk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "D";
+                string targetLetter = disk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "";
                 recs.Add(new StorageRecommendation
                 {
                     Category = RecommendationCategory.Defrag,
                     Severity = disk.FragmentationPercent > 15.0 ? RecommendationSeverity.Warning : RecommendationSeverity.Info,
-                    Title = $"Фрагментация HDD диска {targetLetter}: составляет {disk.FragmentationPercent:F1}%",
-                    Description = "Магнитные головки совершают избыточные перемещения между секторами, снижая скорость случайного доступа на 35-50%.",
+                    Title = $"Фрагментация HDD {targetLetter}: измерено {disk.FragmentationPercent:F1}%",
+                    Description = "Магнитные головки совершают избыточные перемещения между секторами, снижая скорость случайного доступа.",
                     ActionText = "Запустить Smart Defrag",
                     ActionCommand = "Defrag",
-                    EstimatedBenefit = "+40% к скорости чтения файлов и снижение шума головок",
+                    EstimatedBenefit = "Снижение числа перемещений головок и времени доступа",
                     TargetDiskNumber = disk.DiskNumber,
                     TargetDriveLetter = targetLetter
                 });
             }
 
-            // 4. Проверка активности TRIM
-            if ((disk.MediaType is StoragePhysicalMedia.NVMeSSD or StoragePhysicalMedia.SataSSD) && disk.IsTrimSupported)
+            // 4. Проверка активности TRIM.
+            //    Раньше IsTrimSupported всегда был true по умолчанию, поэтому
+            //    рекомендация выдавалась даже для накопителей без TRIM.
+            if (disk.HasTrimInfo && disk.MediaType is StoragePhysicalMedia.NVMeSSD or StoragePhysicalMedia.SataSSD)
             {
-                string targetLetter = disk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "C";
-                recs.Add(new StorageRecommendation
+                if (!disk.IsTrimEnabled)
                 {
-                    Category = RecommendationCategory.Trim,
-                    Severity = RecommendationSeverity.Info,
-                    Title = $"Регулярная оптимизация TRIM для {targetLetter}:",
-                    Description = "Команда TRIM информирует контроллер SSD об освободившихся блоках LBA для своевременной фоновой сборки мусора (Garbage Collection).",
-                    ActionText = "Выполнить ReTrim",
-                    ActionCommand = "Trim",
-                    EstimatedBenefit = "Поддержание стабильного времени отклика ячеек памяти",
-                    TargetDiskNumber = disk.DiskNumber,
-                    TargetDriveLetter = targetLetter
-                });
+                    recs.Add(new StorageRecommendation
+                    {
+                        Category = RecommendationCategory.Trim,
+                        Severity = RecommendationSeverity.Warning,
+                        Title = $"TRIM отключён для {disk.Model}",
+                        Description = "Проверка fsutil показала, что уведомления об освобождении блоков отключены. Для SSD это ускоряет износ ячеек.",
+                        ActionText = "Включить TRIM",
+                        ActionCommand = "Trim",
+                        EstimatedBenefit = "Снижение интенсивности записи и продление срока службы SSD",
+                        TargetDiskNumber = disk.DiskNumber
+                    });
+                }
+                else
+                {
+                    string targetLetter = disk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "";
+                    recs.Add(new StorageRecommendation
+                    {
+                        Category = RecommendationCategory.Trim,
+                        Severity = RecommendationSeverity.Info,
+                        Title = string.IsNullOrEmpty(targetLetter)
+                            ? "TRIM включён — рекомендуется регулярная оптимизация"
+                            : $"TRIM включён для {targetLetter} — рекомендуется регулярная оптимизация",
+                        Description = "Подтверждено проверкой fsutil: команда TRIM информирует контроллер об освободившихся блоках для фоновой сборки мусора.",
+                        ActionText = "Выполнить ReTrim",
+                        ActionCommand = "Trim",
+                        EstimatedBenefit = "Поддержание стабильного времени отклика ячеек памяти",
+                        TargetDiskNumber = disk.DiskNumber,
+                        TargetDriveLetter = targetLetter
+                    });
+                }
             }
         }
 
         return recs;
     }
 
+    /// <summary>
+    /// Рассчитывает итоговую оценку накопителя.
+    ///
+    /// <para>Ключевое изменение: рассчитываются ТОЛЬКО те компоненты, для которых
+    /// есть реальные измеренные данные. Нерассчитанные компоненты исключаются
+    /// из взвешенной суммы, а не считаются нулевыми (это занижало бы оценку) и
+    /// не считаются сотней (это завышало бы её).</para>
+    ///
+    /// <para>Раньше HealthStatus всегда равнялся дефолтному «Healthy», поэтому
+    /// HealthScore был ровно 100 у любого диска, а вместе с подставными
+    /// температурой и износом итог всегда выходил «A+».</para>
+    /// </summary>
     public static void EvaluateScore(StorageDisk disk)
     {
         var s = disk.Score;
 
-        // Health Score
-        s.HealthScore = disk.HealthStatus.Equals("Healthy", StringComparison.OrdinalIgnoreCase) ? 100 : 65;
+        double weightSum = 0;
+        double weightedSum = 0;
 
-        // Temperature Score
-        if (disk.TemperatureC <= 48) s.TemperatureScore = 100;
-        else if (disk.TemperatureC <= 60) s.TemperatureScore = 85;
-        else if (disk.TemperatureC <= 70) s.TemperatureScore = 60;
-        else s.TemperatureScore = 30;
+        void Add(double value, double weight, bool measured)
+        {
+            if (!measured) return;
+            weightedSum += value * weight;
+            weightSum += weight;
+        }
 
-        // Space Score
-        if (disk.FreeSpacePercent >= 25) s.SpaceScore = 100;
-        else if (disk.FreeSpacePercent >= 15) s.SpaceScore = 85;
-        else if (disk.FreeSpacePercent >= 8) s.SpaceScore = 60;
-        else s.SpaceScore = 35;
+        // ── Здоровье: из реального MSFT_Disk.HealthStatus ──────────────────
+        string health = disk.HealthStatus?.Trim() ?? "";
+        if (health.Length > 0)
+        {
+            double h = health.ToLowerInvariant() switch
+            {
+                "healthy" or "ok" or "good" => 100,
+                "warning" or "caution" or "degraded" => 55,
+                "unhealthy" or "failed" or "critical" => 0,
+                _ => -1   // неизвестное значение — не оцениваем
+            };
 
-        // Latency Score
-        if (disk.CurrentLatencyMs <= 5.0) s.LatencyScore = 100;
-        else if (disk.CurrentLatencyMs <= 20.0) s.LatencyScore = 85;
-        else if (disk.CurrentLatencyMs <= 50.0) s.LatencyScore = 60;
-        else s.LatencyScore = 40;
+            if (h >= 0)
+            {
+                s.HealthScore = h;
+                s.HasHealth = true;
+                Add(h, 0.30, true);
+            }
+        }
 
-        // Wear Score
-        s.WearScore = Math.Max(0, 100 - disk.WearLevelPercent);
+        // ── Дополнительно учитываем критические SMART-ошибки ────────────────
+        // Переназначенные, ожидающие и неустранимые секторы важнее любой шкалы.
+        if (disk.HasSmartAttributes)
+        {
+            var critical = disk.SmartAttributes.Count(a => a.Status == "Critical");
+            if (critical > 0)
+            {
+                // Пересчитываем здоровье с учётом реальных ошибок носителя.
+                double penalty = Math.Min(50, critical * 15);
+                s.HealthScore = s.HasHealth ? Math.Max(0, s.HealthScore - penalty) : 0;
+                s.HasHealth = true;
+                s.Warnings.Add($"S.M.A.R.T: {critical} критических атрибутов (переназначенные/ожидающие/неустранимые секторы).");
+            }
+        }
 
-        // Weighted Average
-        s.TotalScore = Math.Round(
-            s.HealthScore * 0.30 +
-            s.TemperatureScore * 0.20 +
-            s.SpaceScore * 0.25 +
-            s.LatencyScore * 0.15 +
-            s.WearScore * 0.10, 1);
+        // ── Температура: только если реально измерена ──────────────────────
+        if (disk.HasTemperature)
+        {
+            s.TemperatureScore = disk.TemperatureC switch
+            {
+                <= 48 => 100,
+                <= 60 => 85,
+                <= 70 => 60,
+                _ => 30
+            };
+            s.HasTemperature = true;
+            Add(s.TemperatureScore, 0.20, true);
+        }
+
+        // ── Свободное место: реальные данные разделов ─────────────────────
+        if (disk.TotalSizeBytes > 0 && disk.Partitions.Count > 0)
+        {
+            s.SpaceScore = disk.FreeSpacePercent switch
+            {
+                >= 25 => 100,
+                >= 15 => 85,
+                >= 8 => 60,
+                _ => 35
+            };
+            s.HasSpace = true;
+            Add(s.SpaceScore, 0.25, true);
+        }
+
+        // ── Задержка: только если есть реальная телеметрия нагрузки ───────
+        if (disk.CurrentLatencyMs > 0)
+        {
+            s.LatencyScore = disk.CurrentLatencyMs switch
+            {
+                <= 5.0 => 100,
+                <= 20.0 => 85,
+                <= 50.0 => 60,
+                _ => 40
+            };
+            s.HasLatency = true;
+            Add(s.LatencyScore, 0.15, true);
+        }
+
+        // ── Износ: только если реально измерен ────────────────────────────
+        if (disk.HasWear)
+        {
+            s.WearScore = Math.Max(0, 100 - disk.WearLevelPercent);
+            s.HasWear = true;
+            Add(s.WearScore, 0.10, true);
+        }
+
+        // Итог — взвешенное среднее ТОЛЬКО по рассчитанным компонентам.
+        s.TotalScore = weightSum > 0
+            ? Math.Round(weightedSum / weightSum, 1)
+            : 0;
+
+        if (!s.IsCalculated)
+        {
+            s.TotalScore = 0;
+            s.Warnings.Add("Нет измеренных данных для расчёта оценки состояния.");
+        }
+        else if (weightSum < 1.0)
+        {
+            s.Warnings.Add("Оценка рассчитана лишь по ограниченному набору доступных параметров.");
+        }
     }
 }

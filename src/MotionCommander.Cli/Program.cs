@@ -70,6 +70,14 @@ public static class Program
         }
     }
 
+    /// <summary>Обрезает строку до указанной длины для выравнивания таблицы.</summary>
+    private static string Truncate(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        string v = value.Length <= maxLength ? value : value[..(maxLength - 1)] + "…";
+        return v;
+    }
+
     private static void PrintBanner()
     {
         Console.ForegroundColor = ConsoleColor.Cyan;
@@ -194,11 +202,35 @@ public static class Program
             Console.ForegroundColor = d.MediaType == DiskMediaType.NVMe ? ConsoleColor.Cyan : (d.MediaType == DiskMediaType.SSD ? ConsoleColor.Blue : ConsoleColor.DarkYellow);
             Console.Write($"  #{d.Index} {badge,-12} ");
             Console.ForegroundColor = ConsoleColor.White;
-            Console.Write($"{d.Model,-32} ");
+            Console.Write($"{Truncate(d.Model, 30),-30} ");
             Console.ForegroundColor = ConsoleColor.Green;
             Console.Write($"{d.FormattedSize,10} ");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"| Здоровье: {d.HealthPercent}% ({d.HealthGrade}) | {d.TemperatureC:F0}°C");
+
+            // Показываем только измеренные значения. Раньше здесь печатались
+            // подставленные константы (100 %, A+, 38 °C), которые выглядели
+            // как результат диагностики.
+            if (d.HealthMeasured)
+            {
+                Console.ForegroundColor = d.HealthPercent >= 70 ? ConsoleColor.Green : ConsoleColor.Red;
+                Console.Write($"| Здоровье: {d.HealthPercent}% ({d.HealthGrade})");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write("| Здоровье: не измерено");
+            }
+
+            if (d.TemperatureMeasured)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write($" | {d.TemperatureC:F0}°C");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.Write(" | температура: нет данных");
+            }
+
             Console.ResetColor();
             Console.WriteLine();
 
@@ -207,7 +239,18 @@ public static class Program
                 foreach (var p in d.Partitions)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"      └─ Раздел #{p.PartitionNumber}: {p.DevicePath} [{p.FileSystem}] {p.FormattedSize} (Свободно: {p.FormattedFree}) {p.MountPoint}");
+
+                    // Ненормадионный раздел (EFI/MSR) буквы не имеет, но WMI
+                    // возвращает вместо неё пробельный символ, поэтому
+                    // проверяем именно после Trim.
+                    string mount = string.IsNullOrWhiteSpace(p.MountPoint?.Trim())
+                        ? "<системный раздел>"
+                        : $"{p.MountPoint.Trim()}:\\";
+
+                    string fs = string.IsNullOrWhiteSpace(p.FileSystem) ? "—" : p.FileSystem;
+                    string free = p.FreeBytes > 0 ? $", свободно {p.FormattedFree}" : "";
+
+                    Console.WriteLine($"      └─ #{p.PartitionNumber,-2} {mount,-22} {fs,-6} {p.FormattedSize,10}{free}");
                     Console.ResetColor();
                 }
             }
@@ -227,14 +270,53 @@ public static class Program
 
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"\n[S.M.A.R.T. REPORT] Накопитель #{diskIdx} - {report.Model}:");
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"  Состояние: {report.HealthPercent}% (Рейтинг: {report.Grade}) | Температура: {report.TemperatureC:F0}°C");
-        Console.ResetColor();
 
-        Console.WriteLine("\nРекомендации и диагностика ядра:");
+        // Показываем только ИЗМЕРЕННЫЕ значения. Всё непрочитанное честно
+        // помечается как «не измерено», а не заполняется константами.
+        if (report.HealthMeasured)
+        {
+            Console.ForegroundColor = report.HealthPercent >= 70 ? ConsoleColor.Green : ConsoleColor.Red;
+            Console.WriteLine($"  Состояние: {report.HealthPercent}% (рейтинг: {report.Grade})");
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("  Состояние: не измерено (контроллер не отдал данных)");
+        }
+
+        if (report.TemperatureMeasured)
+        {
+            Console.ForegroundColor = report.TemperatureC < 55 ? ConsoleColor.Green
+                                  : report.TemperatureC < 70 ? ConsoleColor.Yellow : ConsoleColor.Red;
+            Console.WriteLine($"  Температура: {report.TemperatureC:F0} °C");
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("  Температура: не измерена");
+        }
+
+        if (report.Attributes.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("\n  Реально прочитанные атрибуты:");
+            foreach (var attr in report.Attributes)
+            {
+                Console.ForegroundColor = attr.Status == "OK" ? ConsoleColor.Green : ConsoleColor.Yellow;
+                Console.WriteLine($"    0x{attr.Id:X2}  {attr.Name,-32} {attr.RawValue}");
+            }
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("\n  Таблица S.M.A.R.T. недоступна (контроллер не публикует предиктивные данные).");
+        }
+
+        Console.ResetColor();
+        Console.WriteLine("\nПримечания:");
         foreach (var r in report.Recommendations)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"  • {r}");
         }
         Console.ResetColor();

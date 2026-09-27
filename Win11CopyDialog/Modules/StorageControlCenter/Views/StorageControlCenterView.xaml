@@ -108,12 +108,12 @@
                         <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,6,0">
                             <DockPanel>
                                 <Border DockPanel.Dock="Right" Width="48" Height="48" CornerRadius="24" Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="2" VerticalAlignment="Center">
-                                    <TextBlock x:Name="HealthScoreGradeText" Text="A+" FontSize="18" FontWeight="Black" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="HealthScoreGradeText" Text="—" FontSize="18" FontWeight="Black" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="Storage Score" FontSize="11" Style="{StaticResource MutedText}"/>
-                                    <TextBlock x:Name="HealthScoreValueText" Text="98 / 100" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                                    <TextBlock x:Name="HealthScoreStatusText" Text="Отличное состояние" FontSize="10" Foreground="#10B981"/>
+                                    <TextBlock x:Name="HealthScoreValueText" Text="— / 100" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                    <TextBlock x:Name="HealthScoreStatusText" Text="Ожидание измерения…" FontSize="10" Foreground="#10B981"/>
                                 </StackPanel>
                             </DockPanel>
                         </Border>
@@ -124,11 +124,11 @@
                                 <TextBlock Text="Температура ядра" FontSize="11" Style="{StaticResource MutedText}"/>
                                 <DockPanel Margin="0,2,0,0">
                                     <Border x:Name="TempBadgeBorder" Background="#10B981" CornerRadius="4" Padding="6,1" VerticalAlignment="Center" DockPanel.Dock="Right">
-                                        <TextBlock x:Name="TempStatusBadgeText" Text="Норма" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                        <TextBlock x:Name="TempStatusBadgeText" Text="—" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                     </Border>
-                                    <TextBlock x:Name="DiskTempValueText" Text="38 °C" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                    <TextBlock x:Name="DiskTempValueText" Text="Нет данных" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
                                 </DockPanel>
-                                <TextBlock x:Name="TempDescText" Text="Троттлинг не обнаружен" FontSize="10" Style="{StaticResource MutedText}"/>
+                                <TextBlock x:Name="TempDescText" Text="Температура ещё не измерена" FontSize="10" Style="{StaticResource MutedText}"/>
                             </StackPanel>
                         </Border>
 
@@ -136,8 +136,8 @@
                         <Border Style="{StaticResource Card}" Padding="14" Margin="3,0,3,0">
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Остаточный ресурс (Life Left)" FontSize="11" Style="{StaticResource MutedText}"/>
-                                <TextBlock x:Name="DiskWearValueText" Text="98% (Износ 2%)" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
-                                <TextBlock x:Name="DiskLifeDescText" Text="TBW: 12 ТБ записано" FontSize="10" Style="{StaticResource MutedText}"/>
+                                <TextBlock x:Name="DiskWearValueText" Text="Нет данных" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                <TextBlock x:Name="DiskLifeDescText" Text="Данные недоступны" FontSize="10" Style="{StaticResource MutedText}"/>
                             </StackPanel>
                         </Border>
 
@@ -145,8 +145,8 @@
                         <Border Style="{StaticResource Card}" Padding="14" Margin="6,0,0,0">
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Время наработки / Пуски" FontSize="11" Style="{StaticResource MutedText}"/>
-                                <TextBlock x:Name="DiskPowerHoursText" Text="1 840 часов" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
-                                <TextBlock x:Name="DiskPowerCyclesText" Text="340 включений" FontSize="10" Style="{StaticResource MutedText}"/>
+                                <TextBlock x:Name="DiskPowerHoursText" Text="Нет данных" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                <TextBlock x:Name="DiskPowerCyclesText" Text="Нет данных" FontSize="10" Style="{StaticResource MutedText}"/>
                             </StackPanel>
                         </Border>
                     </UniformGrid>
@@ -194,6 +194,18 @@
                                     </GridView>
                                 </ListView.View>
                             </ListView>
+
+                            <!-- Честное сообщение вместо выдуманной таблицы S.M.A.R.T.
+                                 Раньше здесь всегда рисовался список с Current=100 и
+                                 Status="Good", даже если контроллер ничего не отдавал. -->
+                            <TextBlock x:Name="SmartEmptyText"
+                                       Visibility="Collapsed"
+                                       Text="S.M.A.R.T. недоступен"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,16,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

@@ -375,29 +375,58 @@ public partial class StorageControlCenterView : UserControl
             }
         }
 
-        // Обновление ViewHealth
+        // ── Оценка состояния ────────────────────────────────────────────────
+        // Раньше здесь безусловно выводилось «A+» и «98 / 100», потому что
+        // в модели стояли значения по умолчанию. Теперь при отсутствии
+        // измерений показывается честная «н/д».
         HealthScoreGradeText.Text = disk.Score.Grade;
-        HealthScoreValueText.Text = $"{disk.Score.TotalScore:F0} / 100";
+        HealthScoreValueText.Text = disk.Score.IsCalculated
+            ? $"{disk.Score.TotalScore:F0} / 100"
+            : "— / 100";
         HealthScoreStatusText.Text = disk.Score.StatusText;
         HealthScoreStatusText.Foreground = new BrushConverter().ConvertFromString(disk.Score.StatusColor) as Brush;
 
-        DiskTempValueText.Text = $"{disk.TemperatureC:F0} °C";
-        TempStatusBadgeText.Text = disk.TemperatureC < 50 ? "Норма" : (disk.TemperatureC < 65 ? "Внимание" : "Троттлинг");
+        // ── Температура: только реальное измерение ──────────────────────────
+        DiskTempValueText.Text = disk.TemperatureFormatted;
+        TempStatusBadgeText.Text = !disk.HasTemperature ? "Нет данных"
+            : disk.TemperatureC < 50 ? "Норма"
+            : disk.TemperatureC < 65 ? "Внимание"
+            : "Троттлинг";
         TempBadgeBorder.Background = new BrushConverter().ConvertFromString(disk.TemperatureColor) as Brush;
         TempDescText.Text = disk.TemperatureStatus;
 
-        DiskWearValueText.Text = $"{disk.LifetimeRemainingPercent:F0}% (Износ {disk.WearLevelPercent:F0}%)";
-        DiskLifeDescText.Text = disk.TotalBytesWritten > 0 ? $"Записано: {Formatters.Bytes(disk.TotalBytesWritten)}" : "Ресурс ячеек в норме";
+        // ── Износ и ресурс ─────────────────────────────────────────────────
+        DiskWearValueText.Text = disk.WearFormatted;
+        DiskLifeDescText.Text = disk.TotalWrittenFormatted;
 
-        DiskPowerHoursText.Text = $"{disk.PowerOnHours:N0} часов";
-        DiskPowerCyclesText.Text = $"{disk.PowerCycles:N0} включений";
+        // ── Наработка и циклы ──────────────────────────────────────────────
+        DiskPowerHoursText.Text = disk.PowerOnHoursFormatted;
+        DiskPowerCyclesText.Text = disk.PowerCyclesFormatted;
 
+        // ── Ёмкость: реальные данные разделов ─────────────────────────────
         DiskCapacitySummaryText.Text = $"Емкость: {Formatters.Bytes(disk.TotalSizeBytes - (long)disk.TotalFreeBytes)} занято из {disk.TotalSizeFormatted} ({disk.FreeSpacePercent:F1}% свободно)";
         DiskFreeSpaceBadgeText.Text = $"Свободно: {disk.FreeSpaceFormatted}";
         DiskSpaceProgressBar.SetSafe(disk.UsedSpacePercent);
 
-        // SMART атрибуты
-        SmartAttributesList.ItemsSource = disk.SmartAttributes;
+        // ── SMART: показываем только реально прочитанные атрибуты ─────────
+        if (disk.HasSmartAttributes && disk.SmartAttributes.Count > 0)
+        {
+            SmartAttributesList.ItemsSource = disk.SmartAttributes;
+            if (SmartEmptyText != null) SmartEmptyText.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            SmartAttributesList.ItemsSource = null;
+
+            // Явно объясняем пользователю, почему данных нет.
+            if (SmartEmptyText != null)
+            {
+                SmartEmptyText.Visibility = Visibility.Visible;
+                SmartEmptyText.Text = disk.TelemetryNote.Length > 0
+                    ? "S.M.A.R.T. недоступен.\n" + disk.TelemetryNote
+                    : "S.M.A.R.T. недоступен: контроллер не публикует предиктивные данные.";
+            }
+        }
 
         // Рекомендации Storage AI Advisor
         PopulateAdvisorRecommendations();
@@ -1534,24 +1563,30 @@ public partial class StorageControlCenterView : UserControl
 
         try
         {
-            DiskTempValueText.Text = $"{disk.TemperatureC:F0} °C";
-            TempStatusBadgeText.Text = disk.TemperatureC < 50 ? "Норма" : (disk.TemperatureC < 65 ? "Внимание" : "Троттлинг");
+            // Обновляем только те показатели, которые реально измерены.
+            // Форматирование через свойства модели даёт «Нет данных»
+            // вместо выдуманных чисел.
+            DiskTempValueText.Text = disk.TemperatureFormatted;
+            TempStatusBadgeText.Text = !disk.HasTemperature ? "—"
+                : disk.TemperatureC < 50 ? "Норма"
+                : disk.TemperatureC < 65 ? "Внимание"
+                : "Троттлинг";
             TempBadgeBorder.Background = new BrushConverter().ConvertFromString(disk.TemperatureColor) as Brush;
             TempDescText.Text = disk.TemperatureStatus;
 
-            DiskWearValueText.Text = $"{disk.LifetimeRemainingPercent:F0}% (Износ {disk.WearLevelPercent:F0}%)";
-            DiskLifeDescText.Text = disk.TotalBytesWritten > 0
-                ? $"Записано: {Formatters.Bytes(disk.TotalBytesWritten)}"
-                : "Ресурс ячеек в норме";
+            DiskWearValueText.Text = disk.WearFormatted;
+            DiskLifeDescText.Text = disk.TotalWrittenFormatted;
 
-            DiskPowerHoursText.Text = $"{disk.PowerOnHours:N0} часов";
-            DiskPowerCyclesText.Text = $"{disk.PowerCycles:N0} включений";
+            DiskPowerHoursText.Text = disk.PowerOnHoursFormatted;
+            DiskPowerCyclesText.Text = disk.PowerCyclesFormatted;
 
             DiskCapacitySummaryText.Text = $"Емкость: {Formatters.Bytes(disk.TotalSizeBytes - (long)disk.TotalFreeBytes)} занято из {disk.TotalSizeFormatted} ({disk.FreeSpacePercent:F1}% свободно)";
             DiskFreeSpaceBadgeText.Text = $"Свободно: {disk.FreeSpaceFormatted}";
             DiskSpaceProgressBar.SetSafe(disk.UsedSpacePercent);
 
-            HealthScoreValueText.Text = $"{disk.Score.TotalScore:F0} / 100";
+            HealthScoreValueText.Text = disk.Score.IsCalculated
+                ? $"{disk.Score.TotalScore:F0} / 100"
+                : "— / 100";
             HealthScoreGradeText.Text = disk.Score.Grade;
             HealthScoreStatusText.Text = disk.Score.StatusText;
             HealthScoreStatusText.Foreground = new BrushConverter().ConvertFromString(disk.Score.StatusColor) as Brush;

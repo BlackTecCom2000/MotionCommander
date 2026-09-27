@@ -50,9 +50,14 @@ public sealed class LinuxStorageProvider : IStorageProvider
                                 "scsi" => DiskBusType.SCSI,
                                 _ => name.StartsWith("nvme") ? DiskBusType.NVMe : DiskBusType.SATA
                             },
-                            HealthPercent = 100,
-                            HealthGrade = "A+",
-                            TemperatureC = 34.0
+                            // Раньше здесь стояло HealthPercent = 100, HealthGrade = "A+"
+                            // и TemperatureC = 34.0 для КАЖДОГО диска, что выдавало
+                            // «идеальное здоровье» без единого измерения.
+                            // Теперь эти поля остаются неизмеренными и заполняются
+                            // реальными данными только в GetSmartReportAsync.
+                            HealthPercent = 0,
+                            HealthGrade = "н/д",
+                            TemperatureC = 0
                         };
 
                         // Разделы
@@ -147,35 +152,88 @@ public sealed class LinuxStorageProvider : IStorageProvider
     {
         var disks = await GetPhysicalDisksAsync();
         var disk = disks.FirstOrDefault(d => d.Index == diskIndex);
+
         var report = new SmartReport
         {
             DiskIndex = diskIndex,
-            Model = disk?.Model ?? "Linux Storage Device",
-            HealthPercent = 98,
-            Grade = "A+",
-            TemperatureC = 36.0
+            Model = disk?.Model ?? $"Диск {diskIndex}"
         };
 
-        if (disk != null)
+        // Раньше здесь стояли жёсткие HealthPercent = 98, Grade = "A+" и
+        // TemperatureC = 36.0 ДО попытки чтения smartctl, поэтому даже при
+        // полном отсутствии данных пользователь получал «уверенный» отчёт.
+        // Теперь показатели появляются только из реального опроса контроллера.
+        if (disk == null)
         {
-            try
-            {
-                string json = (await RunProcessAsync("smartctl", new[] { "-a", "-j", disk.DevicePath })).output;
-                if (!string.IsNullOrWhiteSpace(json))
-                {
-                    using var doc = JsonDocument.Parse(json);
-                    var root = doc.RootElement;
-                    if (root.TryGetProperty("temperature", out var tProp) && tProp.TryGetProperty("current", out var curTemp))
-                    {
-                        report.TemperatureC = curTemp.GetDouble();
-                    }
-                }
-            }
-            catch { }
+            report.Recommendations.Add("Диск не найден.");
+            return report;
         }
 
-        report.Recommendations.Add("Linux Trim / discard включен для эффективной очистки ячеек памяти.");
-        report.Recommendations.Add("I/O планировщик настроен в режиме mq-deadline / none для максимального IOPS.");
+        var r = RealSmartReader.ReadSmartctl(disk.DevicePath);
+
+        if (r.ok)
+        {
+            report.Model = r.model ?? report.Model;
+
+            if (r.health != null)
+            {
+                report.HealthPercent = r.health.Equals("Passed", StringComparison.OrdinalIgnoreCase) ? 100 : 20;
+                report.HealthMeasured = true;
+            }
+
+            if (r.tempC.HasValue)
+            {
+                report.TemperatureC = r.tempC.Value;
+                report.TemperatureMeasured = true;
+            }
+
+            if (r.powerOnHours.HasValue)
+            {
+                report.Attributes.Add(new SmartAttributeItem
+                {
+                    Id = 0x09,
+                    Name = "Часы работы",
+                    RawValue = r.powerOnHours.Value, HasRawValue = true,
+                    Status = "OK"
+                });
+            }
+
+            if (r.wearPercent.HasValue)
+            {
+                report.Attributes.Add(new SmartAttributeItem
+                {
+                    Id = 0xE7,
+                    Name = "Износ",
+                    RawValue = (long)r.wearPercent.Value,
+                    HasRawValue = true,
+                    Status = r.wearPercent.Value > 90 ? "Warning" : "OK"
+                });
+            }
+        }
+
+        report.Grade = !report.HealthMeasured && !report.TemperatureMeasured ? "н/д"
+            : report.HealthPercent switch
+            {
+                >= 90 => "A",
+                >= 70 => "B",
+                >= 50 => "C",
+                > 0 => "D",
+                _ => "н/д"
+            };
+
+        report.Recommendations.Add(r.note);
+
+        // Проверка TRIM — реальная, а не декларация.
+        try
+        {
+            var fstrim = await RunProcessAsync("fstrim", new[] { "--help" });
+            if (fstrim.exitCode == 0)
+            {
+                report.Recommendations.Add("Утилита fstrim доступна в системе.");
+            }
+        }
+        catch { }
+
         return report;
     }
 

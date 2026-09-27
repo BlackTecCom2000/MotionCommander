@@ -42,9 +42,14 @@ public sealed class MacStorageProvider : IStorageProvider
                             SizeBytes = size,
                             MediaType = isSsd ? DiskMediaType.NVMe : DiskMediaType.HDD,
                             BusType = DiskBusType.NVMe,
-                            HealthPercent = 100,
-                            HealthGrade = "A+",
-                            TemperatureC = 33.0,
+
+                            // Раньше: HealthPercent = 100, HealthGrade = "A+",
+                            // TemperatureC = 33.0 для каждого тома — то есть
+                            // «идеальное здоровье» без измерений. Теперь
+                            // значения появляются только из smartctl.
+                            HealthPercent = 0,
+                            HealthGrade = "н/д",
+                            TemperatureC = 0,
                             IsSystemDisk = mount == "/" || mount.Contains("System")
                         };
 
@@ -93,7 +98,9 @@ public sealed class MacStorageProvider : IStorageProvider
                     SizeBytes = drive.TotalSize,
                     MediaType = DiskMediaType.NVMe,
                     BusType = DiskBusType.NVMe,
-                    HealthGrade = "A+"
+
+                    // Без измерений здоровье неизвестно, а не «A+».
+                    HealthGrade = "н/д"
                 });
             }
         }
@@ -108,19 +115,78 @@ public sealed class MacStorageProvider : IStorageProvider
         return disk?.Partitions ?? new List<PartitionInfo>();
     }
 
-    public Task<SmartReport> GetSmartReportAsync(int diskIndex)
+    public async Task<SmartReport> GetSmartReportAsync(int diskIndex)
     {
+        var disks = await GetPhysicalDisksAsync();
+        var disk = disks.FirstOrDefault(d => d.Index == diskIndex);
+
         var report = new SmartReport
         {
             DiskIndex = diskIndex,
-            Model = "Apple Silicon High-Speed Controller",
-            HealthPercent = 100,
-            Grade = "A+",
-            TemperatureC = 32.0
+            Model = disk?.Model ?? $"Диск {diskIndex}"
         };
-        report.Recommendations.Add("Apple Unified Memory и прямой доступ APFS активны.");
-        report.Recommendations.Add("Аппаратное аппаратное шифрование FileVault защищает разделы без падения скорости.");
-        return Task.FromResult(report);
+
+        // Раньше возвращался выдуманный отчёт: Model = "Apple Silicon
+        // High-Speed Controller", HealthPercent = 100, Grade = "A+",
+        // TemperatureC = 32.0 — независимо от того, что стоит в системе.
+        if (disk == null)
+        {
+            report.Recommendations.Add("Диск не найден.");
+            return report;
+        }
+
+        // На macOS реальные показатели S.M.A.R.T. доступны через smartctl,
+        // который не входит в стандартную поставку. Если его нет —
+        // сообщаем об этом, а не придумываем значения.
+        var r = RealSmartReader.ReadSmartctl(disk.DevicePath);
+
+        if (r.ok)
+        {
+            report.Model = r.model ?? report.Model;
+
+            if (r.health != null)
+            {
+                report.HealthPercent = r.health.Equals("Passed", StringComparison.OrdinalIgnoreCase) ? 100 : 20;
+                report.HealthMeasured = true;
+            }
+
+            if (r.tempC.HasValue)
+            {
+                report.TemperatureC = r.tempC.Value;
+                report.TemperatureMeasured = true;
+            }
+
+            if (r.powerOnHours.HasValue)
+            {
+                report.Attributes.Add(new SmartAttributeItem
+                {
+                    Id = 0x09,
+                    Name = "Часы работы",
+                    RawValue = r.powerOnHours.Value, HasRawValue = true,
+                    Status = "OK"
+                });
+            }
+        }
+
+        report.Grade = !report.HealthMeasured && !report.TemperatureMeasured ? "н/д"
+            : report.HealthPercent switch
+            {
+                >= 90 => "A",
+                >= 70 => "B",
+                >= 50 => "C",
+                > 0 => "D",
+                _ => "н/д"
+            };
+
+        report.Recommendations.Add(r.note);
+
+        if (!r.ok)
+        {
+            report.Recommendations.Add(
+                "Установите smartmontools (brew install smartmontools), чтобы приложение читало реальные показатели S.M.A.R.T.");
+        }
+
+        return report;
     }
 
     public async Task<bool> OptimizeDiskAsync(int diskIndex, IProgress<string>? progress = null)

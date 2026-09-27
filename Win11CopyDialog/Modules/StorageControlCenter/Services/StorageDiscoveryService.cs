@@ -37,16 +37,74 @@ public static class StorageDiscoveryService
                 disks = QueryWmiFallback();
             }
 
-            // Дополняем данные SMART, здоровьем и Storage Score
+            // Дополняем данные SMART и здоровьем накопителя.
+            // Всё берётся из реальных измерений; недоступное остаётся
+            // помеченным как «Нет данных», а не заполняется константами.
             foreach (var d in disks)
             {
                 SmartHealthService.EnrichDiskHealth(d);
+            }
+
+            // Реальная фрагментация через defrag /A.
+            // Раньше AnalyzeFragmentationAsync вообще не вызывался, а вместо
+            // него в модель писалась константа 4.8% (HDD) / 0.5% (SSD).
+            AnalyzeRealFragmentation(disks);
+
+            // Фрагментация не влияет на сам балл, но влияет на рекомендации,
+            // поэтому пересчитываем оценку после того, как она измерена.
+            foreach (var d in disks)
+            {
                 StorageAdvisorService.EvaluateScore(d);
             }
 
             _cachedDisks = disks;
             _lastScanTime = DateTime.Now;
             return disks;
+        }
+    }
+
+    /// <summary>
+    /// Измеряет реальную фрагментацию через системный дефрагментатор.
+    ///
+    /// <para>Раньше фрагментация была константой: 4.8% для HDD и 0.5% для SSD
+    /// (SmartHealthService.CheckTrimAndAlignment), при том что готовый
+    /// анализатор <c>DiskOptimizerService.AnalyzeFragmentationAsync</c> был
+    /// написан, но не вызывался ни разу.</para>
+    ///
+    /// <para>Измерение выполняется только для томов с буквой диска и только
+    /// для HDD. Если дефрагментатор не ответил — флаг HasFragmentation
+    /// остаётся снятым, и интерфейс показывает «Нет данных».</para>
+    /// </summary>
+    private static void AnalyzeRealFragmentation(List<StorageDisk> disks)
+    {
+        foreach (var disk in disks)
+        {
+            // Для SSD фрагментация не имеет практического значения,
+            // а defrag /A на SSD всё равно ничего полезного не сообщает.
+            if (disk.MediaType != StoragePhysicalMedia.HDD) continue;
+
+            foreach (var part in disk.Partitions)
+            {
+                if (string.IsNullOrEmpty(part.DriveLetter)) continue;
+
+                try
+                {
+                    double? pct = DiskOptimizerService
+                        .AnalyzeFragmentationAsync(part.DriveLetter)
+                        .GetAwaiter().GetResult();
+
+                    if (pct.HasValue)
+                    {
+                        disk.FragmentationPercent = pct.Value;
+                        disk.HasFragmentation = true;
+                        break;   // достаточно одного тома на диск
+                    }
+                }
+                catch
+                {
+                    // Анализ не удался — оставляем «Нет данных», а не 0%.
+                }
+            }
         }
     }
 
@@ -80,10 +138,21 @@ public static class StorageDiscoveryService
                     SerialNumber = serial,
                     TotalSizeBytes = totalSize,
                     AllocatedSizeBytes = allocatedSize > 0 ? allocatedSize : totalSize,
-                    PartitionStyle = partStyleVal == 1 ? "MBR" : "GPT"
+                    PartitionStyle = partStyleVal switch
+                    {
+                        0 => "MBR",
+                        2 => "GPT",
+                        _ => "Неизвестно"
+                    },
+
+                    // Раньше эти два поля НИКОГДА не заполнялись, а в модели
+                    // стояли значения по умолчанию "Healthy" и "Online".
+                    // Теперь берём их из уже выбранных колонок WMI.
+                    HealthStatus = obj["HealthStatus"]?.ToString() ?? "",
+                    OperationalStatus = obj["OperationalStatus"]?.ToString() ?? "",
                 };
 
-                // Определение BusType
+                // Определение BusType по числовому коду MSFT_Disk.BusType
                 disk.BusType = busTypeVal switch
                 {
                     17 => StoragePhysicalBus.NVMe,
@@ -94,49 +163,92 @@ public static class StorageDiscoveryService
                     _ => StoragePhysicalBus.Unknown
                 };
 
-                // Определение MediaType по имени и шине
-                string nameUpper = name.ToUpperInvariant();
-                if (disk.BusType == StoragePhysicalBus.NVMe || nameUpper.Contains("NVME") || nameUpper.Contains("PCIE") || nameUpper.Contains("SN730") || nameUpper.Contains("EVO") || nameUpper.Contains("PRO"))
+                // Тип носителя по шине. Никаких догадок по подстрокам в имени
+                // модели: раньше проверка nameUpper.Contains("PRO") относила
+                // к NVMe любой диск с «PRO» в названии (например «990 PRO» на
+                // SATA или USB-флешку «ProDrive»), а также подменяла шину на NVMe.
+                // Уточнение по фактическому типу делается ниже из MSFT_PhysicalDisk.
+                disk.MediaType = disk.BusType switch
                 {
-                    disk.MediaType = StoragePhysicalMedia.NVMeSSD;
-                    if (disk.BusType == StoragePhysicalBus.Unknown) disk.BusType = StoragePhysicalBus.NVMe;
-                }
-                else if (disk.BusType == StoragePhysicalBus.USB || nameUpper.Contains("USB") || nameUpper.Contains("FLASH"))
-                {
-                    disk.MediaType = StoragePhysicalMedia.USBFlash;
-                }
-                else if (nameUpper.Contains("SSD") || nameUpper.Contains("LEXAR") || nameUpper.Contains("KINGSTON") || nameUpper.Contains("SAMSUNG SSD"))
-                {
-                    disk.MediaType = StoragePhysicalMedia.SataSSD;
-                }
-                else
-                {
-                    disk.MediaType = StoragePhysicalMedia.HDD;
-                }
+                    StoragePhysicalBus.NVMe => StoragePhysicalMedia.NVMeSSD,
+                    StoragePhysicalBus.USB => StoragePhysicalMedia.USBFlash,
+                    StoragePhysicalBus.Virtual => StoragePhysicalMedia.VirtualDisk,
+                    _ => StoragePhysicalMedia.Unknown
+                };
 
                 diskDict[number] = disk;
                 disks.Add(disk);
             }
         }
 
-        // 2. Опрос MSFT_PhysicalDisk для уточнения MediaType
+        // 2. Опрос MSFT_PhysicalDisk для уточнения MediaType по реальным признакам.
+        //    MSFT_Disk не сообщает тип носителя, поэтому берём его здесь:
+        //    SpindleSpeed > 0 — вращающийся HDD, 0 — твердотельный.
         try
         {
-            using var searcherPhys = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT DeviceId, MediaType, SpindleSpeed FROM MSFT_PhysicalDisk"));
+            using var searcherPhys = new ManagementObjectSearcher(scope,
+                new ObjectQuery("SELECT DeviceId, MediaType, BusType, SpindleSpeed FROM MSFT_PhysicalDisk"));
             using var collPhys = searcherPhys.Get();
             foreach (ManagementObject obj in collPhys)
             {
-                if (int.TryParse(obj["DeviceId"]?.ToString(), out int devId) && diskDict.TryGetValue(devId, out var d))
+                using (obj)
                 {
-                    int mType = Convert.ToInt32(obj["MediaType"] ?? 0);
-                    if (mType == 4 && d.MediaType == StoragePhysicalMedia.HDD)
-                        d.MediaType = d.BusType == StoragePhysicalBus.NVMe ? StoragePhysicalMedia.NVMeSSD : StoragePhysicalMedia.SataSSD;
-                    else if (mType == 3)
+                    if (!int.TryParse(obj["DeviceId"]?.ToString(), out int devId) ||
+                        !diskDict.TryGetValue(devId, out var d))
+                    {
+                        continue;
+                    }
+
+                    int spindle = 0;
+                    try { spindle = Convert.ToInt32(obj["SpindleSpeed"] ?? 0); } catch { }
+
+                    int physMediaType = 0;
+                    try { physMediaType = Convert.ToInt32(obj["MediaType"] ?? 0); } catch { }
+
+                    // MSFT_PhysicalDisk.BusType — тот же код, что у MSFT_Disk.
+                    int physBus = 0;
+                    try { physBus = Convert.ToInt32(obj["BusType"] ?? 0); } catch { }
+
+                    if (physBus != 0)
+                    {
+                        d.BusType = physBus switch
+                        {
+                            17 => StoragePhysicalBus.NVMe,
+                            11 => StoragePhysicalBus.SATA,
+                            7 => StoragePhysicalBus.USB,
+                            10 => StoragePhysicalBus.SAS,
+                            14 => StoragePhysicalBus.Virtual,
+                            _ => StoragePhysicalBus.Unknown
+                        };
+                    }
+
+                    // Приоритет реальных признаков:
+                    // 1) MediaType == 3 (HDD) или SpindleSpeed > 0  → вращающийся диск
+                    // 2) BusType == NVMe                                → NVMe SSD
+                    // 3) BusType == USB                                → флешка
+                    // 4) MediaType == 4 (SSD) без шпинделя             → SATA SSD
+                    if (physMediaType == 3 || spindle > 0)
+                    {
                         d.MediaType = StoragePhysicalMedia.HDD;
+                    }
+                    else if (d.BusType == StoragePhysicalBus.NVMe)
+                    {
+                        d.MediaType = StoragePhysicalMedia.NVMeSSD;
+                    }
+                    else if (d.BusType == StoragePhysicalBus.USB)
+                    {
+                        d.MediaType = StoragePhysicalMedia.USBFlash;
+                    }
+                    else if (physMediaType == 4)
+                    {
+                        d.MediaType = StoragePhysicalMedia.SataSSD;
+                    }
                 }
             }
         }
         catch { }
+
+        // 2b. Если MSFT_PhysicalDisk не дал тип — оставляем Unknown, а не гадаем.
 
         // 3. Опрос томов MSFT_Volume (для свободных объемов и меток)
         var volumeDict = new Dictionary<string, (string label, string fs, long freeBytes)>(StringComparer.OrdinalIgnoreCase);
@@ -240,36 +352,89 @@ public static class StorageDiscoveryService
         var disks = new List<StorageDisk>();
         try
         {
-            using var searcher = new ManagementObjectSearcher("SELECT Index, Caption, Model, InterfaceType, Size, Status FROM Win32_DiskDrive");
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT Index, Caption, Model, InterfaceType, Size, Status, SerialNumber, MediaType, PNPDeviceID FROM Win32_DiskDrive");
             using var coll = searcher.Get();
 
             foreach (ManagementObject obj in coll)
             {
-                int index = Convert.ToInt32(obj["Index"] ?? 0);
-                string model = obj["Model"]?.ToString() ?? obj["Caption"]?.ToString() ?? $"Диск {index}";
-                long size = Convert.ToInt64(obj["Size"] ?? 0);
-                string ifType = obj["InterfaceType"]?.ToString() ?? "";
-
-                var disk = new StorageDisk
+                using (obj)
                 {
-                    DiskNumber = index,
-                    Model = model,
-                    TotalSizeBytes = size,
-                    AllocatedSizeBytes = size,
-                    BusType = ifType.ToUpperInvariant().Contains("SCSI") ? StoragePhysicalBus.NVMe : StoragePhysicalBus.SATA
-                };
+                    int index = Convert.ToInt32(obj["Index"] ?? 0);
+                    string model = obj["Model"]?.ToString() ?? obj["Caption"]?.ToString() ?? $"Диск {index}";
+                    long size = Convert.ToInt64(obj["Size"] ?? 0);
+                    string ifType = obj["InterfaceType"]?.ToString() ?? "";
 
-                string modelUpper = model.ToUpperInvariant();
-                if (modelUpper.Contains("NVME") || modelUpper.Contains("PCIE") || modelUpper.Contains("SN730"))
-                    disk.MediaType = StoragePhysicalMedia.NVMeSSD;
-                else if (modelUpper.Contains("SSD"))
-                    disk.MediaType = StoragePhysicalMedia.SataSSD;
-                else if (modelUpper.Contains("USB"))
-                    disk.MediaType = StoragePhysicalMedia.USBFlash;
-                else
-                    disk.MediaType = StoragePhysicalMedia.HDD;
+                    // Раньше SerialNumber не заполнялся вовсе и оставался пустым.
+                    string serial = obj["SerialNumber"]?.ToString()?.Trim() ?? "";
+                    if (serial.StartsWith("FALLBACK-", StringComparison.OrdinalIgnoreCase))
+                        serial = "";
 
-                disks.Add(disk);
+                    // Win32_DiskDrive.Status — реальное состояние диска.
+                    // Раньше поле выбиралось, но не читалось.
+                    string status = obj["Status"]?.ToString()?.Trim() ?? "";
+
+                    var disk = new StorageDisk
+                    {
+                        DiskNumber = index,
+                        Model = model,
+                        SerialNumber = serial,
+                        TotalSizeBytes = size,
+                        AllocatedSizeBytes = size,
+                        HealthStatus = string.IsNullOrEmpty(status) ? "" : status,
+                        OperationalStatus = "",
+
+                        // Раньше здесь стояло:
+                        //   BusType = ifType.Contains("SCSI") ? NVMe : SATA
+                        // то есть ЛЮБОЙ диск с InterfaceType="SCSI" (а это почти
+                        // все NVMe через SCSI miniport, но также RAID и USB-хабы)
+                        // помечался как NVMe, а всё остальное — как SATA.
+                        // Теперь по умолчанию шина неизвестна и уточняется ниже.
+                        BusType = StoragePhysicalBus.Unknown,
+                        MediaType = StoragePhysicalMedia.Unknown,
+
+                        // Этот путь — запасной, когда WMI-хранилище накопителей
+                        // недоступно. Признак честности: данные минимальны.
+                        TelemetryNote = "WMI-хранилище накопителей недоступно, показано базовое описание из Win32_DiskDrive."
+                    };
+
+                    // Win32_DiskDrive.MediaType: 3 = Fixed hard disk media.
+                    int mediaType = 0;
+                    try { mediaType = Convert.ToInt32(obj["MediaType"] ?? 0); } catch { }
+
+                    string modelUpper = model.ToUpperInvariant();
+                    string pnp = obj["PNPDeviceID"]?.ToString()?.ToUpperInvariant() ?? "";
+
+                    if (pnp.StartsWith(@"\\HOSTSTORAGEPORT") || ifType.Equals("SCSI", StringComparison.OrdinalIgnoreCase)
+                        && modelUpper.Contains("NVME"))
+                    {
+                        disk.BusType = StoragePhysicalBus.NVMe;
+                        disk.MediaType = StoragePhysicalMedia.NVMeSSD;
+                    }
+                    else if (pnp.StartsWith(@"\\USBSTOR") || ifType.Equals("USB", StringComparison.OrdinalIgnoreCase))
+                    {
+                        disk.BusType = StoragePhysicalBus.USB;
+                        disk.MediaType = StoragePhysicalMedia.USBFlash;
+                    }
+                    else if (modelUpper.Contains("NVME"))
+                    {
+                        disk.BusType = StoragePhysicalBus.NVMe;
+                        disk.MediaType = StoragePhysicalMedia.NVMeSSD;
+                    }
+                    else if (modelUpper.Contains("SSD") || mediaType == 4)
+                    {
+                        disk.BusType = StoragePhysicalBus.SATA;
+                        disk.MediaType = StoragePhysicalMedia.SataSSD;
+                    }
+                    else if (mediaType == 3)
+                    {
+                        disk.BusType = StoragePhysicalBus.SATA;
+                        disk.MediaType = StoragePhysicalMedia.HDD;
+                    }
+                    // иначе остаётся Unknown — лучше «неизвестно», чем выдумка
+
+                    disks.Add(disk);
+                }
             }
         }
         catch { }

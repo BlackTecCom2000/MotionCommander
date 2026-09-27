@@ -22,42 +22,53 @@ public static class StorageBenchmarkService
 
         try
         {
-            // 1. Sequential Write (SEQ1M Q8T1)
+            // 1. Последовательная запись 1 МБ.
+            //    Метки Q8T1 больше не используются: тест однопоточный и
+            //    одноочередной (один FileStream, один цикл), а заявлять
+            //    «8 очередей» было прямым введением в заблуждение.
             var seqWrite = new StorageBenchmarkItem
             {
                 TestType = "Последовательная запись (Seq Write)",
                 BlockSize = "1 МБ",
-                QueueThreads = "Q8T1",
+                QueueThreads = "Q1T1",
                 Status = "Тестирование..."
             };
             session.Items.Add(seqWrite);
             progress?.Report(("Последовательная запись (1 МБ)...", 10, 0));
 
             seqWrite.WriteSpeedMBps = await RunSequentialWriteAsync(benchFile, config.FileSizeBytes, 1024 * 1024, ct);
-            seqWrite.WriteIops = seqWrite.WriteSpeedMBps * 1024 * 1024 / (1024 * 1024);
+
+            // Настоящий IOPS для последовательного теста = скорость / размер блока.
+            // Раньше здесь было WriteSpeedMBps * 1024*1024 / (1024*1024), то есть
+            // тождество: показанные «3000 IOPS» на самом деле были 3000 МБ/с.
+            const double seqBlockMB = 1.0;
+            seqWrite.WriteIops = seqWrite.WriteSpeedMBps / seqBlockMB;
             seqWrite.Status = "Завершено";
 
-            // 2. Sequential Read (SEQ1M Q8T1)
+            // 2. Последовательное чтение 1 МБ
             var seqRead = new StorageBenchmarkItem
             {
                 TestType = "Последовательное чтение (Seq Read)",
                 BlockSize = "1 МБ",
-                QueueThreads = "Q8T1",
+                QueueThreads = "Q1T1",
                 Status = "Тестирование..."
             };
             session.Items.Add(seqRead);
             progress?.Report(("Последовательное чтение (1 МБ)...", 35, seqWrite.WriteSpeedMBps));
 
             seqRead.ReadSpeedMBps = await RunSequentialReadAsync(benchFile, 1024 * 1024, ct);
-            seqRead.ReadIops = seqRead.ReadSpeedMBps * 1024 * 1024 / (1024 * 1024);
+            seqRead.ReadIops = seqRead.ReadSpeedMBps / seqBlockMB;
             seqRead.Status = "Завершено";
 
-            // 3. Random 4K Read (RND4K Q32T1)
+            // 3. Случайное чтение 4K.
+            //    Метка Q32T1 была ложной: RunRandom4KReadAsync выполняет
+            //    последовательный цикл в одном потоке, без Task.WhenAll и без
+            //    очередей запросов. Указываем честное «Q1T1».
             var rnd4kRead = new StorageBenchmarkItem
             {
                 TestType = "Случайное чтение 4K (Rnd 4K)",
                 BlockSize = "4 КБ",
-                QueueThreads = "Q32T1",
+                QueueThreads = "Q1T1",
                 Status = "Тестирование..."
             };
             session.Items.Add(rnd4kRead);
@@ -66,12 +77,12 @@ public static class StorageBenchmarkService
             (rnd4kRead.ReadSpeedMBps, rnd4kRead.ReadIops, rnd4kRead.ReadLatencyUs) = await RunRandom4KReadAsync(benchFile, 4000, ct);
             rnd4kRead.Status = "Завершено";
 
-            // 4. Random 4K Write (RND4K Q32T1)
+            // 4. Случайная запись 4K
             var rnd4kWrite = new StorageBenchmarkItem
             {
                 TestType = "Случайная запись 4K (Rnd 4K)",
                 BlockSize = "4 КБ",
-                QueueThreads = "Q32T1",
+                QueueThreads = "Q1T1",
                 Status = "Тестирование..."
             };
             session.Items.Add(rnd4kWrite);
