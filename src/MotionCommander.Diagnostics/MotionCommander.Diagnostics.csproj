@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ДИАГНОСТИЧЕСКИЙ ИНСТРУМЕНТ, А НЕ ЕЩЁ ОДНА ПРОГРАММА.
+
+    Основная программа объявлена в манифесте как requireAdministrator:
+    Windows запрашивает повышение ДО выполнения кода. Из-за этого
+    проверочные режимы, встроенные в основной файл, тоже требуют
+    подтверждения в диалоге UAC, а в автоматической сборке и в среде
+    непрерывной интеграции диалог не показывается вовсе.
+
+    Этот проект собирается БЕЗ манифеста, поэтому запускается без
+    повышения и позволяет прогнать проверки где угодно. Он обращается к
+    тем же классам, что и основная программа, то есть проверяет реальный
+    код, а не его копию.
+
+    Проверки, требующие прав администратора — чтение S.M.A.R.T.
+    напрямую с накопителя, — здесь честно сообщают о недоступности и
+    НИКОГДА не подставляют вымышленные значения.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MotionCommanderDiagnostics</AssemblyName>
+    <RootNamespace>MotionCommander.Diagnostics</RootNamespace>
+
+    <!-- Явно пусто: файл app.manifest не подключается намеренно. -->
+    <ApplicationManifest />
+
+    <Version>3.8.28.0</Version>
+    <AssemblyVersion>3.8.28.0</AssemblyVersion>
+    <FileVersion>3.8.28.0</FileVersion>
+    <Product>Motion Commander</Product>
+    <AssemblyTitle>Motion Commander — диагностика</AssemblyTitle>
+    <Description>Проверки Motion Commander без запроса прав администратора.</Description>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Ссылка на основной проект обязана копировать его вывод: без этого
+      инструмент собрался бы, но не запустился бы, не найдя сборку
+      программы. Копируется ровно то, что нужно проверять, — тот же
+      код, а не его переписывание.
+    -->
+    <ProjectReference Include="..\..\Win11CopyDialog\Win11CopyDialog.csproj" />
+  </ItemGroup>
+
+</Project>

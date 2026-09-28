@@ -1398,7 +1398,8 @@ public partial class App : Application
     {
         string[] diagnostic = {
             "--view-audit", "--theme-audit", "--contrast-audit",
-            "--anim-audit", "--smart-test", "--storage-audit", "--copy-test"
+            "--anim-audit", "--anim-smoke", "--smart-test",
+            "--storage-audit", "--copy-test"
         };
 
         foreach (var a in args)

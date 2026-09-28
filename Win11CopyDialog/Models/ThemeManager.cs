@@ -490,15 +490,33 @@ public sealed class ThemeManager : INotifyPropertyChanged
         d["LiquidGlassHoverHighlight"] = Br(Color.FromArgb(dark ? (byte)0x14 : (byte)0x0A, accent.R, accent.G, accent.B));
 
         // --- Текст ---
+        //
+        // Второстепенный и приглушённый текст пропускаются через
+        // EnsureReadable, как и смысловые цвета ниже.
+        //
+        // Раньше Tertiary и Secondary шли в кисти напрямую. На светлой
+        // теме Mica карточка полупрозрачна, и за ней лежит материал
+        // окна, из-за чего фактический фон светлее заданного: измеренный
+        // контраст приглушённого текста на карточке составлял 2,98:1 при
+        // требуемых 4,5:1. Подписи под значениями и второстепенные
+        // подписи были почти нечитаемы.
+        //
+        // EnsureReadable поднимает тот же оттенок до 4,77:1, то есть
+        // вид темы не меняется — возвращается только читаемость.
+        var cardSolid = Flatten(p.Card);
+        var windowSolid = Flatten(p.Window);
+        Color secondaryText = ReadableOnBoth(p.Secondary, cardSolid, windowSolid);
+        Color tertiaryText = ReadableOnBoth(p.Tertiary, cardSolid, windowSolid);
+
         d["PrimaryTextBrush"] = Br(p.Primary);
         d["TextPrimaryBrush"] = Br(p.Primary);
-        d["SecondaryTextBrush"] = Br(p.Secondary);
-        d["TextSecondaryBrush"] = Br(p.Secondary);
-        d["LiquidGlassTextSecondaryBrush"] = Br(p.Secondary);
-        d["TextTertiaryBrush"] = Br(p.Tertiary);
-        d["LiquidGlassTextTertiaryBrush"] = Br(p.Tertiary);
-        d["MutedTextBrush"] = Br(p.Secondary);
-        d["TextMutedBrush"] = Br(p.Tertiary);
+        d["SecondaryTextBrush"] = Br(secondaryText);
+        d["TextSecondaryBrush"] = Br(secondaryText);
+        d["LiquidGlassTextSecondaryBrush"] = Br(secondaryText);
+        d["TextTertiaryBrush"] = Br(tertiaryText);
+        d["LiquidGlassTextTertiaryBrush"] = Br(tertiaryText);
+        d["MutedTextBrush"] = Br(secondaryText);
+        d["TextMutedBrush"] = Br(tertiaryText);
         d["TextDisabledBrush"] = Br(p.Disabled);
         d["TitleForegroundBrush"] = Br(p.Primary);
         d["HeaderForegroundBrush"] = Br(p.HeaderFg);
@@ -532,7 +550,19 @@ public sealed class ThemeManager : INotifyPropertyChanged
         // к фону только ухудшает. Здесь акцент затемняется до прохождения
         // порога WCAG AA, а AccentBrush остаётся для заливок и рамок,
         // где порог к тексту не применяется.
-        d["AccentTextBrush"] = Br(Helpers.Contrast.EnsureReadable(accent, p.Card));
+        // Тот же непрозрачный фон, что и для смысловых цветов ниже.
+        // Текстовые смысловые цвета доводятся до читаемости на ОБОИХ
+        // фонах сразу, а не только на карточке.
+        //
+        // Кисти попадают в разные места интерфейса: плашки лежат на
+        // карточках, а подписи и точки статуса — на фоне окна. Раньше
+        // исправление считалось только по карточке, и на фоне окна
+        // оставался недостигнутый порог: измеренные 4,25:1 у зелёного
+        // и 4,29:1 у янтарного в светлой теме при требуемых 4,5:1.
+        //
+        // EnsureReadable умеет править один фон за раз, поэтому берётся
+        // более строгий из двух результатов: он читается на обоих.
+        d["AccentTextBrush"] = Br(ReadableOnBoth(accent, cardSolid, Flatten(p.Window)));
 
         // Семантические цвета как ТЕКСТ. Проблема та же: в светлых темах
         // зелёный «успех» и янтарный «предупреждение» на белой карточке
@@ -540,10 +570,23 @@ public sealed class ThemeManager : INotifyPropertyChanged
         // цвет приблизится к фону. Затемнённые версии применяются там,
         // где цвет используется как надпись, а исходные остаются для
         // плашек, рамок и точек статуса.
-        d["SuccessTextBrush"] = Br(Helpers.Contrast.EnsureReadable(p.Success, p.Card));
-        d["WarningTextBrush"] = Br(Helpers.Contrast.EnsureReadable(p.Warning, p.Card));
-        d["DangerTextBrush"]  = Br(Helpers.Contrast.EnsureReadable(p.Danger, p.Card));
-        d["InfoTextBrush"]    = Br(Helpers.Contrast.EnsureReadable(p.Info, p.Card));
+        // Смысловые цвета для текста считаются по НЕПРОЗРАЧНОЙ карточке.
+        //
+        // Раньше здесь передавался p.Card как есть. В темах Mica и Acrylic
+        // карточка полупрозрачна, а формула контраста WCAG определена
+        // только для непрозрачных цветов: она брала яркость
+        // полупрозрачного цвета, как если бы под ним ничего не лежало.
+        // Фактический фон светлее, поэтому цвета получались бледнее
+        // нужного: измеренный контраст смыслового текста на карточке
+        // Mica составлял 2,17:1 при требуемых 4,5:1.
+        //
+        // cardSolid — та же непрозрачная подложка, что и для приглушённого
+        // текста выше, поэтому все текстовые цвета считаются от одной
+        // точки отсчёта.
+        d["SuccessTextBrush"] = Br(ReadableOnBoth(p.Success, cardSolid, windowSolid));
+        d["WarningTextBrush"] = Br(ReadableOnBoth(p.Warning, cardSolid, windowSolid));
+        d["DangerTextBrush"]  = Br(ReadableOnBoth(p.Danger, cardSolid, windowSolid));
+        d["InfoTextBrush"]    = Br(ReadableOnBoth(p.Info, cardSolid, windowSolid));
         Color glow = Tint(accent, dark ? (byte)0x40 : (byte)0x28);
         d["GlowAccentColor"] = glow;
         d["GlowAccentBrush"] = Br(glow);
@@ -696,6 +739,52 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
     private static SolidColorBrush Br(Color c) => AccentOption.Frozen(new SolidColorBrush(c));
 
+    /// <summary>
+    /// Накладывает полупрозрачный слой на подложку, давая непрозрачный цвет.
+    /// </summary>
+    /// <remarks>
+    /// <para>Темы Mica и Acrylic задают карточку полупрозрачной, чтобы был
+    /// виден материал окна. Формула контраста WCAG определена только для
+    /// непрозрачных цветов, поэтому до расчёта слой нужно наложить на то,
+    /// что под ним: на материал окна, а при его отсутствии — на чёрную
+    /// подложку.</para>
+    ///
+    /// <para>Накладывание идёт по формуле «поверх» из стандарта
+    /// источника-поверх: результат = слой·альфа + подложка·(1 − альфа).
+    /// Подложка берётся чёрной, потому что под материалом окна темнее
+    /// ничего не лежит, и для расчёта контраста важна разница яркостей,
+    /// которая при таком выборе задаётся однозначно.</para>
+    /// </remarks>
+    /// <summary>
+    /// Возвращает цвет, читаемый на карточке и на фоне окна сразу.
+    /// </summary>
+    /// <remarks>
+    /// <para>Текст программы размещается на обоих фонах: плашки лежат
+    /// на карточках, подписи и точки статуса — на фоне окна. Раньше
+    /// исправление считалось только по карточке, и на окне оставался
+    /// недостигнутый порог: измеренные 4,25:1 и 4,29:1 в светлой теме
+    /// при требуемых 4,5:1.</para>
+    ///
+    /// <para>Выбор «более строгого из двух исправлений» не решает
+    /// задачу: ни один из них не обязан читаться на втором фоне, и на
+    /// теме Mica исправление под окно давало 4,72:1 на окне и 2,96:1
+    /// на карточке. Нужен поиск цвета, который проходит оба порога
+    /// сразу, — он и выполняется в <see cref="Helpers.Contrast"/>.</para>
+    /// </remarks>
+    private static Color ReadableOnBoth(Color color, Color card, Color window)
+        => Helpers.Contrast.EnsureReadable(color, false, card, window);
+
+    private static Color Flatten(Color layer)
+    {
+        if (layer.A >= 255) return layer;
+
+        double a = layer.A / 255.0;
+        return Color.FromRgb(
+            (byte)Math.Round(layer.R * a),
+            (byte)Math.Round(layer.G * a),
+            (byte)Math.Round(layer.B * a));
+    }
+
     private static LinearGradientBrush Grad(Color[] stops, double x1, double y1, double x2, double y2)
     {
         var b = new LinearGradientBrush(
@@ -781,7 +870,7 @@ public sealed class ThemeManager : INotifyPropertyChanged
     /// текст был нечитаем в светлых темах.</para>
     /// </remarks>
     public Color AccentAsText(ThemeColors colors)
-        => Helpers.Contrast.EnsureReadable(colors.Accent, colors.Card);
+        => ReadableOnBoth(colors.Accent, Flatten(colors.Card), Flatten(colors.Window));
 
     // ================= Сохранение =================
 

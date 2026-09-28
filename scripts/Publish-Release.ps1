@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = "3.8.27",
+    [string]$Version = "3.8.28",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -62,6 +62,18 @@ New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
 
 & dotnet publish "$repoRoot\Win11CopyDialog\Win11CopyDialog.csproj" -c Release -o $publishDir
 & dotnet publish "$repoRoot\src\MotionCommander.Cli\MotionCommander.Cli.csproj" -c Release -o $publishDir
+
+# Диагностический инструмент публикуется рядом с программой.
+#
+# Он нужен пользователю и в сборочном конвейере: собран без манифеста
+# администратора и потому запускается без подтверждения в диалоге UAC,
+# в отличие от основной программы. Публикуется после неё, чтобы при
+# общей папке его файлы не оказались затёртыми одноимёнными.
+& dotnet publish "$repoRoot\src\MotionCommander.Diagnostics\MotionCommander.Diagnostics.csproj" -c Release -o $publishDir
+
+if (-not (Test-Path "$publishDir\MotionCommanderDiagnostics.exe")) {
+    throw "Диагностический инструмент не опубликован: $publishDir\MotionCommanderDiagnostics.exe отсутствует"
+}
 
 Write-Host "Packaging portable ZIP archives..." -ForegroundColor Cyan
 $zipFile = "$distDir\MotionCommander-v$cleanVer-Portable.zip"

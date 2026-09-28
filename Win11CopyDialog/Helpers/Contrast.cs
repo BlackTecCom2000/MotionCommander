@@ -84,18 +84,132 @@ public static class Contrast
         double target = large ? AaLarge : AaNormal;
         if (Ratio(color, background) >= target) return color;
 
-        // Светлее фона — осветляем, темнее — затемняем.
-        bool lighten = Luminance(color) < Luminance(background);
         var hsv = RgbToHsv(color);
+
+        // НАПРАВЛЕНИЕ ОПРЕДЕЛЯЕТСЯ ФАКТОМ, А НЕ ПРЕДПОЛОЖЕНИЕМ.
+        //
+        // Раньше выбиралось одно направление по сравнению яркости:
+        // «цвет темнее фона — осветлять, светлее — затемнять». Это
+        // неверно, когда цвета близки по яркости. Для светлой темы
+        // (фон L=0,896) и светлой рамки (L=0,784) выбиралось
+        // осветление, то есть движение к белому. Но белый на почти
+        // белом фоне даёт 1,11:1 — ХУЖЕ исходных 1,14:1. Порог
+        // недостижим, и функция возвращала худший из возможных
+        // результатов, вместо того чтобы затемнить цвет.
+        //
+        // Правильно: проверить оба направления и взять то, где
+        // контраст растёт. Победитель определяется измерением, а не
+        // догадкой о том, «куда правильно».
+        Color lightened = NudgeToReach(hsv, background, target, lighten: true);
+        if (Ratio(lightened, background) >= target) return lightened;
+
+        Color darkened = NudgeToReach(hsv, background, target, lighten: false);
+        if (Ratio(darkened, background) >= target) return darkened;
+
+        // Ни одно направление не достигло порога при сохранении
+        // оттенка — обычно это серый цвет около серого фона.
+        // Тогда оттенок сохранить невозможно, и остаётся выбрать
+        // полюс по измеренному контрасту, а не по предположению:
+        // на светлом фоне чёрный читается, а на тёмном — белый.
+        return Ratio(Colors.Black, background) >= Ratio(Colors.White, background)
+            ? Colors.Black
+            : Colors.White;
+    }
+
+    /// <summary>
+    /// Сдвигает яркость в указанную сторону до достижения порога.
+    /// </summary>
+    /// <remarks>
+    /// Шаг 0,02 по яркости HSV выбран из требования к точности: при
+    /// 50 оттенках V отношение контраста меняется не быстрее, чем
+    /// примерно на 0,04 за шаг, поэтому шаг заведомо не перескакивает
+    /// через минимально достаточное значение. Возвращается лучший
+    /// найденный цвет, даже если порог не достигнут, — вызывающий
+    /// код должен иметь возможность сравнить оба направления.
+    /// </remarks>
+    private static Color NudgeToReach(Hsv hsv, Color background, double target, bool lighten)
+    {
+        Color best = HsvToRgb(hsv.H, hsv.S, hsv.V);
+        double bestRatio = Ratio(best, background);
 
         for (double step = 0.02; step <= 1.0; step += 0.02)
         {
-            var candidate = HsvToRgb(hsv.H, hsv.S, lighten ? Math.Min(1.0, hsv.V + step) : Math.Max(0.0, hsv.V - step));
-            if (Ratio(candidate, background) >= target) return candidate;
+            double v = lighten ? Math.Min(1.0, hsv.V + step) : Math.Max(0.0, hsv.V - step);
+            var candidate = HsvToRgb(hsv.H, hsv.S, v);
+            double ratio = Ratio(candidate, background);
+
+            if (ratio >= target) return candidate;
+            if (ratio > bestRatio) { best = candidate; bestRatio = ratio; }
         }
 
-        // Порог недостижим: возвращаем полюс с максимальным контрастом.
-        return lighten ? Colors.White : Colors.Black;
+        return best;
+    }
+
+    /// <summary>
+    /// Возвращает цвет, читаемый сразу на нескольких фонах.
+    /// </summary>
+    /// <remarks>
+    /// <para><see cref="EnsureReadable(Color, Color, bool)"/> правит один
+    /// фон за раз, и ни один из двух её результатов не обязан читаться
+    /// на втором. Выбор «более строгого из двух» не помогает: если фоны
+    /// различаются по яркости, то вариант, исправленный под более
+    /// светлый фон, окажется нечитаемым на более тёмном. Так на теме
+    /// Mica исправление под окно давало 4,72:1 на окне и 2,96:1 на
+    /// карточке.</para>
+    ///
+    /// <para>Поэтому здесь ищется не «лучший для одного фона», а цвет с
+    /// наибольшим МИНИМАЛЬНЫМ контрастом среди всех фонов: он
+    /// гарантирует читаемость везде, где применяется.</para>
+    ///
+    /// <para>Оттенок исходного цвета сохраняется, как и в одиночной
+    /// версии: меняется только яркость, поэтому тема не меняет вид.</para>
+    /// </remarks>
+    public static Color EnsureReadable(Color color, bool large, params Color[] backgrounds)
+    {
+        double target = large ? AaLarge : AaNormal;
+        if (backgrounds == null || backgrounds.Length == 0) return color;
+
+        double WorstRatio(Color candidate)
+        {
+            double worst = double.MaxValue;
+            foreach (var bg in backgrounds)
+            {
+                double r = Ratio(candidate, bg);
+                if (r < worst) worst = r;
+            }
+            return worst;
+        }
+
+        if (WorstRatio(color) >= target) return color;
+
+        var hsv = RgbToHsv(color);
+        Color best = color;
+        double bestWorst = WorstRatio(color);
+
+        // Обе стороны перебираются: неизвестно заранее, в какую сторону
+        // оттенок уйдёт от обоих фонов сразу.
+        foreach (bool lighten in new[] { true, false })
+        {
+            for (double step = 0.02; step <= 1.0; step += 0.02)
+            {
+                double v = lighten
+                    ? Math.Min(1.0, hsv.V + step)
+                    : Math.Max(0.0, hsv.V - step);
+
+                var candidate = HsvToRgb(hsv.H, hsv.S, v);
+                double worst = WorstRatio(candidate);
+
+                if (worst >= target) return candidate;
+                if (worst > bestWorst) { best = candidate; bestWorst = worst; }
+            }
+        }
+
+        // Оттенок сохранить не удалось: берётся полюс с наибольшим
+        // минимальным контрастом, а не тот, что «правильнее» по
+        // отдельному фону.
+        double blackWorst = WorstRatio(Colors.Black);
+        double whiteWorst = WorstRatio(Colors.White);
+        return blackWorst >= whiteWorst ? Colors.Black : Colors.White;
     }
 
     /// <summary>Оттенок сохраняется, яркость подстраивается под порог.</summary>
