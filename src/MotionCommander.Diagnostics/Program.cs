@@ -37,6 +37,23 @@ internal static class Program
             ? TextWriter.Synchronized(Console.Out)
             : Console.Out;
 
+        // Отрисовка сцены в файл: --scene-shot <путь> [ширина] [высота]
+        int shotAt = Array.IndexOf(args, "--scene-shot");
+        if (shotAt >= 0)
+        {
+            string path = shotAt + 1 < args.Length
+                ? args[shotAt + 1]
+                : Path.Combine(AppContext.BaseDirectory, "scene.png");
+
+            int w = int.TryParse(shotAt + 2 < args.Length ? args[shotAt + 2] : null, out int pw) ? pw : 0;
+            int h = int.TryParse(shotAt + 3 < args.Length ? args[shotAt + 3] : null, out int ph) ? ph : 0;
+
+            return SceneShot.Capture(
+                path,
+                w > 0 ? w : 1440,
+                h > 0 ? h : 900);
+        }
+
         if (Array.IndexOf(args, "--help") >= 0 || Array.IndexOf(args, "-h") >= 0)
         {
             autoplay.WriteLine("Motion Commander — диагностика");
@@ -49,6 +66,9 @@ internal static class Program
             autoplay.WriteLine("в автоматической сборке, где диалог UAC не показывается.");
             autoplay.WriteLine();
             autoplay.WriteLine("Код возврата: 0 — все проверки пройдены, иначе их число.");
+            autoplay.WriteLine();
+            autoplay.WriteLine("Отрисовка сцены в файл:");
+            autoplay.WriteLine("  MotionCommanderDiagnostics.exe --scene-shot <файл.png> [ширина] [высота]");
             return 0;
         }
 

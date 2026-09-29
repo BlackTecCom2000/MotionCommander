@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Win11CopyDialog.Models;
 
 namespace Win11CopyDialog.Controls;
@@ -115,6 +116,11 @@ public sealed class CosmicBackdrop : FrameworkElement
     private readonly DrawingVisual _stars2   = new();
     private readonly DrawingVisual _planet   = new();
     private readonly DrawingVisual _shootersVis = new();
+
+    /// <summary>
+    /// Кэш затенения планеты, пересчитывается только при изменении размера.
+    /// </summary>
+    private BitmapSource? _planetCache;
     private readonly VisualCollection _children;
 
     // ===================== Состояние =====================
@@ -470,7 +476,16 @@ public sealed class CosmicBackdrop : FrameworkElement
         double baseR = Math.Min(w, h) * 0.34;
         if (baseR < 40) return;
 
-        var center = new Point(w * 0.78, h * 0.24);
+        // Положение выбрано так, чтобы диск целиком помещался в кадр.
+        //
+        // Раньше центр стоял в точке (0.78w, 0.24h): при радиусе
+        // 0.34·min(w,h) планета выходила за верхнюю границу и
+        // обрезалась. Обрезка читалась как ошибка отрисовки, а не как
+        // композиционный приём, потому что приём требует осознанного
+        // кадрирования: планета у края с половиной поверхности.
+        // Здесь она целиком в кадре и смотрится как объект, а не как
+        // обрезок.
+        var center = new Point(w * 0.72, h * 0.42);
         double R = baseR;
 
         // Источник света: сверху слева, поэтому освещена левая верхняя часть.
@@ -484,48 +499,55 @@ public sealed class CosmicBackdrop : FrameworkElement
         const int steps = 92;
         double step = 2.0 * R / steps;
 
-        // 1. Тело планеты: сферическое затенение по сетке квадратов.
-        for (int y = 0; y < steps; y++)
+        // 1. Тело планеты.
+        //
+        // Затенение считается ПОПИКСЕЛЬНО и кэшируется в изображение.
+        //
+        // Раньше диск заполнялся сеткой из 92 на 92 квадратов, и
+        // антиалиасинг на стыках соседних прямоугольников оставлял
+        // тонкую сетку швов поперёк всей планеты: она была хорошо
+        // заметна и делала сферу похожей на мозаику. Заодно на
+        // каждую перерисовку выполнялось около восьми с половиной
+        // тысяч вызовов рисования с собственными кистями.
+        //
+        // Теперь каждый пиксель получает свою нормаль и своё
+        // освещение, результат кэшируется и рисуется одним
+        // изображением. Сетки не остаётся вовсе, а работа при
+        // повторных кадрах сокращается до одного вызова.
+        //
+        // Разрешение берётся по физическому размеру диска, а не
+        // фиксированное: при увеличении окна сфера остаётся гладкой.
+        int px = (int)Math.Ceiling(2 * R);
+        if (px < 8) return;
+
+        var disc = _planetCache;
+        if (disc == null || disc.PixelWidth != px || disc.PixelHeight != px)
         {
-            for (int x = 0; x < steps; x++)
-            {
-                double px = -R + (x + 0.5) * step;
-                double py = -R + (y + 0.5) * step;
-
-                double d2 = px * px + py * py;
-                if (d2 > R * R) continue;
-
-                double z = Math.Sqrt(R * R - d2);
-                var n = new Vec3(px / R, py / R, z / R);
-
-                double diff = Vec3.Dot(n, light);
-
-                Color col;
-                if (diff > 0)
-                {
-                    double t = Math.Pow(diff, 0.72);
-                    col = Mix(deep, lit, t);
-                }
-                else
-                {
-                    // Ночная сторона: слабое отражённое свечение.
-                    double t = Math.Pow(-diff, 1.9);
-                    col = Mix(deep, nightGlow, t * 0.5);
-                }
-
-                var brush = Solid(col);
-                dc.DrawRectangle(brush, null,
-                    new Rect(center.X + px - step / 2, center.Y + py - step / 2, step + 0.6, step + 0.6));
-            }
+            disc = BuildPlanetBitmap(px, light, lit, deep, nightGlow);
+            _planetCache = disc;
         }
 
-        // 2. Контровой свет по краю со стороны, противоположной источнику.
-        //    Он отделяет планету от фона и создаёт «воздух» вокруг неё.
-        var rim = new Pen(Solid(Color.FromArgb(150, 143, 230, 255)), Math.Max(1.2, R * 0.012));
-        rim.Freeze();
-        dc.DrawEllipse(null, rim, center, R, R);
+        // Задняя дуга кольца рисуется ДО тела планеты: она уходит за
+        // диск и тем самым показывает, что кольцо проходит ЗА планетой.
+        // Раньше обе дуги рисовались после тела, и кольцо выглядело
+        // наклеенным поверх сферы, а не окружающим её.
+        DrawRings(dc, center, R, front: false);
 
-        // 3. Мягкое гало вокруг планеты: рассеяние света в пыли.
+        dc.DrawImage(disc, new Rect(center.X - R, center.Y - R, 2 * R, 2 * R));
+
+        // 2. Мягкое гало вокруг планеты: рассеяние света в пыли.
+        //
+        // Рисуется ДО тела и с нулевой плотностью в центре.
+        //
+        // Раньше первая остановка градиента стояла на 0,55, поэтому всё
+        // внутри этой доли радиуса заливалось ровным слоем альфа 70, а
+        // на 0,55 возникала граница. Поскольку гало ложилось поверх
+        // планеты, эта граница читалась как дуга поперёк диска, а
+        // ровный слой выбеливал сферическое затенение: планета
+        // выглядела плоской, с ободком-обводкой.
+        //
+        // Теперь остановки идут от центра наружу с нуля, и гало
+        // добавляет только ореол, не трогая затенение поверхности.
         var halo = new RadialGradientBrush
         {
             Center = new Point(0.5, 0.5),
@@ -533,58 +555,204 @@ public sealed class CosmicBackdrop : FrameworkElement
             RadiusX = 0.5, RadiusY = 0.5,
             GradientStops = new GradientStopCollection
             {
-                new GradientStop(Color.FromArgb(70, 150, 180, 255), 0.55),
-                new GradientStop(Color.FromArgb(0, 150, 180, 255), 1.0)
+                new GradientStop(Color.FromArgb(0, 150, 180, 255), 0.00),
+                new GradientStop(Color.FromArgb(0, 150, 180, 255), 0.62),
+                new GradientStop(Color.FromArgb(46, 150, 180, 255), 0.78),
+                new GradientStop(Color.FromArgb(0, 150, 180, 255), 1.00)
             }
         };
         halo.Freeze();
-        dc.DrawEllipse(halo, null, center, R * 1.42, R * 1.42);
+        dc.DrawEllipse(halo, null, center, R * 1.55, R * 1.55);
 
-        // 4. Кольца планеты: эллипсы под наклоном, обрезанные видимой
-        //    полусферой планеты. Дают узнаваемый силуэт «газового гиганта».
-        DrawRings(dc, center, R, light);
+        // 3. Контровой свет по краю со стороны, противоположной источнику.
+        //    Он отделяет планету от фона и создаёт «воздух» вокруг неё.
+        //
+        // Плотность ободка зависит от направления на источник: там,
+        // где край освещён, лимб ярче, на ночной стороне его почти нет.
+        // Раньше ободок был сплошным кольцом одинаковой яркости, и
+        // планета читалась как круг с обводкой, а не как сфера.
+        const int rimSteps = 120;
+        for (int i = 0; i < rimSteps; i++)
+        {
+            double a0 = 2.0 * Math.PI * i / rimSteps;
+            double a1 = 2.0 * Math.PI * (i + 1) / rimSteps;
+
+            double am = (a0 + a1) / 2.0;
+            // Нормаль точки на ободе: та же формула, что и у тела,
+            // поэтому освещённость края совпадает с освещённостью
+            // поверхности рядом с ним.
+            var n = new Vec3(Math.Cos(am), Math.Sin(am), 0.0);
+            double diff = Vec3.Dot(n, light);
+
+            // На ночной стороне ободок гаснет, но не исчезает: там
+            // виден контровой свет звёзд за планетой.
+            double t = Math.Clamp((diff + 0.35) / 1.35, 0.0, 1.0);
+            byte alpha = (byte)Math.Round(28 + t * 190);
+
+            var pen = new Pen(Solid(Color.FromArgb(alpha, 143, 230, 255)),
+                               Math.Max(1.2, R * 0.012));
+            pen.Freeze();
+            dc.DrawGeometry(null, pen, ArcSegment(center, R, a0, a1));
+        }
+
+        // 4. Передняя дуга кольца — поверх тела: она ближе к зрителю,
+        //    чем планета, поэтому перекрывает её нижний край.
+        DrawRings(dc, center, R, front: true);
     }
 
-    private static void DrawRings(DrawingContext dc, Point center, double R, Vec3 light)
+    /// <summary>
+    /// Строит изображение планеты с попиксельным сферическим затенением.
+    /// </summary>
+    /// <remarks>
+    /// <para>Для каждого пикселя вне диска записывается полная
+    /// прозрачность, иначе квадратное изображение оставляло бы
+    /// непрозрачные углы за круглым диском.</para>
+    ///
+    /// <para>Сглаживание края сделано смешиванием по покрытию площади
+    /// пикселя кругом: пиксель у границы получает промежуточную
+    /// прозрачность, поэтому контур не ведёт себя ни ступенькой, ни
+    /// рваным кругом из квадратов.</para>
+    ///
+    /// <para>Изображение замораживается: после записи пикселей оно не
+    /// меняется, а заморозка снимает накладные расходы WPF на
+    /// повторном выводе.</para>
+    /// </remarks>
+    private static BitmapSource BuildPlanetBitmap(
+        int size, Vec3 light, Color lit, Color deep, Color nightGlow)
     {
-        // Кольца проходят за планетой и перед ней: сначала дальняя дуга,
-        // затем ближняя, с разной прозрачностью.
-        for (int pass = 0; pass < 2; pass++)
+        // Палитра передаётся явно пустой: при 32 битах на пиксель она
+        // не нужна, но перегрузка без неё для этого формата не
+        // разрешается.
+        var bitmap = new WriteableBitmap(size, size, 96, 96, PixelFormats.Pbgra32, null);
+        int stride = size * 4;
+        var pixels = new byte[stride * size];
+
+        double R = size / 2.0;
+
+        for (int y = 0; y < size; y++)
         {
-            bool front = pass == 1;
-            double ry = R * 0.20;
-            var pen = new Pen(
-                Solid(front ? Color.FromArgb(120, 220, 200, 255) : Color.FromArgb(58, 190, 175, 245)),
-                Math.Max(1.0, R * 0.018));
-            pen.Freeze();
-
-            // Геометрия эллипса, наклонённого в перспективе.
-            var geom = new StreamGeometry();
-            using (var ctx = geom.Open())
+            for (int x = 0; x < size; x++)
             {
-                double rx = R * 1.52;
-                // Передняя дуга идёт снизу, задняя — сверху.
-                double a0 = front ? Math.PI : 0;
-                double a1 = front ? Math.PI * 2 : Math.PI;
-                ctx.BeginFigure(EllipsePoint(center, rx, ry, a0), false, false);
-                // Порядок аргументов ArcTo: точка, размер, угол поворота,
-                // isLargeArc, SweepDirection, isStroked, isSmoothJoin.
-                // Раньше SweepDirection стоял на месте isLargeArc, поэтому
-                // вызов не находил подходящую перегрузку.
-                ctx.ArcTo(EllipsePoint(center, rx, ry, a1), new Size(rx, ry), 0,
-                          false, SweepDirection.Clockwise, false, false);
-            }
-            geom.Freeze();
+                int i = y * stride + x * 4;
 
-            // Скрываем часть кольца, оказавшуюся за планетой или перед ней
-            // не по слою, а по видимости: дуга рисуется полностью,
-            // но эллипс наклонён так, что половина уходит за диск.
-            dc.DrawGeometry(null, pen, geom);
+                // Положение пикселя относительно центра диска.
+                double dx = x + 0.5 - R;
+                double dy = y + 0.5 - R;
+                double d = Math.Sqrt(dx * dx + dy * dy);
+
+                // Покрытие пикселя кругом: полное внутри, нулевое
+                // снаружи, промежуточное на границе в один пиксель.
+                double cover = R - d;
+                if (cover <= -0.5) { pixels[i + 3] = 0; continue; }
+                double alpha = Math.Clamp(cover + 0.5, 0.0, 1.0);
+
+                double z = Math.Sqrt(Math.Max(0.0, R * R - d * d));
+                var n = new Vec3(dx / R, dy / R, z / R);
+                double diff = Vec3.Dot(n, light);
+
+                Color col;
+                if (diff > 0)
+                {
+                    col = Mix(deep, lit, Math.Pow(diff, 0.72));
+                }
+                else
+                {
+                    // Ночная сторона: слабое отражённое свечение.
+                    col = Mix(deep, nightGlow, Math.Pow(-diff, 1.9) * 0.5);
+                }
+
+                // Каналы умножаются на покрытие, потому что формат
+                // пред premultiplied: цвет уже смешан с прозрачным
+                // фоном. Запись без умножения дала бы на краю диска
+                // тёмный ободок из «непрозрачного» цвета.
+                pixels[i] = (byte)Math.Round(col.B * alpha);
+                pixels[i + 1] = (byte)Math.Round(col.G * alpha);
+                pixels[i + 2] = (byte)Math.Round(col.R * alpha);
+                pixels[i + 3] = (byte)Math.Round(alpha * 255);
+            }
         }
+
+        bitmap.WritePixels(new Int32Rect(0, 0, size, size), pixels, stride, 0);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Рисует одну из двух дуг кольца планеты.
+    /// </summary>
+    /// <remarks>
+    /// Дуги вызываются по отдельности — до и после тела планеты, —
+    /// и именно этим порядком кольцо читается как проходящее за
+    /// сферой. Нарисованные обе подряд, они лежали бы поверх диска и
+    /// выглядели бы наклеенными, а не окружающими.
+    /// </remarks>
+    private static void DrawRings(DrawingContext dc, Point center, double R, bool front)
+    {
+        double ry = R * 0.20;
+        var pen = new Pen(
+            Solid(front ? Color.FromArgb(150, 220, 200, 255) : Color.FromArgb(70, 190, 175, 245)),
+            Math.Max(1.0, R * 0.018));
+        pen.Freeze();
+
+        var geom = new StreamGeometry();
+        using (var ctx = geom.Open())
+        {
+            double rx = R * 1.52;
+            // Ближняя к зрителю часть кольца проходит ПЕРЕД планетой и
+            // на экране лежит НИЖЕ её центра; дальняя уходит за планету
+            // и видна выше.
+            //
+            // В экранных координатах ось Y направлена вниз, поэтому
+            // угол 3π/2 (sin = −1) даёт верхнюю точку эллипса, а π/2
+            // (sin = +1) — нижнюю. Раньше эти дуги были названы
+            // наоборот, и кольцо выглядело опрокинутым: ближняя дуга
+            // перекрывала верх диска вместо низа.
+            double a0 = front ? 0.0 : Math.PI;
+            double a1 = front ? Math.PI : Math.PI * 2;
+            ctx.BeginFigure(EllipsePoint(center, rx, ry, a0), false, false);
+            // Порядок аргументов ArcTo: точка, размер, угол поворота,
+            // isLargeArc, SweepDirection, isStroked, isSmoothJoin.
+            // isStroked обязан быть true: при false геометрия не
+            // содержит обводки, и DrawGeometry с пером не рисует
+            // ничего. Именно поэтому кольца не появлялись вовсе,
+            // хотя код их рисовал.
+            ctx.ArcTo(EllipsePoint(center, rx, ry, a1), new Size(rx, ry), 0,
+                      false, SweepDirection.Clockwise, true, false);
+        }
+        geom.Freeze();
+
+        dc.DrawGeometry(null, pen, geom);
     }
 
     private static Point EllipsePoint(Point c, double rx, double ry, double a)
         => new(c.X + rx * Math.Cos(a), c.Y + ry * Math.Sin(a));
+
+    /// <summary>
+    /// Строит короткую дугу окружности как геометрию для обводки.
+    /// </summary>
+    /// <remarks>
+    /// Дуга нужна, чтобы ободок планеты можно было обводить по
+    /// частям с разной прозрачностью: у неё яркость зависит от
+    /// направления на источник света, и сплошной эллипс такой
+    /// зависимости выразить не может.
+    /// </remarks>
+    private static StreamGeometry ArcSegment(Point c, double r, double a0, double a1)
+    {
+        var geom = new StreamGeometry();
+        using (var ctx = geom.Open())
+        {
+            // Шов между сегментами закрывается на четверть градуса с
+            // каждой стороны: иначе при круговой антиалиасинге между
+            // соседними сегментами видны тонкие разрывы.
+            double pad = 0.0005;
+            ctx.BeginFigure(EllipsePoint(c, r, r, a0 - pad), false, false);
+            ctx.ArcTo(EllipsePoint(c, r, r, a1 + pad),
+                      new Size(r, r), 0, false, SweepDirection.Clockwise,
+                      true, false);
+        }
+        geom.Freeze();
+        return geom;
+    }
 
     // ===================== Падающие звёзды =====================
 
@@ -776,6 +944,23 @@ public sealed class CosmicBackdrop : FrameworkElement
     }
 
     // ===================== Проверка из внешнего теста =====================
+
+    /// <summary>
+    /// Перестраивает содержимое слоёв по текущему размеру.
+    /// </summary>
+    /// <remarks>
+    /// <para>Нужен отрисовке вне окна. Обычно перестройка происходит по
+    /// событию SizeChanged, но вне окна оно не наступает: элемент не
+    /// проходит цикл компоновки, и содержимое слоёв остаётся пустым.
+    /// Из-за этого снимок сцены получался сплошным чёрным, хотя все
+    /// проверки на отсутствие исключений проходили.</para>
+    ///
+    /// <para>Метод делает ровно то же, что обработчик SizeChanged, и
+    /// ничего не добавляет: путь отрисовки остаётся один, чтобы
+    /// снимок показывал настоящий результат, а не отдельную ветку
+    /// кода, которой нет в программе.</para>
+    /// </remarks>
+    public void RebuildForTest() => Rebuild();
 
     /// <summary>
     /// Выполняет один кадр логики сцены вне цикла отрисовки.

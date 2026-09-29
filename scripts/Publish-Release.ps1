@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = "3.8.28",
+    [string]$Version = "3.8.29",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -205,6 +205,48 @@ if ($setupCreated) {
 
 $jsonStr = $versionManifest | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText("$repoRoot\version.json", $jsonStr, [System.Text.Encoding]::UTF8)
+
+# 5b. Manifest of checksums
+#
+# The program verifies the SHA-256 of the downloaded update against this
+# file before unpacking it. Without it, anything able to substitute the
+# download (a hijacked address, a replaced response, a poisoned CDN cache)
+# would run its own code with administrator rights, because the whole
+# archive is executed elevated.
+#
+# The manifest itself is not signed: an attacker able to replace both the
+# archive and this file replaces them consistently and the check passes.
+# What is closed here is substitution of the archive alone. Closing the
+# rest requires a signing certificate, which the project does not have.
+Write-Host "[5b/7] Writing dist\checksums.json..." -ForegroundColor Cyan
+
+$checksums = [ordered]@{
+    version = $cleanVer
+    releaseDate = (Get-Date).ToString("yyyy-MM-dd")
+    algorithm = "SHA-256"
+    signed = $false
+    files = [ordered]@{}
+}
+
+foreach ($artifact in @(
+    @{ name = "MotionCommander-v$cleanVer-Portable.zip"; path = $zipFile },
+    @{ name = "MotionCommander-v$cleanVer-Patch.zip";   path = $patchFile },
+    @{ name = "MotionCommander-v$cleanVer-Setup.exe";   path = $setupExe }
+)) {
+    if ([string]::IsNullOrWhiteSpace($artifact.path) -or -not (Test-Path $artifact.path)) {
+        continue
+    }
+    $hash = (Get-FileHash -Path $artifact.path -Algorithm SHA256).Hash.ToUpperInvariant()
+    $checksums.files[$artifact.name] = $hash
+    Write-Host "  $($artifact.name) = $hash"
+}
+
+if ($checksums.files.Count -eq 0) {
+    throw "checksums.json would be empty: no release artifacts were found to hash."
+}
+
+$checksumJson = $checksums | ConvertTo-Json -Depth 5
+[System.IO.File]::WriteAllText("$distDir\checksums.json", $checksumJson, [System.Text.Encoding]::UTF8)
 
 # 6. Update local install directory
 $localInstallDir = "$env:LOCALAPPDATA\Programs\MotionCommander"

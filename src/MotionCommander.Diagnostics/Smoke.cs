@@ -564,6 +564,105 @@ internal static class Smoke
         }
 
         w.WriteLine("  анимация устойчива, слои движутся");
+
+        // ПРОВЕРКА НА ПУСТОТУ.
+        //
+        // Отсутствие исключений ничего не говорит о том, что на экране
+        // есть картинка. Сцена три релиза подряд проходила все проверки
+        // на стабильность, будучи при этом сплошной чёрной: слои
+        // заполняются при изменении размера, а вне окна это событие не
+        // наступает, поэтому рисовать было нечего.
+        //
+        // Здесь кадр действительно отрисовывается и измеряется по
+        // пикселям: сколько долей площади заняты пиксели, отличные от
+        // фонового. Ноль означает пустую сцену независимо от того,
+        // сколько кадров прошло без ошибок.
+        var ink = MeasureInk(scene, 320, 200);
+
+        w.WriteLine($"  заполнено пикселями: {ink:F1}% площади кадра");
+
+        if (ink < 1.0)
+        {
+            w.WriteLine($"  ПРОБЛЕМА: сцена пуста, заполнено лишь {ink:F1}%. " +
+                        "Проверки стабильности этого не ловят.");
+            return;
+        }
+
+        w.WriteLine("  сцена непустая, на кадре есть изображение");
+    }
+
+    /// <summary>
+    /// Доля площади кадра, занятая пикселями, отличными от фонового.
+    /// </summary>
+    /// <remarks>
+    /// <para>Меряется то, что попало бы на экран: сцена приводится к
+    /// заданному размеру, содержимое слоёв строится явно, кадр
+    /// отрисовывается в прямоугольник пикселей и каждый пиксель
+    /// сравнивается с самым частым цветом кадра, то есть с фоном.</para>
+    ///
+    /// <para>Фон определяется как самый частый цвет, а не как заранее
+    /// заданный чёрный: сцена тёмная, но её фон задаёт градиент от
+    /// #050614 до #1B2735, и любое фиксированное значение дало бы
+    /// ложный отчёт о заполненности.</para>
+    ///
+    /// <para>Шаг выборки 2 пикселя: полный разбор 320x200 обошёлся бы
+    /// в те же измерения, а экономия кратна при сцене, где
+    /// изображение занимает площадь целиком, а не тонкие линии.</para>
+    /// </remarks>
+    private static double MeasureInk(CosmicBackdrop scene, int width, int height)
+    {
+        const int Step = 2;
+
+        // Слои строятся по текущему размеру элемента, поэтому он
+        // должен совпадать с размером кадра.
+        scene.Measure(new Size(width, height));
+        scene.Arrange(new Rect(0, 0, width, height));
+        scene.RebuildForTest();
+
+        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(
+            width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(scene);
+
+        var pixels = new byte[height * width * 4];
+        bitmap.CopyPixels(pixels, width * 4, 0);
+
+        // Самый частый цвет — фон кадра.
+        var counts = new Dictionary<uint, int>();
+        for (int y = 0; y < height; y += Step)
+            for (int x = 0; x < width; x += Step)
+            {
+                int i = (y * width + x) * 4;
+                uint key = ((uint)pixels[i] << 16) | ((uint)pixels[i + 1] << 8) | pixels[i + 2];
+                counts.TryGetValue(key, out int n);
+                counts[key] = n + 1;
+            }
+
+        uint background = uint.MaxValue;
+        int best = -1;
+        foreach (var pair in counts)
+            if (pair.Value > best) { best = pair.Value; background = pair.Key; }
+
+        // Допуск отличает фон от его градиента: градиент меняется
+        // плавно, и соседние оттенки не должны считаться изображением.
+        const int Tolerance = 6;
+
+        int total = 0;
+        int inked = 0;
+        for (int y = 0; y < height; y += Step)
+            for (int x = 0; x < width; x += Step)
+            {
+                int i = (y * width + x) * 4;
+                uint r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+                uint br = (background >> 16) & 0xFF, bg = (background >> 8) & 0xFF, bb = background & 0xFF;
+
+                total++;
+                if (Math.Abs(r - br) > Tolerance ||
+                    Math.Abs(g - bg) > Tolerance ||
+                    Math.Abs(b - bb) > Tolerance)
+                    inked++;
+            }
+
+        return total == 0 ? 0.0 : inked * 100.0 / total;
     }
 
     // ══════════════════════════════ Разбор S.M.A.R.T. ══════════════════════════════

@@ -408,7 +408,81 @@ public static class UpdateService
             }
         }
 
+        // ЦЕЛОСТНОСТЬ ПРОВЕРЯЕТСЯ ДО ЛЮБОЙ РАСПАКОВКИ.
+        //
+        // Почему это обязательно здесь. Файл скачивается по адресу из
+        // сети и затем распаковывается в каталог, из которого
+        // запускается. Программа требует прав администратора, значит всё
+        // содержимое архива выполняется с повышенными правами.
+        // Без сверки контрольной суммы подмена файла на любом участке
+        // пути — перехват адреса, подмена ответа сервера, повреждённая
+        // кэш-сборка CDN — приводит к выполнению чужого кода от имени
+        // администратора, и пользователь об этом не узнаёт.
+        //
+        // Проверка сравнивает SHA-256 скачанного файла с объявленным в
+        // манифесте релизов. Расхождение означает отказ: файл удаляется,
+        // обновление прерывается, пользователь получает объяснение.
+        await VerifyIntegrityAsync(targetFilePath, ct);
+
         return targetFilePath;
+    }
+
+    /// <summary>
+    /// Сверяет контрольную сумму скачанного файла с манифестом релизов.
+    /// </summary>
+    /// <remarks>
+    /// <para>Хэш считается потоково, блоками по 1 МиБ, чтобы файл любого
+    /// размера не читался в память целиком: архив обновления может
+    /// занимать десятки мегабайт.</para>
+    ///
+    /// <para>Отказ от проверки трактуется как отказ от обновления, а не
+    /// как «предупреждение, применяем дальше». Обновление исполняет код
+    /// с повышенными правами, и доверять непроверенному файлу там
+    /// недопустимо.</para>
+    ///
+    /// <para><b>Чего это НЕ даёт.</b> Без подписи манифеста злоумышленник,
+    /// способный подменить и архив, и манифест, подменит оба файла
+    /// согласованно, и хэш совпадёт. Здесь закрывается подмена файла
+    /// без доступа к манифесту; для закрытия подмены обоих нужен
+    /// сертификат подписи, и его у проекта нет.</para>
+    /// </remarks>
+    private static async Task VerifyIntegrityAsync(string filePath, CancellationToken ct)
+    {
+        string expected = await ReleaseManifest.GetSha256ForAsync(filePath, ct);
+
+        if (string.IsNullOrEmpty(expected))
+        {
+            TryDelete(filePath);
+            throw new UpdateIntegrityException(
+                "Манифест релизов не содержит контрольной суммы для этого файла. " +
+                "Обновление прервано: неподтверждённое содержимое нельзя " +
+                "запускать с правами администратора.");
+        }
+
+        string actual;
+        using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read,
+                                           FileShare.Read, 1 << 20, true))
+        using (var sha = System.Security.Cryptography.SHA256.Create())
+        {
+            actual = Convert.ToHexString(await sha.ComputeHashAsync(stream, ct));
+        }
+
+        if (string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)) return;
+
+        TryDelete(filePath);
+        throw new UpdateIntegrityException(
+            $"Контрольная сумма не совпала.{Environment.NewLine}{Environment.NewLine}" +
+            $"Ожидалась: {expected}{Environment.NewLine}" +
+            $"Получено:  {actual}{Environment.NewLine}{Environment.NewLine}" +
+            "Файл удалён, обновление не применяется. Такое расхождение бывает " +
+            "при повреждении загрузки или при подмене содержимого. " +
+            "Обновляйтесь с официального адреса проекта.");
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch { /* файл недоступен для удаления — это не повод пропустить проверку */ }
     }
 
     /// <summary>
