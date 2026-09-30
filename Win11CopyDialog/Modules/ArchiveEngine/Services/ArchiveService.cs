@@ -122,6 +122,24 @@ public static class ArchiveService
     }
 
     /// <summary>
+    /// Проверка пути на Path Traversal (Zip Slip). Защищает от распаковки файлов вне целевой директории.
+    /// </summary>
+    private static string? ResolveSafePath(string destinationDir, string entryKey)
+    {
+        string normalized = entryKey.Replace('\\', '/').TrimStart('/');
+        if (normalized.Split('/').Any(seg => seg == "..")) return null;
+
+        string rootFull = Path.GetFullPath(destinationDir);
+        if (!rootFull.EndsWith(Path.DirectorySeparatorChar))
+            rootFull += Path.DirectorySeparatorChar;
+
+        string combined = Path.GetFullPath(Path.Combine(destinationDir, normalized));
+        if (!combined.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase)) return null;
+
+        return combined;
+    }
+
+    /// <summary>
     /// Распаковка архива в целевую директорию с потоковой телеметрией.
     /// </summary>
     public static async Task ExtractAsync(
@@ -160,10 +178,20 @@ public static class ArchiveService
                 if (specificSet != null && !specificSet.Contains(entry.Key) && !specificSet.Contains(normKey))
                     continue;
 
+                string? safePath = ResolveSafePath(destinationDirectory, entry.Key);
+                if (safePath == null)
+                {
+                    throw new InvalidDataException(
+                        $"Обнаружена небезопасная запись в архиве (Path Traversal), распаковка прервана: \"{entry.Key}\"");
+                }
+
                 currentFile = Path.GetFileName(normKey);
                 lastCompressed = entry.CompressedSize;
 
-                entry.WriteToDirectory(destinationDirectory, new ExtractionOptions { Overwrite = overwrite, ExtractFullPath = true });
+                string? parentDir = Path.GetDirectoryName(safePath);
+                if (!string.IsNullOrEmpty(parentDir)) Directory.CreateDirectory(parentDir);
+
+                entry.WriteToFile(safePath, new ExtractionOptions { Overwrite = overwrite });
 
                 processedBytes += entry.Size;
 

@@ -31,7 +31,8 @@ Write-Host "[1/6] Updating csproj versions..." -ForegroundColor Cyan
 $csprojs = @(
     "$repoRoot\Win11CopyDialog\Win11CopyDialog.csproj",
     "$repoRoot\src\MotionCommander.Core\MotionCommander.Core.csproj",
-    "$repoRoot\src\MotionCommander.Cli\MotionCommander.Cli.csproj"
+    "$repoRoot\src\MotionCommander.Cli\MotionCommander.Cli.csproj",
+    "$repoRoot\src\MotionCommander.Diagnostics\MotionCommander.Diagnostics.csproj"
 )
 
 foreach ($proj in $csprojs) {

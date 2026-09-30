@@ -350,10 +350,49 @@ public static class PartitionManagementService
     }
 
     /// <summary>
+    /// Динамически подбирает свободные буквы для временного монтирования разделов при миграции.
+    /// Исключает конфликты с существующими дисками пользователя.
+    /// </summary>
+    public static (char efiLetter, char osLetter) GetAvailableMigrationLetters()
+    {
+        try
+        {
+            var used = new HashSet<char>(
+                DriveInfo.GetDrives()
+                    .Where(d => !string.IsNullOrEmpty(d.Name))
+                    .Select(d => char.ToUpperInvariant(d.Name[0])));
+
+            char? os = null;
+            char? efi = null;
+
+            for (char c = 'Z'; c >= 'D'; c--)
+            {
+                if (c == 'C') continue;
+                if (!used.Contains(c))
+                {
+                    if (!os.HasValue) os = c;
+                    else if (!efi.HasValue) { efi = c; break; }
+                }
+            }
+
+            return (efi ?? 'S', os ?? 'W');
+        }
+        catch
+        {
+            return ('S', 'W');
+        }
+    }
+
+    /// <summary>
     /// Создает структуру разделов для миграции БЕЗ полного удаления других разделов.
     /// Использует неразмеченное пространство (в данной реализации - весь пустой диск без вызова Clean).
     /// </summary>
-    public static async Task<(bool success, string output)> CreateSafeOsPartitionAsync(int targetDiskNumber, string partitionStyle = "GPT", CancellationToken ct = default)
+    public static async Task<(bool success, string output)> CreateSafeOsPartitionAsync(
+        int targetDiskNumber,
+        string partitionStyle = "GPT",
+        CancellationToken ct = default,
+        char efiLetter = 'S',
+        char osLetter = 'W')
     {
         var sb = new StringBuilder();
         sb.AppendLine($"select disk {targetDiskNumber}");
@@ -365,7 +404,7 @@ public static class PartitionManagementService
             // EFI System Partition
             sb.AppendLine("create partition efi size=100");
             sb.AppendLine("format quick fs=fat32 label=\"System\"");
-            sb.AppendLine("assign letter=S");
+            sb.AppendLine($"assign letter={efiLetter}");
 
             // Microsoft Reserved Partition
             sb.AppendLine("create partition msr size=16");
@@ -373,14 +412,14 @@ public static class PartitionManagementService
             // Windows Partition (uses all remaining unallocated space)
             sb.AppendLine("create partition primary");
             sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
-            sb.AppendLine("assign letter=W");
+            sb.AppendLine($"assign letter={osLetter}");
         }
         else
         {
             sb.AppendLine("convert mbr");
             sb.AppendLine("create partition primary");
             sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
-            sb.AppendLine("assign letter=W");
+            sb.AppendLine($"assign letter={osLetter}");
             sb.AppendLine("active");
         }
 
@@ -395,7 +434,13 @@ public static class PartitionManagementService
     /// <summary>
     /// Деструктивная операция. Уничтожает все данные на целевом диске и создает чистую структуру.
     /// </summary>
-    public static async Task<(bool success, string output)> WipeAndCreateSystemPartitionsAsync(StorageDisk targetDisk, MigrationPlan plan, string partitionStyle = "GPT", CancellationToken ct = default)
+    public static async Task<(bool success, string output)> WipeAndCreateSystemPartitionsAsync(
+        StorageDisk targetDisk,
+        MigrationPlan plan,
+        string partitionStyle = "GPT",
+        CancellationToken ct = default,
+        char efiLetter = 'S',
+        char osLetter = 'W')
     {
         ValidateSafeTargetDisk(targetDisk, "Полное клонирование с очисткой", plan);
 
@@ -410,7 +455,7 @@ public static class PartitionManagementService
             // EFI System Partition
             sb.AppendLine("create partition efi size=100");
             sb.AppendLine("format quick fs=fat32 label=\"System\"");
-            sb.AppendLine("assign letter=S"); // Временная буква для bcdboot
+            sb.AppendLine($"assign letter={efiLetter}"); // Временная буква для bcdboot
 
             // Microsoft Reserved Partition
             sb.AppendLine("create partition msr size=16");
@@ -418,14 +463,14 @@ public static class PartitionManagementService
             // Windows Partition
             sb.AppendLine("create partition primary");
             sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
-            sb.AppendLine("assign letter=W"); // Временная буква для копирования файлов
+            sb.AppendLine($"assign letter={osLetter}"); // Временная буква для копирования файлов
         }
         else
         {
             sb.AppendLine("convert mbr");
             sb.AppendLine("create partition primary");
             sb.AppendLine("format quick fs=ntfs label=\"Windows\"");
-            sb.AppendLine("assign letter=W");
+            sb.AppendLine($"assign letter={osLetter}");
             sb.AppendLine("active"); // Сделать активным для MBR
         }
 

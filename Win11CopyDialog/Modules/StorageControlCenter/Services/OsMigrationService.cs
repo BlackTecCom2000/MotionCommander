@@ -17,15 +17,22 @@ public static class OsMigrationService
     public static async Task<(bool success, string message)> PrepareTargetDiskAsync(
         StorageDisk targetDisk,
         MigrationPlan plan,
+        string efiLetter = "S",
+        string osLetter = "W",
         CancellationToken ct = default)
     {
+        char efi = char.ToUpperInvariant(efiLetter.TrimEnd('\\', ':').FirstOrDefault());
+        char os = char.ToUpperInvariant(osLetter.TrimEnd('\\', ':').FirstOrDefault());
+        if (efi == '\0') efi = 'S';
+        if (os == '\0') os = 'W';
+
         if (plan.IsDestructive)
         {
-            return await PartitionManagementService.WipeAndCreateSystemPartitionsAsync(targetDisk, plan, "GPT", ct);
+            return await PartitionManagementService.WipeAndCreateSystemPartitionsAsync(targetDisk, plan, "GPT", ct, efi, os);
         }
         else
         {
-            return await PartitionManagementService.CreateSafeOsPartitionAsync(targetDisk.DiskNumber, "GPT", ct);
+            return await PartitionManagementService.CreateSafeOsPartitionAsync(targetDisk.DiskNumber, "GPT", ct, efi, os);
         }
     }
 
@@ -43,25 +50,37 @@ public static class OsMigrationService
                 Arguments = $"\"{sourceMountPoint}\" \"{targetOsLetter}\" /MIR /SEC /SECFIX /B /MT:32 /R:0 /W:0 /XJ /XD \"System Volume Information\" \"$RECYCLE.BIN\" \"pagefile.sys\" \"swapfile.sys\" \"hiberfil.sys\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
             };
 
             using var proc = Process.Start(psi);
-            
-            while (proc != null && !proc.HasExited)
+            if (proc == null)
             {
-                if (ct.IsCancellationRequested)
-                {
-                    proc.Kill();
-                    ct.ThrowIfCancellationRequested();
-                }
-                await Task.Delay(1000, ct);
+                return (false, "Не удалось запустить robocopy.exe.");
             }
 
-            // Robocopy коды возврата: < 8 означает успех.
-            if (proc?.ExitCode >= 8)
+            // Важно: асинхронно вычитываем stdout и stderr, чтобы robocopy не зависал из-за переполнения буфера pipe (deadlock)
+            var readOutputTask = proc.StandardOutput.ReadToEndAsync(ct);
+            var readErrorTask = proc.StandardError.ReadToEndAsync(ct);
+
+            try
             {
-                return (false, "Ошибка копирования файлов (Robocopy вернул код >= 8).");
+                await proc.WaitForExitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!proc.HasExited) proc.Kill(true); } catch { }
+                throw;
+            }
+
+            await Task.WhenAll(readOutputTask, readErrorTask);
+
+            // Robocopy коды возврата: < 8 означает успех (0-7: скопировано / совпадало).
+            if (proc.ExitCode >= 8)
+            {
+                string errOutput = await readErrorTask;
+                return (false, $"Ошибка копирования файлов (Robocopy вернул код {proc.ExitCode}): {errOutput}");
             }
 
             // Верификация после копирования
@@ -71,6 +90,10 @@ public static class OsMigrationService
             }
 
             return (true, "Данные ОС успешно скопированы.");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -97,10 +120,6 @@ public static class OsMigrationService
 
             using var bcdProc = Process.Start(bcdPsi);
 
-            // Process.Start возвращает null, если процесс не удалось запустить
-            // (bcdboot отсутствует в PATH, заблокирован антивирусом и т.п.).
-            // Раньше здесь сразу шёл разыменование null → NullReferenceException
-            // посреди критичной операции миграции ОС.
             if (bcdProc == null)
             {
                 return (false, "Не удалось запустить bcdboot.exe. Убедитесь, что файл присутствует в системе и у процесса есть права администратора.");
@@ -122,19 +141,32 @@ public static class OsMigrationService
         }
     }
 
-    public static async Task HideTemporaryLettersAsync(int targetDiskNumber, CancellationToken ct)
+    public static async Task HideTemporaryLettersAsync(
+        int targetDiskNumber, 
+        string efiLetter = "S", 
+        string osLetter = "W", 
+        CancellationToken ct = default)
     {
         try
         {
-            string script = $@"
-select disk {targetDiskNumber}
-select volume S
-remove letter=S
-select volume W
-remove letter=W
-";
-            string tempPath = Path.Combine(Path.GetTempPath(), "remove_letters.txt");
-            await File.WriteAllTextAsync(tempPath, script, ct);
+            char efi = char.ToUpperInvariant(efiLetter.TrimEnd('\\', ':').FirstOrDefault());
+            char os = char.ToUpperInvariant(osLetter.TrimEnd('\\', ':').FirstOrDefault());
+
+            var scriptBuilder = new System.Text.StringBuilder();
+            scriptBuilder.AppendLine($"select disk {targetDiskNumber}");
+            if (efi != '\0')
+            {
+                scriptBuilder.AppendLine($"select volume {efi}");
+                scriptBuilder.AppendLine($"remove letter={efi}");
+            }
+            if (os != '\0')
+            {
+                scriptBuilder.AppendLine($"select volume {os}");
+                scriptBuilder.AppendLine($"remove letter={os}");
+            }
+
+            string tempPath = Path.Combine(Path.GetTempPath(), $"remove_letters_{Guid.NewGuid():N}.txt");
+            await File.WriteAllTextAsync(tempPath, scriptBuilder.ToString(), ct);
             
             var psi = new ProcessStartInfo("diskpart.exe", $"/s \"{tempPath}\"")
             {
@@ -143,7 +175,10 @@ remove letter=W
             };
             
             using var proc = Process.Start(psi);
-            await proc?.WaitForExitAsync(ct)!;
+            if (proc != null)
+            {
+                await proc.WaitForExitAsync(ct);
+            }
             
             if (File.Exists(tempPath)) File.Delete(tempPath);
         }

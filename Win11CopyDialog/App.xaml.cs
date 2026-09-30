@@ -45,7 +45,7 @@ public partial class App : Application
             // пользователю и не убивают процесс.
             MessageBox.Show(
                 $"Непредвиденная ошибка интерфейса:\n\n{ev.Exception?.Message}\n\n" +
-                $"Подробности записаны в файл:`r`n{crashLog}",
+                $"Подробности записаны в файл:\n{crashLog}",
                 "Motion Commander — ошибка",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -160,8 +160,6 @@ public partial class App : Application
         }
 
         // Активация системных привилегий токена: SeManageVolumePrivilege и др.
-        Helpers.SuperAdminPrivilegeHelper.EnableAllSuperAdminPrivileges();
-
         Helpers.SuperAdminPrivilegeHelper.EnableAllSuperAdminPrivileges();
 
         // Загрузка сохранённой конфигурации ДО применения темы.
@@ -378,11 +376,6 @@ public partial class App : Application
                 Shutdown(0);
             }
             return;
-        }
-        if (e.Args.Contains("--dark"))
-        {
-            ThemeManager.Instance.Theme = AppTheme.MicaDark;
-            ThemeManager.Instance.Apply();
         }
 
         if (e.Args.Contains("--create-archive-demo"))

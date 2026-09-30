@@ -19,6 +19,7 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     private readonly Random _rnd = new();
     private readonly ManualResetEventSlim _pauseGate = new(true);
     private CancellationTokenSource? _realCts;
+    private CancellationTokenSource? _activeItemCts;
     private DateTime _startedAt;
     private TimeSpan _pausedTotal = TimeSpan.Zero;
     private DateTime? _pausedSince;
@@ -237,92 +238,7 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     public static List<(string sourceFile, string destFile)> ExpandSourcesToFiles(IEnumerable<(string source, string dest)> inputs)
         => CopySourceExpander.Expand(inputs, OverwritePolicy.AutoRename).Pairs;
 
-    private static List<(string sourceFile, string destFile)> ExpandSourcesToFilesLegacyUnused(IEnumerable<(string source, string dest)> inputs)
-    {
-        var result = new List<(string sourceFile, string destFile)>();
-        foreach (var (src, dst) in inputs)
-        {
-            if (string.IsNullOrWhiteSpace(src)) continue;
 
-            if (Directory.Exists(src))
-            {
-                // Рекурсивное сканирование папки
-                string folderName = Path.GetFileName(src.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                if (string.IsNullOrEmpty(folderName)) folderName = "Folder";
-
-                string targetBaseDir = dst;
-                if (Directory.Exists(dst))
-                {
-                    string dstName = Path.GetFileName(dst.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                    if (!string.Equals(dstName, folderName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        targetBaseDir = Path.Combine(dst, folderName);
-                    }
-                }
-
-                try { Directory.CreateDirectory(targetBaseDir); } catch { }
-
-                try
-                {
-                    foreach (var sub in Directory.GetDirectories(src, "*", SearchOption.AllDirectories))
-                    {
-                        string rel = Path.GetRelativePath(src, sub);
-                        try { Directory.CreateDirectory(Path.Combine(targetBaseDir, rel)); } catch { }
-                    }
-                }
-                catch { }
-
-                try
-                {
-                    foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
-                    {
-                        string rel = Path.GetRelativePath(src, file);
-                        result.Add((file, Path.Combine(targetBaseDir, rel)));
-                    }
-                }
-                catch { }
-            }
-            else if (File.Exists(src))
-            {
-                string targetFile = dst;
-                if (Directory.Exists(dst))
-                {
-                    targetFile = Path.Combine(dst, Path.GetFileName(src));
-                }
-                else
-                {
-                    string? pDir = Path.GetDirectoryName(dst);
-                    if (!string.IsNullOrEmpty(pDir))
-                    {
-                        try { Directory.CreateDirectory(pDir); } catch { }
-                    }
-                }
-
-                if (string.Equals(Path.GetFullPath(src), Path.GetFullPath(targetFile), StringComparison.OrdinalIgnoreCase))
-                {
-                    targetFile = GenerateDuplicateFileName(targetFile);
-                }
-
-                result.Add((src, targetFile));
-            }
-        }
-        return result;
-    }
-
-    private static string GenerateDuplicateFileName(string filePath)
-    {
-        string dir = Path.GetDirectoryName(filePath) ?? "";
-        string name = Path.GetFileNameWithoutExtension(filePath);
-        string ext = Path.GetExtension(filePath);
-        int counter = 1;
-        string candidate;
-        do
-        {
-            candidate = Path.Combine(dir, $"{name} - Копия{(counter > 1 ? $" ({counter})" : "")}{ext}");
-            counter++;
-        } while (File.Exists(candidate));
-        return candidate;
-    }
 
     public async Task StartRealCopyAsync(IEnumerable<(string source, string dest)> files, CancellationToken outer = default)
     {
@@ -391,8 +307,39 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
                 item.Status = CopyItemStatus.Copying;
                 OnChanged(nameof(CurrentItem));
 
-                await CopyOneFileAsync(item, _realCts.Token);
-                item.Status = CopyItemStatus.Done;
+                using var itemCts = CancellationTokenSource.CreateLinkedTokenSource(_realCts.Token);
+                _activeItemCts = itemCts;
+
+                try
+                {
+                    await CopyOneFileAsync(item, itemCts.Token);
+                    if (item.Status != CopyItemStatus.Skipped)
+                    {
+                        item.Status = CopyItemStatus.Done;
+                    }
+                }
+                catch (OperationCanceledException) when (item.WasSkipped || item.Status == CopyItemStatus.Skipped)
+                {
+                    // Пользователь нажал «Пропустить» для этого файла
+                    item.Status = CopyItemStatus.Skipped;
+                    try { if (File.Exists(item.DestPath)) File.Delete(item.DestPath); } catch { }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Отмена всей операции
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // Ошибка копирования одного файла не должна срывать всю очередь файлов
+                    item.Status = CopyItemStatus.Error;
+                    OperationError = $"Ошибка при копировании «{Path.GetFileName(item.SourcePath)}»: {ex.Message}";
+                    OnChanged(nameof(OperationError));
+                }
+                finally
+                {
+                    _activeItemCts = null;
+                }
 
                 double sec = Math.Max(0.1, sw.Elapsed.TotalSeconds);
                 _smoothedSpeed = CopiedBytes / sec;
@@ -403,11 +350,11 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
                 ProgressTick?.Invoke(this, EventArgs.Empty);
             }
 
-            // Отчёт об успехе только если действительно всё скопировано.
+            // Отчёт об успехе только если действительно всё скопировано без фатальных ошибок.
             var notDone = Items.Where(i => i.Status != CopyItemStatus.Done && i.Status != CopyItemStatus.Skipped).ToList();
             if (notDone.Count > 0)
             {
-                OperationError = $"Не все файлы скопированы: {notDone.Count}. Исходные файлы оставлены на месте.";
+                OperationError = $"Не все файлы скопированы: ошибок {notDone.Count}. Исходные файлы оставлены на месте.";
                 OnChanged(nameof(OperationError));
                 Finish(completed: false);
                 return;
@@ -539,8 +486,8 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
             try { expected = new FileInfo(item.SourcePath).Length; }
             catch { return true; }   // источник исчез: длину сверить не с чем
 
-            // Допуск 1 КБ на округление размера блока при переносе.
-            return Math.Abs(actual - expected) <= 1024;
+            // Строгая проверка совпадения длины файла
+            return actual == expected;
         }
         catch
         {
@@ -605,6 +552,12 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
         cur.Status = CopyItemStatus.Skipped;
         cur.CopiedBytes = 0;
         cur.WasSkipped = true;
+
+        try
+        {
+            _activeItemCts?.Cancel();
+        }
+        catch { }
 
         OnChanged(nameof(CopiedBytes));
         OnChanged(nameof(OverallProgress));
@@ -705,6 +658,8 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     private void Reset()
     {
         _tick.Stop();
+        try { _activeItemCts?.Cancel(); } catch { }
+        _activeItemCts = null;
         _realCts?.Cancel();
         _realCts?.Dispose();
         _realCts = null;
@@ -730,6 +685,8 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     public void Dispose()
     {
         _tick.Stop();
+        try { _activeItemCts?.Cancel(); } catch { }
+        _activeItemCts = null;
         _realCts?.Cancel();
         // Порядок важен: сначала отменяем, потом освобождаем управляющий
         // элемент. Иначе работающие потоки конвейера получают

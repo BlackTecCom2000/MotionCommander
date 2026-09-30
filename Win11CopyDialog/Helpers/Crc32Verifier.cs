@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,8 +15,8 @@ namespace Win11CopyDialog.Helpers;
 /// обещалась проверка целостности при копировании, которой не существовало.</para>
 ///
 /// <para>Реализация считает CRC «на лету» во втором проходе по файлу, не
-/// создавая временных копий. Контрольная сумма считается блоками, поэтому
-/// проверка больших файлов не съедает память.</para>
+/// создавая временных копий. Контрольная сумма считается блоками с использованием
+/// ArrayPool, поэтому проверка больших файлов не засоряет LOH и не съедает память.</para>
 /// </summary>
 public static class Crc32Verifier
 {
@@ -49,16 +50,23 @@ public static class Crc32Verifier
                 path, FileMode.Open, FileAccess.Read, FileShare.Read,
                 BlockSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-            byte[] buffer = new byte[BlockSize];
-            uint crc = 0xFFFFFFFFu;
-
-            int read;
-            while ((read = await stream.ReadAsync(buffer.AsMemory(0, BlockSize), ct).ConfigureAwait(false)) > 0)
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(BlockSize);
+            try
             {
-                crc = Update(crc, buffer, read);
-            }
+                uint crc = 0xFFFFFFFFu;
 
-            return ~crc;
+                int read;
+                while ((read = await stream.ReadAsync(buffer.AsMemory(0, BlockSize), ct).ConfigureAwait(false)) > 0)
+                {
+                    crc = Update(crc, buffer, read);
+                }
+
+                return ~crc;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
         catch (OperationCanceledException)
         {

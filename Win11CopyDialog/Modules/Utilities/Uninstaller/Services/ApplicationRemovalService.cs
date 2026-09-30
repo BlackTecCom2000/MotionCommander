@@ -172,10 +172,15 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Services
                 {
                     try
                     {
-                        // Double check to avoid deleting C:\Program Files\ directly if parsing went wrong
-                        if (app.InstallLocation.TrimEnd('\\').Length > 15) // simple heuristic
+                        // Строгая проверка безопасности пути перед удалением
+                        if (IsSafeToDeleteDirectory(app.InstallLocation))
                         {
                             Directory.Delete(app.InstallLocation, true);
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"[SECURITY] Отклонена попытка удаления защищённого каталога: {app.InstallLocation}");
+                            success = false;
                         }
                     }
                     catch
@@ -205,6 +210,61 @@ namespace Win11CopyDialog.Modules.Utilities.Uninstaller.Services
             catch
             {
                 // Процесс уже завершён или недоступен — не критично.
+            }
+        }
+
+        private static bool IsSafeToDeleteDirectory(string dirPath)
+        {
+            if (string.IsNullOrWhiteSpace(dirPath)) return false;
+            try
+            {
+                string full = Path.GetFullPath(dirPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string root = Path.GetPathRoot(full)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ?? "";
+
+                if (string.Equals(full, root, StringComparison.OrdinalIgnoreCase)) return false;
+
+                var prohibited = new[]
+                {
+                    Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                    Environment.GetFolderPath(Environment.SpecialFolder.System),
+                    Environment.GetFolderPath(Environment.SpecialFolder.SystemX86),
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles),
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                };
+
+                foreach (var p in prohibited)
+                {
+                    if (string.IsNullOrWhiteSpace(p)) continue;
+                    string normP = Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    if (string.Equals(full, normP, StringComparison.OrdinalIgnoreCase)) return false;
+                }
+
+                string? parent = Directory.GetParent(full)?.FullName;
+                if (parent == null || string.Equals(parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), root, StringComparison.OrdinalIgnoreCase))
+                {
+                    string name = Path.GetFileName(full);
+                    if (name.Equals("Windows", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("Program Files", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("Program Files (x86)", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("Users", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("Recovery", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("$Recycle.Bin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
     }

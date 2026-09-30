@@ -316,12 +316,32 @@ public static class FileSystemService
         {
             if (File.Exists(path))
             {
-                File.Delete(path);
+                if (permanent)
+                {
+                    File.Delete(path);
+                }
+                else
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+                        path, 
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, 
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                }
                 return true;
             }
             if (Directory.Exists(path))
             {
-                Directory.Delete(path, true);
+                if (permanent)
+                {
+                    Directory.Delete(path, true);
+                }
+                else
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(
+                        path, 
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, 
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                }
                 return true;
             }
             error = "Элемент не найден.";

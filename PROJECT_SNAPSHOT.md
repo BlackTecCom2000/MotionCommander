@@ -1,4 +1,4 @@
-# Motion Commander & Hardcore Transfer Engine v3.5 Pro
+# Motion Commander — Universal System Complex & Storage Control Center
 
 ## Обзор проекта (Product Overview)
 **Motion Commander** — это ультра-премиальный программный комплекс «Все-в-одном» для Windows 10/11:

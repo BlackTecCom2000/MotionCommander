@@ -3,6 +3,10 @@
 **/obj/
 **/publish/
 Release/
+publish_out/
+temp_zip_test/
+test.zip
+*.tmp
 dist/*
 !dist/*.zip
 !dist/*.exe

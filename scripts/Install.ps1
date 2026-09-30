@@ -1,11 +1,11 @@
-# Installer for Motion Commander
+﻿# Installer for Motion Commander
 # Author: BlackTecCom - Jaborov Daler (MIT License)
 
 $ErrorActionPreference = "Stop"
 
 $installDir = "$env:LOCALAPPDATA\Programs\MotionCommander"
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   Installing Motion Commander v3.0 (BlackTecCom)        " -ForegroundColor Yellow
+Write-Host "   Installing Motion Commander (BlackTecCom)              " -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 # 1. Create install dir
@@ -13,22 +13,12 @@ if (!(Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }
 
-# 2. Copy binaries
+# 2. Publish binaries
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$sourceDir = "$repoRoot\Win11CopyDialog\bin\Release\net8.0-windows"
-
-if (!(Test-Path "$sourceDir\Win11CopyDialog.exe")) {
-    Write-Host "Publishing binaries..." -ForegroundColor Cyan
-    & dotnet publish "$repoRoot\Win11CopyDialog\Win11CopyDialog.csproj" -c Release -o $installDir
-    & dotnet publish "$repoRoot\src\MotionCommander.Cli\MotionCommander.Cli.csproj" -c Release -o $installDir
-} else {
-    Write-Host "Copying files to $installDir..." -ForegroundColor Cyan
-    Copy-Item "$sourceDir\*" -Destination $installDir -Recurse -Force
-    $cliDir = "$repoRoot\src\MotionCommander.Cli\bin\Release\net8.0"
-    if (Test-Path "$cliDir\motion.exe") {
-        Copy-Item "$cliDir\motion.exe" -Destination $installDir -Force
-    }
-}
+Write-Host "Publishing binaries to $installDir..." -ForegroundColor Cyan
+& dotnet publish "$repoRoot\Win11CopyDialog\Win11CopyDialog.csproj" -c Release -o $installDir
+& dotnet publish "$repoRoot\src\MotionCommander.Cli\MotionCommander.Cli.csproj" -c Release -o $installDir
+& dotnet publish "$repoRoot\src\MotionCommander.Diagnostics\MotionCommander.Diagnostics.csproj" -c Release -o $installDir
 
 $exePath = "$installDir\Win11CopyDialog.exe"
 

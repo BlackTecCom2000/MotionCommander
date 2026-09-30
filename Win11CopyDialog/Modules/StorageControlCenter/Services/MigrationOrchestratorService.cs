@@ -61,15 +61,25 @@ public class MigrationOrchestratorService
         StorageDisk targetDisk,
         bool testMode = false,
         MigrationPlan? plan = null,
-        string targetOsLetter = "W:\\",
-        string targetEfiLetter = "S:\\")
+        string? targetOsLetter = null,
+        string? targetEfiLetter = null)
     {
         _sourceDisk = sourceDisk;
         _targetDisk = targetDisk;
         _testMode = testMode;
         _plan = plan ?? new MigrationPlan { TargetDiskNumber = targetDisk.DiskNumber };
-        _targetOsLetter = targetOsLetter;
-        _targetEfiLetter = targetEfiLetter;
+
+        if (string.IsNullOrWhiteSpace(targetEfiLetter) || string.IsNullOrWhiteSpace(targetOsLetter))
+        {
+            var (efi, os) = PartitionManagementService.GetAvailableMigrationLetters();
+            _targetEfiLetter = targetEfiLetter ?? $"{efi}:\\";
+            _targetOsLetter = targetOsLetter ?? $"{os}:\\";
+        }
+        else
+        {
+            _targetEfiLetter = targetEfiLetter;
+            _targetOsLetter = targetOsLetter;
+        }
     }
 
     private void ReportProgress(MigrationStep step, double percent, string message)
@@ -104,11 +114,7 @@ public class MigrationOrchestratorService
             ReportProgress(MigrationStep.TargetPreparation, 20, "Подготовка целевого диска (разметка разделов)...");
             if (!_testMode)
             {
-                // Раньше здесь стоял TODO и Task.Delay(1000) — то есть шаг
-                // ничего не делал, но миграция всё равно доходила до
-                // «Успешно завершено». Ориентироваться на цель, которая
-                // ещё не размечена, дальше бессмысленно.
-                var prep = await OsMigrationService.PrepareTargetDiskAsync(_targetDisk, _plan, ct);
+                var prep = await OsMigrationService.PrepareTargetDiskAsync(_targetDisk, _plan, _targetEfiLetter, _targetOsLetter, ct);
                 if (!prep.success)
                 {
                     ReportProgress(MigrationStep.Failed, 20, $"Не удалось подготовить целевой диск: {prep.message}");
@@ -203,6 +209,7 @@ public class MigrationOrchestratorService
             if (!_testMode)
             {
                 VssProviderService.CleanupShadowCopy(_vssShadowId, _vssMountPoint);
+                await OsMigrationService.HideTemporaryLettersAsync(_targetDisk.DiskNumber, _targetEfiLetter, _targetOsLetter, CancellationToken.None);
             }
 
             ReportProgress(MigrationStep.Completed, 100, "Миграция успешно завершена.");
@@ -258,7 +265,7 @@ public class MigrationOrchestratorService
             // Их снятие безопасно: раздел с данными не удаляется.
             try
             {
-                await OsMigrationService.HideTemporaryLettersAsync(_targetDisk.DiskNumber, CancellationToken.None);
+                await OsMigrationService.HideTemporaryLettersAsync(_targetDisk.DiskNumber, _targetEfiLetter, _targetOsLetter, CancellationToken.None);
             }
             catch (Exception ex)
             {
