@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Version = "3.8.32",
+    [string]$Version = "3.8.33",
     [string[]]$Notes = $null,
     [switch]$SkipBuild,
     [switch]$SkipPush
@@ -249,13 +249,91 @@ $checksumJson = $checksums | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText("$distDir\checksums.json", $checksumJson, [System.Text.Encoding]::UTF8)
 
 # 6. Update local install directory
-$localInstallDir = "$env:LOCALAPPDATA\Programs\MotionCommander"
+# Куда установлена программа.
+#
+# Раньше здесь стояло %LOCALAPPDATA%\Programs\MotionCommander. Такого
+# каталога не существует: установщик ставит программу в Program Files,
+# потому что её манифест требует прав администратора. Проверка
+# существования каталога не проходила, шаг обновления пропускался
+# целиком и молча, а установленная копия оставалась на прежней версии.
+#
+# Путь берётся из реестра, а не задаётся константой: так он останется
+# верным, если установщик сменит каталог или появится вторая копия.
+$installedExe = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+                                 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall' `
+                        -ErrorAction SilentlyContinue |
+                        Get-ItemProperty -ErrorAction SilentlyContinue |
+                        Where-Object { $_.DisplayName -eq 'Motion Commander' -and $_.InstallLocation } |
+                        Select-Object -First 1
+
+if ($installedExe) {
+    $localInstallDir = $installedExe.InstallLocation
+}
+else {
+    # Запасной путь: стандартный каталог установки с правами
+    # администратора. Задаётся явно, потому что иначе шаг молча
+    # пропустил бы обновление, как это и случилось.
+    $localInstallDir = "$env:ProgramFiles\Motion Commander"
+}
+
+Write-Host ("Local installation target: " + $localInstallDir) -ForegroundColor Cyan
 if (Test-Path $localInstallDir) {
     Write-Host "[6/7] Updating local installation at $localInstallDir..." -ForegroundColor Cyan
-    try {
-        Copy-Item "$publishDir\*" -Destination $localInstallDir -Recurse -Force -ErrorAction SilentlyContinue
-    } catch {
-        Write-Warning "Some files in $localInstallDir are locked and will be updated on app restart."
+
+    # Ошибки копирования больше не проглатываются.
+    #
+    # Раньше стоял -ErrorAction SilentlyContinue, и шаг выглядел
+    # выполненным, ничего не сообщая. На практике копирование требует
+    # прав администратора, а выпуск нередко запускается из обычной
+    # сессии: копирование молча не происходило, и установленная копия
+    # отставала на четыре выпуска, пока это не было замечено.
+    #
+    # Теперь каждая неудачная копировка попадает в отчёт, а итог
+    # проверяется по версии файла: расхождение означает, что установленная
+    # копия не соответствует выпуску.
+    $copyErrors = @()
+    $copied = 0
+
+    Get-ChildItem $publishDir -Recurse -File | ForEach-Object {
+        $target = Join-Path $localInstallDir $_.FullName.Substring($publishDir.Length).TrimStart('\')
+        try {
+            $parent = Split-Path -Parent $target
+            if (-not (Test-Path $parent)) {
+                New-Item -ItemType Directory -Path $parent -Force | Out-Null
+            }
+            Copy-Item $_.FullName -Destination $target -Force -ErrorAction Stop
+            $copied++
+        }
+        catch {
+            $copyErrors += ("  " + $_.Exception.Message)
+        }
+    }
+
+    Write-Host ("  copied files: " + $copied + " of " + (Get-ChildItem $publishDir -Recurse -File).Count)
+
+    if ($copyErrors.Count -gt 0) {
+        Write-Host "  NOT COPIED:" -ForegroundColor Yellow
+        $copyErrors | Select-Object -Unique | Select-Object -First 10 | ForEach-Object {
+            Write-Host $_ -ForegroundColor Yellow
+        }
+        Write-Host ""
+        Write-Host "  The installed copy is out of date and does NOT match this release." -ForegroundColor Yellow
+        Write-Host "  Reason: writing to Program Files requires administrator rights." -ForegroundColor Yellow
+        Write-Host "  Run the installer from an elevated session, or start this" -ForegroundColor Yellow
+        Write-Host "  script from a session with administrator rights." -ForegroundColor Yellow
+    }
+
+    # Проверка по факту, а не по факту выполнения команд.
+    $mainExe = Join-Path $localInstallDir 'Win11CopyDialog.exe'
+    if (Test-Path $mainExe) {
+        $installed = (Get-Item $mainExe).VersionInfo.FileVersion
+        if ($installed -and $installed.StartsWith($cleanVer)) {
+            Write-Host ("  installed version: " + $installed + " (matches the release)") -ForegroundColor Green
+        }
+        else {
+            Write-Host ("  installed version: " + $installed + ", release: " + $cleanVer) -ForegroundColor Yellow
+            Write-Host "  Installed copy is older than this release." -ForegroundColor Yellow
+        }
     }
 }
 

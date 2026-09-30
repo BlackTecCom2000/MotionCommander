@@ -1,21 +1,19 @@
 ﻿{
-    "version":  "3.8.32",
+    "version":  "3.8.33",
     "releaseDate":  "2026-10-01",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Исправлено измерение времени запуска: оно показывало 5 мс при запуске, который на самом деле занимал секунды. Секундомер в статическом поле начинал отсчёт при первом обращении к классу, то есть уже после загрузки сборок и создания окна. Теперь отсчёт ведётся от времени старта процесса по данным операционной системы.",
-                      "Прежнее число было опаснее отсутствия измерения: на него можно было опереться.",
-                      "Замерено на этой машине. Холодный запуск: 1891 мс до первого отрисованного кадра. Повторные: 686 и 684 мс. Рабочая память: 166-172 МБ, управляемая: 20,8 МБ.",
-                      "Скрипт подписи ищет signtool сам, в комплекте разработчика Windows. Раньше инструмент не был прописан в PATH, и скрипт падал бы с сообщением «не является командой», что выглядело бы как поломка подписи.",
-                      "Скрипту добавлена метка порядка байтов: без неё PowerShell 5.1 читал файл как системная кодировка, кириллица превращалась в мусор и скрипт не запускался.",
-                      "Проверено на сервере GitHub: новое задание диагностики появляется в прогоне, то есть конвейер читается верно. Раннер не подхватывает ни одного задания, у всех шагов ноль, это ограничение аккаунта."
+                      "Исправлено молчаливое обновление установленной копии: в скрипте выпуска стоял параметр, скрывающий ошибки копирования. Шаг выглядел выполненным, хотя ничего не копировал.",
+                      "Копирование в Program Files требует прав администратора, а выпуск нередко запускается из обычной сессии. Из-за этого установленная копия молча отставала на четыре выпуска: в ней не было проверки целостности обновлений, отчёта S.M.A.R.T. и проверки подписи.",
+                      "Теперь каждая неудачная копировка попадает в отчёт с указанием причины, а после копирования сверяется версия установленного файла с версией выпуска.",
+                      "Установленная копия обновлена до текущего выпуска и проверена запуском: окно создаётся, время до первого кадра 1135 мс."
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.33-Patch.zip",
     "patchSizeMb":  3.27,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.33-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.33-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.33-Setup.exe"
 }
