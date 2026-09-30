@@ -37,6 +37,16 @@ internal static class Program
             ? TextWriter.Synchronized(Console.Out)
             : Console.Out;
 
+        // Отчёт S.M.A.R.T. с повышенных прав.
+        //
+        // Обрабатывается до всех остальных режимов: он запускает
+        // второй процесс и ждёт его, поэтому должен проверяться первым.
+        if (Array.IndexOf(args, "--smart-report") >= 0 ||
+            Array.IndexOf(args, "--smart-elevated") >= 0)
+        {
+            return SmartReport.Run(args);
+        }
+
         // Отрисовка сцены в файл: --scene-shot <путь> [ширина] [высота]
         int shotAt = Array.IndexOf(args, "--scene-shot");
         if (shotAt >= 0)
@@ -69,6 +79,13 @@ internal static class Program
             autoplay.WriteLine();
             autoplay.WriteLine("Отрисовка сцены в файл:");
             autoplay.WriteLine("  MotionCommanderDiagnostics.exe --scene-shot <файл.png> [ширина] [высота]");
+            autoplay.WriteLine();
+            autoplay.WriteLine("Отчёт S.M.A.R.T. с самих накопителей:");
+            autoplay.WriteLine("  MotionCommanderDiagnostics.exe --smart-report [файл.txt]");
+            autoplay.WriteLine();
+            autoplay.WriteLine("Это единственный способ получить настоящие показания");
+            autoplay.WriteLine("S.M.A.R.T. вне программы: Windows не открывает накопитель");
+            autoplay.WriteLine("обычному пользователю. Появится запрос подтверждения прав.");
             return 0;
         }
 
