@@ -1,20 +1,21 @@
 ﻿{
-    "version":  "3.8.31",
-    "releaseDate":  "2026-09-30",
+    "version":  "3.8.32",
+    "releaseDate":  "2026-10-01",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Добавлен отчёт S.M.A.R.T. в диагностический инструмент: одна команда снимает показания с самих накопителей. Если прав администратора нет, инструмент сам запрашивает их один раз и ждёт результат, отчёт пишется в файл.",
-                      "Проверено на этой машине: права есть, все три накопителя открываются напрямую, но S.M.A.R.T. не возвращается ни через ATA-команду, ни через общую. Это свойство оборудования, а не сбой: контроллер не передаёт предиктивные данные. Отчёт теперь различает эти случаи прямо.",
-                      "Отчёт показывает обе попытки чтения и результат открытия устройства. Раньше отказ сливался с отсутствием показаний, и было невозможно понять, дело в правах или в устройстве.",
-                      "Исправлено перечисление накопителей: использовалось перечисление каталога, что для пути устройств всегда возвращает синтаксическую ошибку. Отчёт выглядел правдоподобно и утверждал, что накопителей нет. Теперь номера берутся из WMI, а при недоступности WMI проверяется прямой доступ к устройствам.",
-                      "Вопрос S.M.A.R.T. закрыт измерением, а не предположением: путь до устройства проходит целиком, ответа нет на уровне оборудования."
+                      "Исправлено измерение времени запуска: оно показывало 5 мс при запуске, который на самом деле занимал секунды. Секундомер в статическом поле начинал отсчёт при первом обращении к классу, то есть уже после загрузки сборок и создания окна. Теперь отсчёт ведётся от времени старта процесса по данным операционной системы.",
+                      "Прежнее число было опаснее отсутствия измерения: на него можно было опереться.",
+                      "Замерено на этой машине. Холодный запуск: 1891 мс до первого отрисованного кадра. Повторные: 686 и 684 мс. Рабочая память: 166-172 МБ, управляемая: 20,8 МБ.",
+                      "Скрипт подписи ищет signtool сам, в комплекте разработчика Windows. Раньше инструмент не был прописан в PATH, и скрипт падал бы с сообщением «не является командой», что выглядело бы как поломка подписи.",
+                      "Скрипту добавлена метка порядка байтов: без неё PowerShell 5.1 читал файл как системная кодировка, кириллица превращалась в мусор и скрипт не запускался.",
+                      "Проверено на сервере GitHub: новое задание диагностики появляется в прогоне, то есть конвейер читается верно. Раннер не подхватывает ни одного задания, у всех шагов ноль, это ограничение аккаунта."
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.31-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Patch.zip",
     "patchSizeMb":  3.27,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.31-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.31-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.31-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.32-Setup.exe"
 }

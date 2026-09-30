@@ -31,9 +31,28 @@ namespace Win11CopyDialog.Helpers;
 /// </remarks>
 internal static class StartupMetrics
 {
-    private static readonly Stopwatch Clock = Stopwatch.StartNew();
     private static readonly object Gate = new();
     private static bool _written;
+
+    /// <summary>
+    /// Момент запуска процесса по данным операционной системы.
+    /// </summary>
+    /// <remarks>
+    /// <para>Отсчёт ведётся от времени старта процесса, а не от
+    /// обращения к этому классу.</para>
+    ///
+    /// <para>Разница не косметическая. Секундомер в статическом поле
+    /// начинает идти при первом касании типа, то есть уже после
+    /// загрузки сборок и создания окна, и показывал 5 мс при запуске,
+    /// который на самом деле занял секунды. Число выглядело отличным и
+    /// было бессмысленным — хуже, чем отсутствие измерения, потому что
+    /// на него можно опереться.</para>
+    ///
+    /// <para><c>Process.StartTime</c> берётся у самой операционной
+    /// системы и потому включает всё: загрузку образов, инициализацию
+    /// среды, повышение прав и создание окна.</para>
+    /// </remarks>
+    private static DateTime ProcessStartUtc => Process.GetCurrentProcess().StartTime.ToUniversalTime();
 
     /// <summary>
     /// Записывает показатели текущего запуска.
@@ -63,7 +82,12 @@ internal static class StartupMetrics
             var data = new RunRecord
             {
                 StartedUtc = DateTime.UtcNow,
-                StartupMilliseconds = Clock.Elapsed.TotalMilliseconds,
+
+                // Время от старта процесса до первого отрисованного
+                // кадра. Именно его человек ждёт после щелчка по значку.
+                StartupMilliseconds =
+                    (DateTime.UtcNow - ProcessStartUtc).TotalMilliseconds,
+
                 WorkingSetBytes = workingSet,
                 ManagedMemoryBytes = GC.GetTotalMemory(false),
                 Is64Bit = Environment.Is64BitProcess,

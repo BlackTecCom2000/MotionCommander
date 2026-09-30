@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Подписывает выпущенные файлы Motion Commander.
 
@@ -26,6 +26,41 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $distDir = Join-Path $repoRoot 'dist'
+
+function Find-SignTool {
+    <#
+        Ищет signtool.exe там, где Windows его действительно кладёт.
+
+        В PATH его почти никогда нет: инструмент поставляется с
+        комплектом разработчика Windows, а не с системой, и путь к нему
+        не прописывается. Без поиска скрипт падал бы с «не является
+        командой», и владелец решил бы, что подпись не работает.
+    #>
+    $onPath = Get-Command signtool.exe -ErrorAction SilentlyContinue
+    if ($onPath) { return $onPath.Source }
+
+    $roots = @(
+        "${env:ProgramFiles(x86)}\Windows Kits\10\bin",
+        "$env:ProgramFiles\Windows Kits\10\bin"
+    ) | Where-Object { Test-Path $_ }
+
+    foreach ($root in $roots) {
+        # Берётся самая свежая версия: каталоги называются по версии
+        # набора, и старые могут быть неполными.
+        $dirs = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^10\.' } |
+                Sort-Object { [version]($_.Name) } -Descending
+
+        foreach ($d in $dirs) {
+            foreach ($arch in @('x64', 'x86')) {
+                $candidate = Join-Path $d.FullName "$arch\signtool.exe"
+                if (Test-Path $candidate) { return $candidate }
+            }
+        }
+    }
+
+    return $null
+}
 
 Write-Host 'ПОДПИСЬ АРТЕФАКТОВ' -ForegroundColor Cyan
 Write-Host ('=' * 60)
@@ -62,6 +97,26 @@ if (-not $Thumbprint -and -not $CertificatePath) {
     exit 0
 }
 
+$signTool = Find-SignTool
+
+if (-not $signTool) {
+    throw @'
+signtool.exe не найден.
+
+Инструмент подписи входит в комплект разработчика Windows и в систему
+не входит. Установите его: Visual Studio с компонентой "Средства
+разработки для Windows" либо отдельно Windows SDK.
+
+После установки инструмент появляется в
+  C:\Program Files (x86)\Windows Kits\10\bin\<версия>\x64\signtool.exe
+и скрипт найдёт его сам.
+'@
+}
+
+Write-Host ''
+Write-Host ("Инструмент подписи: " + $signTool)
+Write-Host ''
+
 $signed = 0
 $failed = 0
 
@@ -80,7 +135,7 @@ foreach ($file in $targets) {
         $args += @('/p', $plain)
     }
 
-    & signtool.exe @args
+    & $signTool @args
 
     if ($LASTEXITCODE -eq 0) {
         Write-Host ('  подписан: ' + $file.Name) -ForegroundColor Green
