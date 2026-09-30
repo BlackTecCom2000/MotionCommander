@@ -834,9 +834,33 @@ public sealed class CosmicBackdrop : FrameworkElement
         if (win == null || ActualWidth < 2 || ActualHeight < 2) return;
 
         var p = e.GetPosition(this);
-        // Нормируем в диапазон -1..1 относительно центра окна.
-        _targetPX = (p.X / ActualWidth - 0.5) * 2.0;
-        _targetPY = (p.Y / ActualHeight - 0.5) * 2.0;
+        SetPointerOffset(p.X, p.Y);
+    }
+
+    /// <summary>
+    /// Переводит координату указателя в целевое смещение параллакса.
+    /// </summary>
+    /// <remarks>
+    /// <para>Вынесено отдельно от обработчика события, потому что
+    /// положение указателя нельзя задать снаружи: <c>GetPosition</c>
+    /// читает состояние устройства ввода, а не переданное значение.
+    /// Подделать событие мыши в проверке невозможно, поэтому проверка
+    /// вызывает этот метод напрямую.</para>
+    ///
+    /// <para>Метод общий у обработчика и проверки, поэтому проверяется
+    /// именно тот код, который работает в программе, а не отдельная
+    /// копия преобразования, написанная специально для теста.</para>
+    ///
+    /// <para>Координаты нормируются в диапазон от минус единицы до
+    /// единицы относительно центра элемента: так сдвиг не зависит от
+    /// размера окна.</para>
+    /// </remarks>
+    public void SetPointerOffset(double x, double y)
+    {
+        if (ActualWidth < 2 || ActualHeight < 2) return;
+
+        _targetPX = (x / ActualWidth - 0.5) * 2.0;
+        _targetPY = (y / ActualHeight - 0.5) * 2.0;
     }
 
     private void OnRendering(object? sender, EventArgs e)

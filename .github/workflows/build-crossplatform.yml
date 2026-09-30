@@ -6,6 +6,10 @@ on:
     tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
+  # Ручной запуск добавлен потому, что автоматический запуск зависеть
+  # не должен: если в аккаунте действия отключены или исчерпан лимит,
+  # конвейер всё равно можно запустить вручную после исправления.
+  workflow_dispatch:
 
 jobs:
   build-core:
@@ -21,6 +25,46 @@ jobs:
         run: |
           dotnet build src/MotionCommander.Core/MotionCommander.Core.csproj -c Release
           dotnet build src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release
+
+  # ПРОВЕРКИ КАЧЕСТВА.
+  #
+  # Этот пропуск обязателен для выпуска: сборка считается годной только
+  # если все проверки прошли.
+  #
+  # Инструмент запускается без повышения прав намеренно. Основная
+  # программа объявлена в манифесте как requireAdministrator, поэтому
+  # встроенные в неё проверки требуют подтверждения в диалоге UAC, а в
+  # конвейере диалог не показывается и проверка завершалась бы отказом.
+  # Из-за этого дефекты доходили до пользователя — в частности, сцена
+  # три выпуска подряд отображалась пустой, и ни одна проверка этого не
+  # ловила, потому что все они проверяли отсутствие исключений.
+  diagnostics:
+    name: Diagnostics (must pass before release)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build solution
+        run: dotnet build MotionCommander.sln -c Release --nologo
+      - name: Run diagnostics
+        shell: pwsh
+        run: |
+          $exe = 'src\MotionCommander.Diagnostics\bin\Release\net8.0-windows\MotionCommanderDiagnostics.exe'
+          & $exe
+          $code = $LASTEXITCODE
+          Write-Host "Diagnostics exit code: $code"
+          if ($code -ne 0) {
+            throw "Diagnostics reported $code failing checks"
+          }
+      - name: Upload diagnostics report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostics-report
+          path: src/MotionCommander.Diagnostics/bin/Release/net8.0-windows/*.png
 
   publish-linux:
     name: Publish Linux Binaries (x64 / ARM64)
@@ -84,7 +128,9 @@ jobs:
       - name: Publish Windows GUI
         run: |
           dotnet publish Win11CopyDialog/Win11CopyDialog.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-gui
+          dotnet publish src/MotionCommander.Diagnostics/MotionCommander.Diagnostics.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-diag
           Compress-Archive -Path publish/win-gui/* -DestinationPath MotionCommander-Windows-x64.zip
+          Compress-Archive -Path publish/win-diag/* -DestinationPath MotionCommander-Diagnostics-Windows-x64.zip
       - name: Publish Windows CLI
         run: |
           dotnet publish src/MotionCommander.Cli/MotionCommander.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-cli
@@ -95,12 +141,13 @@ jobs:
           name: motion-windows-packages
           path: |
             MotionCommander-Windows-x64.zip
+            MotionCommander-Diagnostics-Windows-x64.zip
             motion-cli-Windows-x64.zip
 
   create-github-release:
     name: Create Official GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [publish-linux, publish-macos, publish-windows]
+    needs: [diagnostics, publish-linux, publish-macos, publish-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write

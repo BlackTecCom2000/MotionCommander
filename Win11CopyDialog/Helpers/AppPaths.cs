@@ -231,6 +231,25 @@ public static class AppPaths
     public static string DownloadsDatabase => Path.Combine(WritableDataDirectory, "downloads.db");
     public static string ReportsDirectory => Path.Combine(WritableDataDirectory, "reports");
     public static string LogsDirectory => Path.Combine(WritableDataDirectory, "logs");
+
+    /// <summary>
+    /// Файл показателей последнего запуска.
+    /// </summary>
+    /// <remarks>
+    /// Лежит рядом с настройками, а не рядом с программой: в Program
+    /// Files запись запрещена, и метрики не сохранились бы вовсе.
+    /// </remarks>
+    public static string MetricsFile => Path.Combine(WritableDataDirectory, "startup-metrics.json");
+
+    /// <summary>
+    /// Файл падений программы.
+    /// </summary>
+    /// <remarks>
+    /// Раньше лежал рядом с исполняемым файлом, и в Program Files
+    /// запись была запрещена: лог молча не создавался, а диалог
+    /// утверждал, что подробности записаны.
+    /// </remarks>
+    public static string CrashLogPath => CrashLogFile;
     public static string CacheDirectory => Path.Combine(WritableDataDirectory, "cache");
 
     /// <summary>Все каталоги создаются сразу, чтобы не спотыкаться о FileNotFound в разных местах.</summary>

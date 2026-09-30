@@ -83,6 +83,12 @@ public partial class App : Application
                 var main = new MainWindow();
                 main.Loaded += (_, _) => main.ApplyStateAndTakeover(stateFilePath, oldPid);
                 main.Show();
+
+                // Показатели запуска пишутся после первого показа окна:
+                // это тот момент, который чувствует пользователь. Замер
+                // до создания окна показывал бы время, которое никто не
+                // ждёт.
+                main.ContentRendered += (_, _) => Helpers.StartupMetrics.Write();
                 return;
             }
         }
@@ -495,7 +501,9 @@ public partial class App : Application
                     break;
                 }
             }
-            new MainWindow(startDir, initialTab).Show();
+            var primary = new MainWindow(startDir, initialTab);
+            primary.ContentRendered += (_, _) => Helpers.StartupMetrics.Write();
+            primary.Show();
         }
     }
 

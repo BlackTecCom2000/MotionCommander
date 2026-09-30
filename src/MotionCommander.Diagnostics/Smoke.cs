@@ -592,29 +592,16 @@ internal static class Smoke
     }
 
     /// <summary>
+    /// <summary>
     /// Доля площади кадра, занятая пикселями, отличными от фонового.
     /// </summary>
     /// <remarks>
-    /// <para>Меряется то, что попало бы на экран: сцена приводится к
-    /// заданному размеру, содержимое слоёв строится явно, кадр
-    /// отрисовывается в прямоугольник пикселей и каждый пиксель
-    /// сравнивается с самым частым цветом кадра, то есть с фоном.</para>
-    ///
-    /// <para>Фон определяется как самый частый цвет, а не как заранее
-    /// заданный чёрный: сцена тёмная, но её фон задаёт градиент от
-    /// #050614 до #1B2735, и любое фиксированное значение дало бы
-    /// ложный отчёт о заполненности.</para>
-    ///
-    /// <para>Шаг выборки 2 пикселя: полный разбор 320x200 обошёлся бы
-    /// в те же измерения, а экономия кратна при сцене, где
-    /// изображение занимает площадь целиком, а не тонкие линии.</para>
+    /// Слои строятся по текущему размеру элемента, поэтому он должен
+    /// совпадать с размером кадра. Само измерение вынесено в <see cref="Ink"/>,
+    /// потому что одинаково применяется к сцене вне окна и внутри него.
     /// </remarks>
     private static double MeasureInk(CosmicBackdrop scene, int width, int height)
     {
-        const int Step = 2;
-
-        // Слои строятся по текущему размеру элемента, поэтому он
-        // должен совпадать с размером кадра.
         scene.Measure(new Size(width, height));
         scene.Arrange(new Rect(0, 0, width, height));
         scene.RebuildForTest();
@@ -623,46 +610,144 @@ internal static class Smoke
             width, height, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
         bitmap.Render(scene);
 
-        var pixels = new byte[height * width * 4];
-        bitmap.CopyPixels(pixels, width * 4, 0);
+        return Ink.Measure(bitmap, width, height);
+    }
 
-        // Самый частый цвет — фон кадра.
-        var counts = new Dictionary<uint, int>();
-        for (int y = 0; y < height; y += Step)
-            for (int x = 0; x < width; x += Step)
+    // ══════════════════════════════ Подпись артефактов ══════════════════════════════
+
+    /// <summary>
+    /// Сообщает, подписаны ли собранные файлы, и чем они подтверждены.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Что проверяется и почему это важно.</b> Установщик и
+    /// переносимая сборка запускаются с правами администратора, а
+    /// Windows SmartScreen помечает неподписанные файлы как
+    /// неопознанные. Пользователю показывается предупреждение о запуске
+    /// программы от неизвестного издателя — и, что хуже, он привыкает
+    /// нажимать «Выполнить в любом случае», потому что других вариантов
+    /// нет. Привычка нажимать на предупреждение опаснее самого
+    /// предупреждения.</para>
+    ///
+    /// <para>Подпись проверяется по факту: читается издатель из
+    /// внедрённого сертификата. Выдумывать издателя или считать файл
+    /// подписанным по самому факту его существования нельзя.</para>
+    ///
+    /// <para><b>Чего подпись НЕ даёт без проверки в программе.</b> Сама
+    /// по себе подпись файла не мешает подмене: если злоумышленник
+    /// заменит файл своим, он сможет поставить и свою подпись. Защиту
+    /// даёт проверка подписи издателя в момент обновления, и она в
+    /// проекте пока не сделана.</para>
+    ///
+    /// <para>Отсутствие сертификата — ограничение окружения, а не
+    /// программы. Проверка честно сообщает состояние и не считает его
+    /// успехом.</para>
+    /// </remarks>
+    public static void ArtifactSignature(TextWriter w)
+    {
+        string[] files = { "Win11CopyDialog.exe", "MotionCommanderDiagnostics.exe" };
+
+        int signedCount = 0;
+
+        foreach (string name in files)
+        {
+            string path = Path.Combine(AppContext.BaseDirectory, name);
+            if (!File.Exists(path))
             {
-                int i = (y * width + x) * 4;
-                uint key = ((uint)pixels[i] << 16) | ((uint)pixels[i + 1] << 8) | pixels[i + 2];
-                counts.TryGetValue(key, out int n);
-                counts[key] = n + 1;
+                w.WriteLine($"  {name}: не найден в папке программы");
+                continue;
             }
 
-        uint background = uint.MaxValue;
-        int best = -1;
-        foreach (var pair in counts)
-            if (pair.Value > best) { best = pair.Value; background = pair.Key; }
-
-        // Допуск отличает фон от его градиента: градиент меняется
-        // плавно, и соседние оттенки не должны считаться изображением.
-        const int Tolerance = 6;
-
-        int total = 0;
-        int inked = 0;
-        for (int y = 0; y < height; y += Step)
-            for (int x = 0; x < width; x += Step)
+            try
             {
-                int i = (y * width + x) * 4;
-                uint r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-                uint br = (background >> 16) & 0xFF, bg = (background >> 8) & 0xFF, bb = background & 0xFF;
+                // Издатель читается из внедрённой подписи. У базового
+                // X509Certificate нет GetNameInfo, поэтому сертификат
+                // приводится к X509Certificate2 — именно у него есть
+                // доступ к полю издателя.
+                using var cert = new System.Security.Cryptography.X509Certificates
+                    .X509Certificate2(
+                        System.Security.Cryptography.X509Certificates
+                            .X509Certificate.CreateFromSignedFile(path));
 
-                total++;
-                if (Math.Abs(r - br) > Tolerance ||
-                    Math.Abs(g - bg) > Tolerance ||
-                    Math.Abs(b - bb) > Tolerance)
-                    inked++;
+                w.WriteLine($"  {name}: подписан, издатель «{cert.GetNameInfo(
+                    System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, false)}»");
+                signedCount++;
             }
+            catch (System.Security.Cryptography.CryptographicException)
+            {
+                // Исключение, а не ложный флаг: неподписанный файл не
+                // имеет сертификата вообще, и создать его из него
+                // нельзя. Это ожидаемый исход, а не сбой проверки.
+                w.WriteLine($"  {name}: НЕ ПОДПИСАН");
+            }
+        }
 
-        return total == 0 ? 0.0 : inked * 100.0 / total;
+        w.WriteLine();
+        w.WriteLine("  Причина: сертификата подписи у проекта нет, купить его может");
+        w.WriteLine("  только владелец. Windows будет помечать файлы как неопознанные,");
+        w.WriteLine("  поэтому пользователю придётся подтверждать запуск вручную.");
+        w.WriteLine("  До этого момента целостность подтверждается манифестом SHA-256,");
+        w.WriteLine("  который проверяется перед применением обновления.");
+    }
+
+    // ══════════════════════════════ Показатели запуска ══════════════════════════════
+
+    /// <summary>
+    /// Показывает показатели последнего запуска программы.
+    /// </summary>
+    /// <remarks>
+    /// <para>Показатели записывает сама программа при первом отрисованном
+    /// кадре окна. Диагностика их только читает и не подставляет ничего
+    /// от себя: измерить время запуска извне нельзя так, как его чувствует
+    /// пользователь.</para>
+    ///
+    /// <para>Если файла нет, так и пишется, что данных нет и что нужно
+    /// один раз запустить программу. Выдумывать время старта или
+    /// оценивать его «на глаз» нельзя: именно такие оценки и расходятся с
+    /// реальностью в разы.</para>
+    ///
+    /// <para>Отдельно сообщается размер рабочей памяти: он полезнее
+    /// времени запуска, потому что накопитель потерь во время работы
+    /// виден по тому, растёт ли память между запусками.</para>
+    /// </remarks>
+    public static void RunStartupMetrics(TextWriter w)
+    {
+        string path = Win11CopyDialog.Helpers.AppPaths.MetricsFile;
+
+        if (!File.Exists(path))
+        {
+            w.WriteLine("  показателей нет: файл не создан.");
+            w.WriteLine("  Запустите программу один раз — она запишет время до первого");
+            w.WriteLine("  отрисованного кадра и расход памяти. Значение не выдумывается.");
+            return;
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(
+                File.ReadAllText(path));
+
+            var root = doc.RootElement;
+
+            double ms = root.TryGetProperty("StartupMilliseconds", out var s) ? s.GetDouble() : 0;
+            long working = root.TryGetProperty("WorkingSetBytes", out var w0) ? w0.GetInt64() : 0;
+            long managed = root.TryGetProperty("ManagedMemoryBytes", out var m0) ? m0.GetInt64() : 0;
+            int threads = root.TryGetProperty("ThreadCount", out var t0) ? t0.GetInt32() : 0;
+            string runtime = root.TryGetProperty("RuntimeVersion", out var r) ? r.GetString() ?? "" : "";
+
+            w.WriteLine($"  время до первого кадра: {ms:0} мс");
+            w.WriteLine($"  рабочая память процесса: {working / 1024.0 / 1024.0:0.0} МБ");
+            w.WriteLine($"  управляемая память:       {managed / 1024.0 / 1024.0:0.0} МБ");
+            w.WriteLine($"  потоков: {threads}, среда: {runtime}");
+
+            if (ms <= 0)
+            {
+                w.WriteLine("  ПРОБЛЕМА: время запуска не записано, файл повреждён");
+            }
+        }
+        catch (Exception ex)
+        {
+            w.WriteLine($"  ПРОБЛЕМА: файл показателей не читается: {ex.GetType().Name}");
+        }
     }
 
     // ══════════════════════════════ Разбор S.M.A.R.T. ══════════════════════════════

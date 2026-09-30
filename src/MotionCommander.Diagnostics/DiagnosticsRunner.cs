@@ -45,9 +45,12 @@ internal static class DiagnosticsRunner
         failures += Run(output, "КОНТРАСТ WCAG AA", Smoke.ContrastAudit);
         failures += Run(output, "ПРУЖИННАЯ ФИЗИКА", Smoke.Springs);
         failures += Run(output, "КОСМИЧЕСКАЯ СЦЕНА", Smoke.CosmicScene);
+        failures += RunWindow(output, "СЦЕНА В ОКНЕ", WindowSceneTest.Run);
         failures += Run(output, "РАЗБОР S.M.A.R.T.", Smoke.SmartParser);
         failures += Run(output, "НАКОПИТЕЛИ", Smoke.Storage);
         failures += RunAsync(output, "КОПИРОВАНИЕ", Smoke.CopyAsync);
+        failures += Run(output, "ПОКАЗАТЕЛИ ЗАПУСКА", Smoke.RunStartupMetrics);
+        failures += Run(output, "ПОДПИСЬ АРТЕФАКТОВ", Smoke.ArtifactSignature);
 
         output.WriteLine(new string('=', 78));
         output.WriteLine(failures == 0
@@ -75,6 +78,34 @@ internal static class DiagnosticsRunner
         try
         {
             body(buffer);
+        }
+        catch (Exception ex)
+        {
+            problems = 1;
+            buffer.WriteLine("  ИСКЛЮЧЕНИЕ: " + ex.GetType().Name + ": " + ex.Message);
+        }
+
+        Flush(w, buffer);
+        return problems;
+    }
+
+    /// <summary>
+    /// Выполняет проверку, возвращающую число несоответствий.
+    /// </summary>
+    /// <remarks>
+    /// Отдельный вид по сравнению с <see cref="Run"/>: проверки сцены
+    /// сами решают, что считать дефектом, и возвращают счётчик.
+    /// Обёртка по выводу и перехвату исключений у них общая.
+    /// </remarks>
+    private static int RunWindow(TextWriter w, string name, Func<TextWriter, int> body)
+    {
+        w.WriteLine("── " + name);
+        var buffer = new StringWriter();
+        int problems;
+
+        try
+        {
+            problems = body(buffer);
         }
         catch (Exception ex)
         {
