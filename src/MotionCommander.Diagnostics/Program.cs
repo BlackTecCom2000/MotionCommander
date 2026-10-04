@@ -37,6 +37,14 @@ internal static class Program
             ? TextWriter.Synchronized(Console.Out)
             : Console.Out;
 
+        // Проба ресурсов: показывает, что реально загрузилось.
+        // Нужна, когда экраны падают с «не найден ресурс»: без неё
+        // пришлось бы угадывать, чего не хватило.
+        if (Array.IndexOf(args, "--res-probe") >= 0)
+        {
+            return Smoke.ProbeResources();
+        }
+
         // Отчёт S.M.A.R.T. с повышенных прав.
         //
         // Обрабатывается до всех остальных режимов: он запускает

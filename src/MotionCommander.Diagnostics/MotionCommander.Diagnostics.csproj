@@ -32,9 +32,9 @@
     <!-- Явно пусто: файл app.manifest не подключается намеренно. -->
     <ApplicationManifest />
 
-    <Version>3.8.34</Version>
-    <AssemblyVersion>3.8.34.0</AssemblyVersion>
-    <FileVersion>3.8.34.0</FileVersion>
+    <Version>3.8.35</Version>
+    <AssemblyVersion>3.8.35.0</AssemblyVersion>
+    <FileVersion>3.8.35.0</FileVersion>
     <Product>Motion Commander</Product>
     <AssemblyTitle>Motion Commander — диагностика</AssemblyTitle>
     <Description>Проверки Motion Commander без запроса прав администратора.</Description>

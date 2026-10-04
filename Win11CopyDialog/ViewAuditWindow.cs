@@ -39,6 +39,53 @@ public sealed class ViewAuditWindow : Window
 
     public void BeginAudit() => Dispatcher.BeginInvoke(Run);
 
+    /// <summary>
+    /// Итог проверки экранов: сколько прошло, сколько нет и что именно.
+    /// </summary>
+    /// <remarks>
+    /// Результат отделён от вывода в консоль, потому что вызывающий код
+    /// может быть не тем, что печатает в консоль.
+    /// </remarks>
+    public sealed record ViewAuditResult(int Passed, int Failed, IReadOnlyList<string> Report)
+    {
+        /// <summary>Успешна ли проверка: не должно быть ни одного дефекта.</summary>
+        public bool Ok => Failed == 0;
+    }
+
+    /// <summary>
+    /// Выполняет проверку всех экранов и возвращает результат.
+    /// </summary>
+    /// <remarks>
+    /// <para>Тот же самый прогон, что идёт по ключу <c>--view-audit</c>,
+    /// одна и та же реализация. Дублировать перечень экранов во втором
+    /// месте было бы прямой дорогой к расхождению: один список со временем
+    /// перестал бы пополняться, и проверка тихо ослабла бы.</para>
+    ///
+    /// <para>Проверка не требует прав администратора. Экраны, читающие
+    /// накопители или драйверы, без прав честно сообщают о недоступности
+    /// и не подставляют значения — именно это и проверяется. Поэтому
+    /// прогон доступен в сборочном конвейере, где диалог подтверждения
+    /// не показывается.</para>
+    /// </remarks>
+    public static ViewAuditResult RunAll(TextWriter? output = null)
+    {
+        var holder = new ViewAuditWindow();
+
+        TextWriter real = output ?? TextWriter.Null;
+        var original = Console.Out;
+        Console.SetOut(real);
+
+        try
+        {
+            holder.Run();
+            return new ViewAuditResult(holder._passed, holder._failed, holder._report.ToList());
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+    }
+
     private void Run()
     {
         var outp = Console.Out;
@@ -110,6 +157,35 @@ public sealed class ViewAuditWindow : Window
         Application.Current.Shutdown(code);
     }
 
+    /// <summary>
+    /// Описывает исключение вместе со всей цепочкой вложенных.
+    /// </summary>
+    /// <remarks>
+    /// <para>Сообщение вида «предоставление значения для
+    /// StaticResourceExtension вызвало исключение» бесполезно: оно не
+    /// называет ни ключ, ни словарь. Настоящая причина лежит во
+    /// вложенном исключении — обычно это «Не удалось найти ресурс с
+    /// именем <c>Имя</c>».</para>
+    ///
+    /// <para>Без цепочки поиск ключа в словарях означал бы
+    /// перебор: два экрана из восемнадцати падали с одинаковым
+    /// сообщением, и найти виновный ключ можно было только
+    /// перекладыванием.</para>
+    /// </remarks>
+    private static string Describe(Exception ex)
+    {
+        var parts = new List<string>();
+        var seen = new HashSet<Exception>();
+
+        for (Exception? e = ex; e != null && seen.Add(e); e = e.InnerException)
+        {
+            string text = e.Message?.Split('\n')[0].Trim() ?? "";
+            parts.Add(e.GetType().Name + ": " + text);
+        }
+
+        return string.Join(" -> ", parts);
+    }
+
     private void Audit(TextWriter outp, BindingTraceListener listener, string name, Func<FrameworkElement> factory)
     {
         listener.Reset();
@@ -123,7 +199,7 @@ public sealed class ViewAuditWindow : Window
         }
         catch (Exception ex)
         {
-            error = ex.GetType().Name + ": " + ex.Message;
+            error = Describe(ex);
         }
         finally
         {

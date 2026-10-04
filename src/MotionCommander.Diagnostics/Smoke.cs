@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Media;
 using Win11CopyDialog.Controls;
+using Win11CopyDialog;
 using Win11CopyDialog.Helpers;
 using Contrast = Win11CopyDialog.Helpers.Contrast;
 using Win11CopyDialog.Models;
@@ -687,6 +688,234 @@ internal static class Smoke
         w.WriteLine("  поэтому пользователю придётся подтверждать запуск вручную.");
         w.WriteLine("  До этого момента целостность подтверждается манифестом SHA-256,");
         w.WriteLine("  который проверяется перед применением обновления.");
+    }
+
+    // ══════════════════════════════ Проба ресурсов ══════════════════════════════
+
+    /// <summary>
+    /// Показывает состояние ресурсов приложения и ищет недостающие ключи.
+    /// </summary>
+    /// <remarks>
+    /// Нужна для разбора падения вида «не удается найти ресурс с именем
+    /// X». Сообщение называет ключ, но не называет источник, а источник
+    /// — это и есть суть: ключ либо не определён вовсе, либо
+    /// определён в словаре, который не подключён.
+    ///
+    /// Для каждого названного ключа печатается, в каком словаре он
+    /// найден, либо что не найден нигде.
+    /// </remarks>
+    public static int ProbeResources()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.WriteLine("ПРОБА РЕСУРСОВ");
+        Console.WriteLine(new string('=', 64));
+
+        if (EnsureApplicationResources() == null)
+        {
+            Console.WriteLine("  ресурсы подготовить не удалось");
+            return 1;
+        }
+
+        var r = Application.Current?.Resources;
+        if (r == null)
+        {
+            Console.WriteLine("  словарей нет: Application не создан");
+            return 1;
+        }
+
+        Console.WriteLine($"  ключей верхнего уровня: {r.Count}");
+        Console.WriteLine($"  подключённых словарей:  {r.MergedDictionaries.Count}");
+
+        for (int i = 0; i < r.MergedDictionaries.Count; i++)
+        {
+            var d = r.MergedDictionaries[i];
+            Console.WriteLine($"    словарь #{i}: ключей {d.Count}" +
+                (d.Source != null ? $"  <- {d.Source}" : "  <- без источника"));
+        }
+
+        Console.WriteLine();
+        foreach (string key in new[]
+        {
+            "Icon_Refresh", "Card", "CyberButton", "CaptionButton",
+            "GlassWindowRoot", "BooleanToVisibilityConverter"
+        })
+        {
+            string where = r.Contains(key) ? "верхний уровень" : null;
+
+            if (where == null)
+                for (int i = 0; i < r.MergedDictionaries.Count && where == null; i++)
+                    if (r.MergedDictionaries[i].Contains(key))
+                        where = "словарь #" + i;
+
+            Console.WriteLine($"  {key,-32} -> {(where ?? "НЕ НАЙДЕН")}");
+        }
+
+        return 0;
+    }
+
+    // ══════════════════════════════ Экраны ══════════════════════════════
+
+    /// <summary>
+    /// Создаёт и отрисовывает каждый экран программы.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Почему проверка перенесена сюда.</b> Раньше она жила
+    /// только внутри основного файла, под ключом <c>--view-audit</c>.
+    /// Основная программа требует прав администратора, и манифест
+    /// проверяет их до выполнения кода, поэтому в сборочном конвейере
+    /// проверка была недостижима: диалог подтверждения там не
+    /// показывается. Самая широкая поверхность приложения — все экраны —
+    /// оставалась непроверенной именно там, где проверки должны идти
+    /// автоматически.</para>
+    ///
+    /// <para>Проверка экранов не требует прав: экраны, читающие
+    /// накопители или драйверы, без прав сообщают о недоступности, и
+    /// именно это поведение и проверяется.</para>
+    ///
+    /// <para>Вызывается <see cref="ViewAuditWindow.RunAll"/> — тот же
+    /// прогон, что по ключу <c>--view-audit</c>. Список экранов
+    /// хранится в одном месте намеренно: две копии перечня со временем
+    /// разошлись бы, и одна из них тихо перестала бы проверяться.</para>
+    /// </remarks>
+    public static int ViewAudit(TextWriter w)
+    {
+        // РЕСУРСЫ ТЕМЫ ОБЯЗАТЕЛЬНЫ.
+        //
+        // Все восемнадцать экранов падают с
+        // «StaticResourceExtension: предоставление значения вызвало
+        // исключение», если словари ресурсов не загружены. Это не
+        // дефекты экранов, а незавершённая подготовка окружения:
+        // программа создаёт Application и применяет тему при запуске,
+        // а диагностика живёт в отдельном процессе без этого.
+        //
+        // Без подготовки отчёт показывал бы восемнадцать одинаковых
+        // неисправностей, которых нет, — и этим отучил бы читать
+        // настоящие сбои привязки, попав в ту же таблицу.
+        var app = EnsureApplicationResources();
+
+        if (app == null)
+        {
+            w.WriteLine("  ПРОБЛЕМА: не удалось создать Application, экраны не проверены.");
+            return 1;
+        }
+
+        var result = ViewAuditWindow.RunAll(w);
+
+        w.WriteLine();
+        w.WriteLine($"  экранов проверено: {result.Passed + result.Failed}, " +
+                    $"прошло: {result.Passed}, с дефектами: {result.Failed}");
+
+        if (result.Ok) return 0;
+
+        // Каждая неудача печатается: без перечня отчёт бесполезен,
+        // по нему нельзя понять, что чинить.
+        foreach (string line in result.Report)
+            w.WriteLine("  " + line);
+
+        return result.Failed;
+    }
+
+    /// <summary>
+    /// Создаёт объект приложения и применяет тему, если это ещё не сделано.
+    /// </summary>
+    /// <remarks>
+    /// <para><c>ThemeManager.Apply</c> обращается к
+    /// <c>Application.Current.Resources</c> и без него ничего не делает,
+    /// оставляя словари пустыми. Проверка экранов тогда падает не на
+    /// дефектах разметки, а на отсутствии ресурсов.</para>
+    ///
+    /// <para>Объект приложения нужен один на процесс. Повторный вызов
+    /// ничего не меняет: если ресурсы уже применены, второй
+    /// <c>Application</c> создавать нельзя — WPF допускает его
+    /// единственный.</para>
+    /// </remarks>
+    private static Application EnsureApplicationResources()
+    {
+        // Создаётся СОБСТВЕННЫЙ класс приложения, а не пустой Application.
+        //
+        // Только у него в конструкторе выполняется InitializeComponent,
+        // который поднимает Application.Resources: шестнадцать словарей
+        // и сто два ключа, объявленных прямо в App.xaml. Пустой
+        // Application этих ресурсов не даёт, и проверка падает не на
+        // дефектах, а на их отсутствии.
+        //
+        // Это ровно то, что делает сама программа при запуске, поэтому
+        // проверяется тот же набор ресурсов, что и у пользователя.
+        if (Application.Current == null)
+        {
+            try
+            {
+                _ = new Win11CopyDialog.App();
+
+                // Режим завершения задаётся ПОСЛЕ создания.
+                //
+                // Объектный инициализатор отработал бы раньше, чем
+                // собственная инициализация класса приложения, и тот
+                // успел бы вернуть режим по умолчанию. При нём WPF
+                // выключается после закрытия первого окна, и все
+                // последующие экраны падали с «идет завершение работы
+                // объекта Application» — ошибка проверки, а не экранов.
+                Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  App не создан: " + ex.Message.Split('\n')[0]);
+                return null;
+            }
+        }
+
+        var resources = Application.Current.Resources;
+
+        // Словари подключаются явно, даже если создание класса
+        // приложения их якобы подняло.
+        //
+        // Измерено: после new App подключённых словарей ноль, а все
+        // ключи приходят из темы. То есть InitializeComponent у
+        // экземпляра, созданного вручную, словари не поднимает, и
+        // без явного подключения падают все восемнадцать экранов.
+        //
+        // Перечень дублирует App.xaml, и это осознанный компромисс:
+        // он не даёт проверке узнать о ресурсах больше, чем знает
+        // программа. Расхождение обнаруживается само: если словарь
+        // переименуют, экраны упадут с «не найден ресурс», и причина
+        // будет названа прямо.
+        int loaded = 0;
+        foreach (string name in new[]
+        {
+            "Colors", "Spacing", "Dimensions", "Typography", "Animations",
+            "Materials", "Buttons", "Navigation", "CommandBar", "FileList",
+            "ContextMenu", "Dialogs", "Inputs", "Dividers", "ScrollBars", "Tooltips"
+        })
+        {
+            try
+            {
+                resources.MergedDictionaries.Add(new ResourceDictionary
+                {
+                    Source = new Uri(
+                        $"pack://application:,,,/Win11CopyDialog;component/Themes/{name}.xaml",
+                        UriKind.Absolute)
+                });
+                loaded++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  не подключён {name}.xaml: " + ex.Message.Split('\n')[0]);
+            }
+        }
+        Console.WriteLine($"  словарей подключено: {loaded} из 16");
+
+        try
+        {
+            Win11CopyDialog.Models.ThemeManager.Instance.Apply();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("  Тема не применена: " + ex.GetType().Name + ": " + ex.Message);
+        }
+
+        Console.WriteLine($"  ключей в ресурсах: {resources.Count}, словарей: {resources.MergedDictionaries.Count}");
+
+        return Application.Current;
     }
 
     // ══════════════════════════════ Показатели запуска ══════════════════════════════

@@ -1,22 +1,22 @@
 ﻿{
-    "version":  "3.8.34",
-    "releaseDate":  "2026-10-01",
+    "version":  "3.8.35",
+    "releaseDate":  "2026-10-04",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Safe uninstaller: ApplicationRemovalService strictly prevents deletion of Windows, Program Files, and user root directories",
-                      "Dynamic migration partitions: OsMigrationService dynamically finds free letters, cleans up temporary volumes, and prevents Robocopy deadlocks",
-                      "Zip Slip security: GUI ArchiveService validates extracted paths against directory traversal attacks",
-                      "CopyEngine enhancements: SkipCurrent cancels active file transfers immediately; isolated per-file error handling prevents queue failures; exact size verification",
-                      "File management safety: FileSystemService routes deletions to Windows Recycle Bin by default",
-                      "Memory optimization: Crc32Verifier uses ArrayPool to eliminate Large Object Heap (LOH) allocations",
-                      "Repository hygiene: removed dead code, purged tracked test artifacts, fixed startup string formatting and duplicate privilege escalations"
+                      "Исправлен дефект в помощнике ProgressGuard. Он существует, чтобы не давать колбэкам прогресса ронять приложение, но сам бросал исключение при вызове из чужого потока: обращения к Minimum, Maximum и Value у прогресс-бара разрешены только в потоке владельца.",
+                      "Сбой всплыл при прогоне проверок экранов: колбэк Progress выполнялся в потоке пула, и элемент, созданный на UI-потоке, к нему не принадлежал.",
+                      "Работа переносится в поток владельца через BeginInvoke. Invoke не применяется: на не откачиваемом диспетчере он приводит к зависанию.",
+                      "Проверка экранов теперь печатает всю цепочку вложенных исключений. Раньше сообщение звучало как предоставление значения StaticResourceExtension вызвало исключение и не называло ни ключ, ни словарь, поэтому поиск вёл перебором.",
+                      "В диагностику добавлена проверка ресурсов: она показывает, сколько словарей подключено и в каком из них лежит названный ключ.",
+                      "Проверка экранов в автоматический прогон пока не включена и отключена явно с указанием причины: при создании класса приложения WPF начинает завершение работы после закрытия первого окна, из-за чего проверяется один экран вместо восемнадцати. Отчёт с восемнадцатью одинаковыми сбоями выглядел бы как дефекты интерфейса.",
+                      "Найдено и устранено три ошибки самой проверки, а не программы: не подключались словари темы, затем не подключались ключи самого App.xaml, затем приложение выключалось после первого окна. Каждая давала ложные сведения о дефектах экранов."
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.34-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.35-Patch.zip",
     "patchSizeMb":  3.27,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.34-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.34-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.34-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.35-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.35-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.35-Setup.exe"
 }

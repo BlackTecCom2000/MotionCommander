@@ -23,6 +23,25 @@ public static class ProgressGuard
     /// Присваивает значение прогресс-бару, зажатым в допустимый диапазон.
     /// Значения NaN и бесконечности также обрабатываются.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Метод обязан быть безопасным и с точки зрения потока.</b>
+    /// Он существует именно для вызовов из колбэков прогресса, а они
+    /// приходят откуда угодно: <c>Progress&lt;T&gt;</c> передаёт отчёт
+    /// в тот поток, который был текущим при его создании, а при
+    /// создании не из UI-потока — в поток пула.</para>
+    ///
+    /// <para>Обращение к <c>Minimum</c>, <c>Maximum</c> и
+    /// <c>Value</c> — это обращения к свойствам зависимости, и WPF
+    /// бросает на них исключение, если поток не владеет объектом. Таким
+    /// образом метод, названный «безопасным», сам был источником
+    /// фатального сбоя: исключение возникало внутри колбэка, минуя
+    /// пользовательскую обработку ошибок.</para>
+    ///
+    /// <para>Поэтому работа переносится в поток владельца. Перенос
+    /// выполняется через BeginInvoke, а не Invoke: Invoke на мёртвом
+    /// или не откачиваемом диспетчере приводит к зависанию, а
+    /// прогресс-сообщение потерять не жалко — оно придёт следующим.</para>
+    /// </remarks>
     public static void SetSafe(this ProgressBar bar, double value)
     {
         if (bar is null) return;
@@ -32,6 +51,17 @@ public static class ProgressGuard
             value = 0;
         }
 
+        if (bar.Dispatcher.CheckAccess())
+        {
+            Apply(bar, value);
+            return;
+        }
+
+        bar.Dispatcher.BeginInvoke(new Action(() => Apply(bar, value)));
+    }
+
+    private static void Apply(ProgressBar bar, double value)
+    {
         double min = bar.Minimum;
         double max = bar.Maximum;
 
@@ -51,7 +81,17 @@ public static class ProgressGuard
 
         if (double.IsNaN(value) || double.IsInfinity(value)) value = 0;
 
-        bar.Value = Math.Clamp(value, 0, 100);
+        // Тот же перенос в поток владельца, что и у обычного
+        // ProgressBar: значение у элемента — свойство зависимости, и
+        // запись из чужого потока бросает исключение.
+        if (bar.Dispatcher.CheckAccess())
+        {
+            bar.Value = Math.Clamp(value, 0, 100);
+            return;
+        }
+
+        bar.Dispatcher.BeginInvoke(new Action(() =>
+            bar.Value = Math.Clamp(value, 0, 100)));
     }
 
     /// <summary>Нормализует «сырой» процент 0..100 в диапазон прогресс-бара.</summary>
