@@ -79,13 +79,20 @@ if (-not $Thumbprint -and -not $CertificatePath) {
     Write-Host 'ПОДПИСАТЬ НЕЧЕМ: не указан ни отпечаток, ни файл сертификата.' -ForegroundColor Yellow
     Write-Host ''
     Write-Host 'Нужен сертификат подписи кода. Варианты:' -ForegroundColor Yellow
-    Write-Host '  1. Купить сертификат подписи кода (требуется проверка личности).' -ForegroundColor Yellow
-    Write-Host '  2. Использовать бесплатный сертификат на время разработки.' -ForegroundColor Yellow
-    Write-Host '     Он не подходит для публикации в интернете: срок и область' -ForegroundColor Yellow
-    Write-Host '     применения ограничены и статус будет «не доверенный».'
+    Write-Host '  1. БЕСПЛАТНО для этого проекта — SignPath Foundation.' -ForegroundColor Yellow
+    Write-Host '     Репозиторий публичный и под MIT, то есть условия' -ForegroundColor Yellow
+    Write-Host '     подходят. Подпись настоящая, издатель известен —' -ForegroundColor Yellow
+    Write-Host '     именно этого требует Smart App Control.' -ForegroundColor Yellow
+    Write-Host '     Заявка: signpath.org' -ForegroundColor Yellow
+    Write-Host '  2. Купить сертификат (проверка личности, платно):' -ForegroundColor Yellow
+    Write-Host '     DigiCert, Sectigo, Certum и подобные.' -ForegroundColor Yellow
     Write-Host ''
-    Write-Host 'Где взять сертификат в Windows:'
-    Write-Host '  certmgr.msc -> Запросить новый сертификат -> Параметры проверки кода'
+    Write-Host 'Самоподписанный сертификат НЕ решает задачу:' -ForegroundColor Red
+    Write-Host '  Smart App Control и SmartScreen считают его неизвестным' -ForegroundColor Red
+    Write-Host '  издателем и блокируют программу так же, как сейчас.' -ForegroundColor Red
+    Write-Host ''
+    Write-Host 'Дополнительно нужен signtool.exe (Windows Kits) — сейчас'
+    Write-Host 'его на машине нет, но скрипт ищет его сам.'
     Write-Host ''
     Write-Host 'После получения повторите с указанием отпечатка:' -ForegroundColor Yellow
     Write-Host ('  .\scripts\Sign-Release.ps1 -Thumbprint ' + 'ОТПЕЧАТОК')
