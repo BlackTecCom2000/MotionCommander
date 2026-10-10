@@ -119,8 +119,9 @@ if ($isSystemPath -and -not $isAdmin) {
     Write-Host ""
     Write-Host "[ТРЕБУЮТСЯ ПРАВА АДМИНИСТРАТОРА] Каталог $installDir защищён Windows." -ForegroundColor Yellow
     Write-Host "Запрос повышения привилегий (UAC)..." -ForegroundColor Yellow
+    $scriptFile = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { "$PSScriptRoot\Install.ps1" }
     try {
-        $proc = Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$PSCommandPath`"" -Verb RunAs -Wait -PassThru -ErrorAction Stop
+        $proc = Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$scriptFile`"" -Verb RunAs -Wait -PassThru -ErrorAction Stop
         exit $proc.ExitCode
     }
     catch {
