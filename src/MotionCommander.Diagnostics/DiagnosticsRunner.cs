@@ -49,6 +49,7 @@ internal static class DiagnosticsRunner
         failures += Run(output, "РАЗБОР S.M.A.R.T.", Smoke.SmartParser);
         failures += Run(output, "НАКОПИТЕЛИ", Smoke.Storage);
         failures += RunAsync(output, "КОПИРОВАНИЕ", Smoke.CopyAsync);
+        failures += RunAsync(output, "МЕНЕДЖЕР ЗАГРУЗОК", Smoke.DownloadManagerAuditAsync);
         failures += Run(output, "ПОКАЗАТЕЛИ ЗАПУСКА", Smoke.RunStartupMetrics);
         failures += Run(output, "ПОДПИСЬ АРТЕФАКТОВ", Smoke.ArtifactSignature);
         // Проверка экранов в автоматический прогон НЕ включена — и это

@@ -119,6 +119,74 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.ViewModels
             try
             {
                 var items = await _dbService.GetAllDownloadsAsync().ConfigureAwait(false);
+                foreach (var item in items)
+                {
+                    // Синхронизация состояния загрузки с файловой системой после перезапуска приложения
+                    if (item.Status != DownloadStatus.Completed)
+                    {
+                        bool changed = false;
+                        foreach (var segment in item.Segments)
+                        {
+                            if (segment.Status == SegmentStatus.Downloading)
+                            {
+                                segment.Status = SegmentStatus.Pending;
+                                changed = true;
+                            }
+
+                            string partPath = $"{item.SavePath}.part{segment.Index}";
+                            if (File.Exists(partPath))
+                            {
+                                long diskLen = new FileInfo(partPath).Length;
+                                long expectedLen = segment.EndPosition - segment.StartPosition + 1;
+                                if (expectedLen > 0 && diskLen >= expectedLen)
+                                {
+                                    if (segment.Status != SegmentStatus.Completed || segment.BytesDownloaded != expectedLen)
+                                    {
+                                        segment.Status = SegmentStatus.Completed;
+                                        segment.BytesDownloaded = expectedLen;
+                                        changed = true;
+                                    }
+                                }
+                                else if (expectedLen > 0 && diskLen > 0)
+                                {
+                                    if (segment.BytesDownloaded != diskLen)
+                                    {
+                                        segment.BytesDownloaded = diskLen;
+                                        changed = true;
+                                    }
+                                }
+                            }
+                            else if (segment.BytesDownloaded > 0)
+                            {
+                                segment.BytesDownloaded = 0;
+                                segment.Status = SegmentStatus.Pending;
+                                changed = true;
+                            }
+                        }
+
+                        if (item.Segments.Count > 0)
+                        {
+                            item.BytesDownloaded = item.Segments.Sum(s => s.BytesDownloaded);
+                        }
+
+                        if (changed || item.Status is DownloadStatus.Downloading or DownloadStatus.Verifying)
+                        {
+                            if (item.Status is DownloadStatus.Downloading or DownloadStatus.Verifying)
+                            {
+                                item.Status = DownloadStatus.Paused;
+                                item.Speed = 0;
+                            }
+                            await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        if (item.Segments.Count > 0 && item.BytesDownloaded == 0)
+                        {
+                            item.BytesDownloaded = item.TotalBytes;
+                        }
+                    }
+                }
 
                 void Apply()
                 {

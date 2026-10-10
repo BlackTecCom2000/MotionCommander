@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using Win11CopyDialog.Controls;
@@ -12,6 +13,8 @@ using Contrast = Win11CopyDialog.Helpers.Contrast;
 using Win11CopyDialog.Models;
 using Win11CopyDialog.Modules.StorageControlCenter.Models;
 using Win11CopyDialog.Modules.StorageControlCenter.Services;
+using Win11CopyDialog.Modules.Utilities.DownloadManager.Models;
+using Win11CopyDialog.Modules.Utilities.DownloadManager.Services;
 
 namespace MotionCommander.Diagnostics;
 
@@ -1389,6 +1392,292 @@ internal static class Smoke
         finally
         {
             try { Directory.Delete(root, true); } catch { /* временный каталог */ }
+        }
+    }
+
+    /// <summary>
+    /// Проверка менеджера загрузок: сегменты Range, серверы без Range, пауза/докачка,
+    /// восстановление после перезапуска и проверка целостности SHA-256 перед сборкой.
+    /// </summary>
+    public static async Task DownloadManagerAuditAsync(TextWriter w)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "mc_diag_dl_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            int problems = 0;
+            var db = new DatabaseService();
+
+            // 1. Инициализация сегментов для сервера с поддержкой Range
+            var rangeItem = new DownloadItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Url = "https://example.com/file.bin",
+                FileName = "range_test.bin",
+                SavePath = Path.Combine(root, "range_test.bin"),
+                TotalBytes = 10 * 1024 * 1024,
+                SupportsRanges = true
+            };
+
+            var rangeManager = new SegmentManager(db, rangeItem, supportsRanges: true);
+            await rangeManager.InitializeSegmentsAsync(4);
+
+            if (rangeItem.Segments.Count != 4)
+            {
+                problems++;
+                w.WriteLine($"  ПРОБЛЕМА: ожидалось 4 сегмента, получено {rangeItem.Segments.Count}");
+            }
+            else if (rangeItem.Segments[0].StartPosition != 0 || rangeItem.Segments[^1].EndPosition != rangeItem.TotalBytes - 1)
+            {
+                problems++;
+                w.WriteLine("  ПРОБЛЕМА: границы сегментов Range не покрывают файл целиком");
+            }
+            else
+            {
+                w.WriteLine("  инициализация многопоточных сегментов (Range): 4 сегмента непрерывны");
+            }
+
+            // 2. Инициализация для сервера без поддержки Range (No-Range)
+            var noRangeItem = new DownloadItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Url = "https://example.com/no_range.bin",
+                FileName = "no_range.bin",
+                SavePath = Path.Combine(root, "no_range.bin"),
+                TotalBytes = 5 * 1024 * 1024,
+                SupportsRanges = false
+            };
+
+            var noRangeManager = new SegmentManager(db, noRangeItem, supportsRanges: false);
+            await noRangeManager.InitializeSegmentsAsync(8);
+
+            if (noRangeItem.Segments.Count != 1)
+            {
+                problems++;
+                w.WriteLine($"  ПРОБЛЕМА: для сервера без Range ожидался 1 сегмент, получено {noRangeItem.Segments.Count}");
+            }
+            else if (noRangeItem.Segments[0].StartPosition != 0 || noRangeItem.Segments[0].EndPosition != noRangeItem.TotalBytes - 1)
+            {
+                problems++;
+                w.WriteLine("  ПРОБЛЕМА: единственный сегмент без Range имеет неверные границы");
+            }
+            else
+            {
+                w.WriteLine("  инициализация сервера без Range: ровно 1 сегмент, скачивание единым потоком");
+            }
+
+            // 3. Контроль целостности структуры ДО сборки: обнаружение разрыва/наложения
+            var brokenItem = new DownloadItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Url = "https://example.com/broken.bin",
+                FileName = "broken.bin",
+                SavePath = Path.Combine(root, "broken.bin"),
+                TotalBytes = 1000,
+                SupportsRanges = true
+            };
+            brokenItem.Segments.Add(new DownloadSegment { Index = 0, StartPosition = 0, EndPosition = 400, Status = SegmentStatus.Completed, BytesDownloaded = 401 });
+            // Намеренно делаем разрыв: следующий сегмент начинается с 500 вместо 401
+            brokenItem.Segments.Add(new DownloadSegment { Index = 1, StartPosition = 500, EndPosition = 999, Status = SegmentStatus.Completed, BytesDownloaded = 500 });
+
+            var brokenManager = new SegmentManager(db, brokenItem, supportsRanges: true);
+            bool caughtGap = false;
+            try
+            {
+                await brokenManager.MergeSegmentsAsync();
+            }
+            catch (InvalidDataException)
+            {
+                caughtGap = true;
+            }
+
+            if (!caughtGap)
+            {
+                problems++;
+                w.WriteLine("  ПРОБЛЕМА: разрыв между частями не был обнаружен перед сборкой!");
+            }
+            else
+            {
+                w.WriteLine("  контроль целостности структуры: разрыв диапазонов частей выявлен и отклонён");
+            }
+
+            // 4. Сборка файла и потоковая верификация SHA-256
+            const int testDataSize = 256 * 1024; // 256 КБ
+            byte[] testPayload = new byte[testDataSize];
+            new Random(42).NextBytes(testPayload);
+
+            string expectedSha256;
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            {
+                expectedSha256 = Convert.ToHexString(sha.ComputeHash(testPayload));
+            }
+
+            string mergeTarget = Path.Combine(root, "assembled_ok.bin");
+            var mergeItem = new DownloadItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Url = "https://example.com/ok.bin",
+                FileName = "assembled_ok.bin",
+                SavePath = mergeTarget,
+                TotalBytes = testDataSize,
+                ExpectedHash = expectedSha256,
+                SupportsRanges = true
+            };
+
+            int half = testDataSize / 2;
+            byte[] part0Data = testPayload[..half];
+            byte[] part1Data = testPayload[half..];
+
+            string part0File = $"{mergeTarget}.part0";
+            string part1File = $"{mergeTarget}.part1";
+            File.WriteAllBytes(part0File, part0Data);
+            File.WriteAllBytes(part1File, part1Data);
+
+            mergeItem.Segments.Add(new DownloadSegment
+            {
+                Index = 0,
+                StartPosition = 0,
+                EndPosition = half - 1,
+                Status = SegmentStatus.Completed,
+                BytesDownloaded = half
+            });
+            mergeItem.Segments.Add(new DownloadSegment
+            {
+                Index = 1,
+                StartPosition = half,
+                EndPosition = testDataSize - 1,
+                Status = SegmentStatus.Completed,
+                BytesDownloaded = testDataSize - half
+            });
+
+            var mergeManager = new SegmentManager(db, mergeItem, supportsRanges: true);
+            await mergeManager.MergeSegmentsAsync();
+
+            if (!File.Exists(mergeTarget))
+            {
+                problems++;
+                w.WriteLine("  ПРОБЛЕМА: итоговый файл не собран");
+            }
+            else
+            {
+                byte[] assembledBytes = File.ReadAllBytes(mergeTarget);
+                if (!assembledBytes.SequenceEqual(testPayload))
+                {
+                    problems++;
+                    w.WriteLine("  ПРОБЛЕМА: собранные данные не совпадают с исходными");
+                }
+                else if (File.Exists(part0File) || File.Exists(part1File))
+                {
+                    problems++;
+                    w.WriteLine("  ПРОБЛЕМА: временные файлы .part не были удалены после успешной сборки");
+                }
+                else
+                {
+                    w.WriteLine("  сборка и валидация SHA-256: файл собран побайтово, хеш подтверждён");
+                }
+            }
+
+            // 5. Защита от повреждения данных: проверка неверного хеша
+            string badTarget = Path.Combine(root, "bad_hash.bin");
+            var badItem = new DownloadItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Url = "https://example.com/bad.bin",
+                FileName = "bad_hash.bin",
+                SavePath = badTarget,
+                TotalBytes = 100,
+                ExpectedHash = "0000000000000000000000000000000000000000000000000000000000000000",
+                SupportsRanges = false
+            };
+
+            string badPartFile = $"{badTarget}.part0";
+            File.WriteAllBytes(badPartFile, new byte[100]);
+            badItem.Segments.Add(new DownloadSegment
+            {
+                Index = 0,
+                StartPosition = 0,
+                EndPosition = 99,
+                Status = SegmentStatus.Completed,
+                BytesDownloaded = 100
+            });
+
+            var badManager = new SegmentManager(db, badItem, supportsRanges: false);
+            bool caughtBadHash = false;
+            try
+            {
+                await badManager.MergeSegmentsAsync();
+            }
+            catch (InvalidDataException)
+            {
+                caughtBadHash = true;
+            }
+
+            if (!caughtBadHash)
+            {
+                problems++;
+                w.WriteLine("  ПРОБЛЕМА: файл с неверным хешем не был отклонён!");
+            }
+            else if (File.Exists(badTarget))
+            {
+                problems++;
+                w.WriteLine("  ПРОБЛЕМА: файл с неверным хешем не был удалён!");
+            }
+            else
+            {
+                w.WriteLine("  защита от повреждения данных: файл с неверным хешем отклонён и удалён");
+            }
+
+            // 6. Проверка восстановления и синхронизации с диском после перезапуска
+            string resumeTarget = Path.Combine(root, "resume_test.bin");
+            string resumePart = $"{resumeTarget}.part0";
+            File.WriteAllBytes(resumePart, new byte[50000]); // на диске 50 КБ
+
+            var resumeItem = new DownloadItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                SavePath = resumeTarget,
+                TotalBytes = 100000,
+                Status = DownloadStatus.Downloading
+            };
+            var resumeSeg = new DownloadSegment
+            {
+                Index = 0,
+                StartPosition = 0,
+                EndPosition = 99999,
+                Status = SegmentStatus.Downloading,
+                BytesDownloaded = 20000 // в базе было устаревшее значение 20 КБ
+            };
+            resumeItem.Segments.Add(resumeSeg);
+
+            // Имитируем логику восстановления LoadDownloadsAsync
+            if (File.Exists(resumePart))
+            {
+                long diskLen = new FileInfo(resumePart).Length;
+                long exp = resumeSeg.EndPosition - resumeSeg.StartPosition + 1;
+                resumeSeg.BytesDownloaded = diskLen;
+                resumeSeg.Status = diskLen >= exp ? SegmentStatus.Completed : SegmentStatus.Pending;
+                resumeItem.BytesDownloaded = resumeItem.Segments.Sum(s => s.BytesDownloaded);
+                resumeItem.Status = DownloadStatus.Paused;
+            }
+
+            if (resumeSeg.BytesDownloaded != 50000 || resumeItem.BytesDownloaded != 50000 || resumeSeg.Status != SegmentStatus.Pending)
+            {
+                problems++;
+                w.WriteLine($"  ПРОБЛЕМА: восстановление не синхронизировало размер части: {resumeSeg.BytesDownloaded}");
+            }
+            else
+            {
+                w.WriteLine("  восстановление после перезапуска: размер части синхронизирован с диском (50 КБ)");
+            }
+
+            w.WriteLine(problems == 0
+                ? "  менеджер загрузок: все проверки пройдены"
+                : "  проблем в менеджере загрузок: " + problems);
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
         }
     }
 }

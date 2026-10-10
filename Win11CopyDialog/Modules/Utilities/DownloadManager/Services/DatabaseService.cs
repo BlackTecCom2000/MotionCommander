@@ -92,9 +92,10 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                     await _db.InsertAsync(item);
                 }
 
-                if (item.Segments != null)
+                var segmentsSnapshot = item.Segments?.ToList();
+                if (segmentsSnapshot != null)
                 {
-                    foreach (var segment in item.Segments)
+                    foreach (var segment in segmentsSnapshot)
                     {
                         await SaveSegmentAsync(segment);
                     }

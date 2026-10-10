@@ -82,6 +82,7 @@
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
                                                 <TextBlock Text="{Binding Status}" Foreground="{DynamicResource AccentBrush}" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right"/>
                                                 <TextBlock Text="{Binding SpeedText}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,2,0,0"/>
+                                                <TextBlock Text="{Binding ProgressText}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" HorizontalAlignment="Right" Margin="0,2,0,0"/>
                                             </StackPanel>
                                         </Grid>
 

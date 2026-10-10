@@ -39,6 +39,7 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
                 Interlocked.Exchange(ref _bytesDownloaded, value); 
                 OnPropertyChanged(); 
                 OnPropertyChanged(nameof(Progress)); 
+                OnPropertyChanged(nameof(ProgressText));
             }
         }
         
@@ -74,8 +75,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
         {
             get
             {
-                if (TotalBytes == 0) return 0;
-                return (double)_bytesDownloaded / TotalBytes * 100.0;
+                if (TotalBytes <= 0) return 0;
+                return Math.Clamp((double)BytesDownloaded / TotalBytes * 100.0, 0.0, 100.0);
             }
         }
 
@@ -88,6 +89,42 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
         public DateTime DateAdded { get; set; } = DateTime.Now;
         public DateTime? DateCompleted { get; set; }
         public string? ErrorMessage { get; set; }
+        
+        /// <summary>Ожидаемая контрольная сумма (SHA256, MD5 и т.д.) для проверки целостности перед сборкой.</summary>
+        public string? ExpectedHash { get; set; }
+
+        /// <summary>Алгоритм контрольной суммы (по умолчанию SHA256).</summary>
+        public string HashAlgorithm { get; set; } = "SHA256";
+
+        /// <summary>Фактическая контрольная сумма, вычисленная при сборке файла.</summary>
+        public string? VerifiedHash { get; set; }
+
+        /// <summary>Поддерживает ли удалённый сервер докачку по диапазонам байт (HTTP Range).</summary>
+        public bool SupportsRanges { get; set; } = true;
+
+        [Ignore]
+        public string ProgressText
+        {
+            get
+            {
+                if (TotalBytes > 0)
+                {
+                    return $"{FormatBytes(BytesDownloaded)} / {FormatBytes(TotalBytes)} ({Progress:0.0}%)";
+                }
+                return FormatBytes(BytesDownloaded);
+            }
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            if (bytes >= 1024L * 1024L * 1024L)
+                return $"{(double)bytes / (1024L * 1024L * 1024L):0.##} GB";
+            if (bytes >= 1024L * 1024L)
+                return $"{(double)bytes / (1024L * 1024L):0.##} MB";
+            if (bytes >= 1024L)
+                return $"{(double)bytes / 1024L:0.##} KB";
+            return $"{bytes} B";
+        }
         
         // Navigation property
         [Ignore]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -13,13 +14,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
         private readonly DatabaseService _dbService;
         private readonly DownloadTaskConfig _config;
 
-        // Поле nullable: в блоке finally ему присваивается null (строка 120).
         private CancellationTokenSource? _cancellationTokenSource;
 
-        // События nullable: без инициализатора компилятор требовал
-        // непустое значение на выходе из конструктора. Возбуждаются
-        // только после реальной подписки, поэтому "нет подписчиков" —
-        // штатное состояние.
         public event EventHandler<DownloadItem>? ProgressChanged;
         public event EventHandler<DownloadItem>? DownloadCompleted;
         public event EventHandler<DownloadItem>? DownloadFailed;
@@ -36,40 +32,111 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
             var previous = Interlocked.Exchange(ref _cancellationTokenSource, cts);
             previous?.Dispose();
 
-            // Локальная ссылка на токен. Раньше фоновые циклы обращались к
-            // полю _cancellationTokenSource, которое finally обнулял ДО их
-            // завершения. Разбуженный через Task.Delay цикл обращался к null
-            // и ронял NullReferenceException ВНУТРИ неотслеживаемой задачи,
-            // то есть исключение просто исчезало. Это происходило на каждом
-            // успешно завершённом скачивании.
             var token = cts.Token;
 
             item.Status = DownloadStatus.Downloading;
-            item.ErrorMessage = null;  // ErrorMessage теперь string?
-            await _dbService.SaveDownloadAsync(item);
+            item.ErrorMessage = null;
+            await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
 
             try
             {
-                if (item.TotalBytes == 0)
+                var remoteInfo = await ProbeRemoteFileAsync(item.Url, token).ConfigureAwait(false);
+                item.SupportsRanges = remoteInfo.SupportsRanges;
+
+                if (string.IsNullOrWhiteSpace(item.ExpectedHash) && !string.IsNullOrWhiteSpace(remoteInfo.SuggestedHash))
                 {
-                    item.TotalBytes = await GetFileSizeAsync(item.Url);
-                    await _dbService.SaveDownloadAsync(item);
+                    item.ExpectedHash = remoteInfo.SuggestedHash;
                 }
 
-                var segmentManager = new SegmentManager(_dbService, item);
+                // 1. Проверяем, изменился ли файл на сервере
+                bool lengthChanged = item.TotalBytes > 0 && remoteInfo.Length > 0 && item.TotalBytes != remoteInfo.Length;
+                bool rangeSupportLost = !remoteInfo.SupportsRanges && item.Segments.Count > 1;
+
+                if (lengthChanged || rangeSupportLost)
+                {
+                    // Файл на сервере изменился или сервер не поддерживает старую сегментацию
+                    foreach (var segment in item.Segments)
+                    {
+                        string stalePart = $"{item.SavePath}.part{segment.Index}";
+                        if (File.Exists(stalePart))
+                        {
+                            try { File.Delete(stalePart); } catch { }
+                        }
+                    }
+                    item.Segments.Clear();
+                    item.BytesDownloaded = 0;
+                }
+
+                if (remoteInfo.Length >= 0)
+                {
+                    item.TotalBytes = remoteInfo.Length;
+                }
+                await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
+
+                // Если файл пустой (0 байт) — мгновенное завершение
+                if (remoteInfo.Length == 0)
+                {
+                    string? targetDirectory = Path.GetDirectoryName(item.SavePath);
+                    if (!string.IsNullOrEmpty(targetDirectory)) Directory.CreateDirectory(targetDirectory);
+                    await File.WriteAllBytesAsync(item.SavePath, Array.Empty<byte>(), token).ConfigureAwait(false);
+                    item.Status = DownloadStatus.Completed;
+                    item.DateCompleted = DateTime.Now;
+                    await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
+                    DownloadCompleted?.Invoke(this, item);
+                    return;
+                }
+
+                var segmentManager = new SegmentManager(_dbService, item, remoteInfo.SupportsRanges);
                 
+                // 2. Инициализация сегментов при первом запуске
                 if (!item.Segments.Any())
                 {
-                    await segmentManager.InitializeSegmentsAsync(_config.MaxConcurrentSegments);
+                    await segmentManager.InitializeSegmentsAsync(remoteInfo.SegmentCount(_config.MaxConcurrentSegments)).ConfigureAwait(false);
+                }
+                else
+                {
+                    // Синхронизируем уже существующие сегменты с реальными файлами на диске
+                    foreach (var segment in item.Segments)
+                    {
+                        string partPath = $"{item.SavePath}.part{segment.Index}";
+                        if (File.Exists(partPath))
+                        {
+                            long diskLen = new FileInfo(partPath).Length;
+                            long expectedLen = segment.EndPosition - segment.StartPosition + 1;
+                            if (expectedLen > 0 && diskLen >= expectedLen)
+                            {
+                                segment.BytesDownloaded = expectedLen;
+                                segment.Status = SegmentStatus.Completed;
+                            }
+                            else if (expectedLen > 0 && diskLen > 0)
+                            {
+                                segment.BytesDownloaded = diskLen;
+                                segment.Status = SegmentStatus.Pending;
+                            }
+                            else
+                            {
+                                segment.BytesDownloaded = 0;
+                                segment.Status = SegmentStatus.Pending;
+                            }
+                        }
+                        else
+                        {
+                            segment.BytesDownloaded = 0;
+                            segment.Status = SegmentStatus.Pending;
+                        }
+                    }
+                    item.BytesDownloaded = item.Segments.Sum(s => s.BytesDownloaded);
+                    await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
                 }
 
+                // 3. Запуск скачивания только для незавершённых сегментов
                 var tasks = new List<Task>();
                 foreach (var segment in item.Segments.Where(s => s.Status != SegmentStatus.Completed))
                 {
                     tasks.Add(segmentManager.DownloadSegmentAsync(segment, token));
                 }
 
-                // High-performance smooth UI Update Throttler (approx 30fps update rate)
+                // Плавное обновление UI (интервал ~33 мс для плавных 30 fps)
                 var progressTask = Task.Run(async () =>
                 {
                     long lastBytes = item.BytesDownloaded;
@@ -81,51 +148,56 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
                         long delta = currentBytes - lastBytes;
                         lastBytes = currentBytes;
 
-                        // Calculate speed per second (delta is over 33ms, so multiply by 30)
-                        item.Speed = delta * (1000.0 / 33.0);
+                        item.Speed = Math.Max(0, delta * (1000.0 / 33.0));
 
-                        // Trigger UI updates safely
                         item.OnPropertyChanged(nameof(item.BytesDownloaded));
                         item.OnPropertyChanged(nameof(item.Progress));
+                        item.OnPropertyChanged(nameof(item.ProgressText));
 
                         ProgressChanged?.Invoke(this, item);
                     }
                 }, token);
 
-                // Periodically save state to DB
+                // Периодическое сохранение прогресса в БД раз в 3 секунды
                 var dbSaveTask = Task.Run(async () =>
                 {
                     while (!token.IsCancellationRequested && item.Status == DownloadStatus.Downloading)
                     {
-                        await Task.Delay(5000, token).ConfigureAwait(false);
+                        await Task.Delay(3000, token).ConfigureAwait(false);
                         await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
                     }
                 }, token);
 
                 try
                 {
-                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                    if (tasks.Count > 0)
+                    {
+                        await Task.WhenAll(tasks).ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
-                    // Фоновые циклы останавливаются ДО выхода из метода,
-                    // иначе они продолжают работать с уже завершённой загрузкой.
                     cts.Cancel();
                     try { await Task.WhenAll(progressTask, dbSaveTask).ConfigureAwait(false); }
                     catch (OperationCanceledException) { }
                     catch { }
                 }
 
+                // 4. Сборка и проверка целостности файлов
                 item.Status = DownloadStatus.Verifying;
                 item.Speed = 0;
                 item.OnPropertyChanged(nameof(item.Status));
+                item.OnPropertyChanged(nameof(item.Progress));
                 ProgressChanged?.Invoke(this, item);
 
-                await segmentManager.MergeSegmentsAsync();
+                // Для сборки создаём новый CTS с таймаутом на случай непредвиденных зависаний
+                using var mergeCts = new CancellationTokenSource();
+                await segmentManager.MergeSegmentsAsync(mergeCts.Token).ConfigureAwait(false);
 
                 item.Status = DownloadStatus.Completed;
                 item.DateCompleted = DateTime.Now;
-                await _dbService.SaveDownloadAsync(item);
+                item.BytesDownloaded = item.TotalBytes;
+                await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
                 
                 DownloadCompleted?.Invoke(this, item);
             }
@@ -133,36 +205,24 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
             {
                 item.Status = DownloadStatus.Paused;
                 item.Speed = 0;
-                await _dbService.SaveDownloadAsync(item);
+                await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 item.Status = DownloadStatus.Failed;
                 item.ErrorMessage = ex.Message;
                 item.Speed = 0;
-                await _dbService.SaveDownloadAsync(item);
+                await _dbService.SaveDownloadAsync(item).ConfigureAwait(false);
                 DownloadFailed?.Invoke(this, item);
             }
             finally
             {
-                // Поле обнуляется только здесь, и только если оно всё ещё
-                // указывает на НАШ источник отмены. Иначе гонка: если
-                // PauseDownloadAsync успел заменить поле, старая ссылка
-                // освобождала бы уже используемый CTS.
                 cts.Cancel();
                 Interlocked.CompareExchange(ref _cancellationTokenSource, null, cts);
                 cts.Dispose();
             }
         }
 
-        /// <summary>
-        /// Приостанавливает передачу.
-        ///
-        /// <para>Раньше здесь был ObjectDisposedException, когда вызов приходил
-        /// после завершения: поле к этому моменту обнулялось, а если нет —
-        /// CTS уже освобождался в finally. Теперь ссылка берётся атомарно,
-        /// и отменяется только живой CTS.</para>
-        /// </summary>
         public Task PauseDownloadAsync()
         {
             var cts = Volatile.Read(ref _cancellationTokenSource);
@@ -171,20 +231,63 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Services
             {
                 if (!cts.IsCancellationRequested) cts.Cancel();
             }
-            catch (ObjectDisposedException)
-            {
-                // Передача уже завершилась — ничего отменять не нужно.
-            }
+            catch (ObjectDisposedException) { }
             return Task.CompletedTask;
         }
 
-        private async Task<long> GetFileSizeAsync(string url)
+        private static async Task<RemoteFileInfo> ProbeRemoteFileAsync(string url, CancellationToken cancellationToken)
         {
-            using var client = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Head, url);
-            var response = await client.SendAsync(request);
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(0, 0);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+            {
+                using var emptyHead = new HttpRequestMessage(HttpMethod.Head, url);
+                using var emptyResponse = await client.SendAsync(emptyHead, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if (emptyResponse.IsSuccessStatusCode && emptyResponse.Content.Headers.ContentLength == 0)
+                    return new RemoteFileInfo(0, false, null);
+                response.EnsureSuccessStatusCode();
+            }
             response.EnsureSuccessStatusCode();
-            return response.Content.Headers.ContentLength ?? 0;
+
+            // Извлечение хеша или ETag при наличии
+            string? suggestedHash = null;
+            string? etag = response.Headers.ETag?.Tag?.Trim('"', ' ', 'W', '/');
+            if (!string.IsNullOrEmpty(etag) && (etag.Length == 32 || etag.Length == 64))
+            {
+                suggestedHash = etag;
+            }
+
+            // Сервер подтвердил докачку диапазонами
+            if (response.StatusCode == System.Net.HttpStatusCode.PartialContent && response.Content.Headers.ContentRange?.Length is long rangeLength)
+            {
+                return new RemoteFileInfo(rangeLength, true, suggestedHash);
+            }
+
+            // Сервер вернул 200 OK (без поддержки Range)
+            long? knownLength = response.Content.Headers.ContentLength;
+            if (knownLength is null or 0)
+            {
+                using var head = new HttpRequestMessage(HttpMethod.Head, url);
+                using var headResponse = await client.SendAsync(head, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if (headResponse.IsSuccessStatusCode) knownLength ??= headResponse.Content.Headers.ContentLength;
+            }
+
+            if (knownLength.HasValue && knownLength.Value >= 0)
+            {
+                return new RemoteFileInfo(knownLength.Value, false, suggestedHash);
+            }
+
+            // Потоковая передача с неизвестным размером (chunked)
+            return new RemoteFileInfo(-1, false, suggestedHash);
+        }
+
+        private sealed record RemoteFileInfo(long Length, bool SupportsRanges, string? SuggestedHash)
+        {
+            public int SegmentCount(int requested) => !SupportsRanges || Length <= 0 ? 1 :
+                (int)Math.Min(Math.Max(1, requested), Length);
         }
     }
 }

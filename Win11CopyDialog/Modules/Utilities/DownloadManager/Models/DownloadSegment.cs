@@ -61,8 +61,8 @@ namespace Win11CopyDialog.Modules.Utilities.DownloadManager.Models
             get
             {
                 long totalBytes = EndPosition - StartPosition + 1;
-                if (totalBytes == 0) return 0;
-                return (double)_bytesDownloaded / totalBytes * 100.0;
+                if (totalBytes <= 0) return 0;
+                return Math.Clamp((double)_bytesDownloaded / totalBytes * 100.0, 0.0, 100.0);
             }
         }
 
