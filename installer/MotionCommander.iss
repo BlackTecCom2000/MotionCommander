@@ -1,6 +1,6 @@
 #define MyAppName "Motion Commander"
 #ifndef MyAppVersion
-#define MyAppVersion "3.8.40"
+#define MyAppVersion "3.8.42"
 #endif
 #ifndef MySourceDir
 #define MySourceDir "..\dist\publish"
@@ -19,6 +19,7 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={autopf}\{#MyAppName}
+UsePreviousAppDir=yes
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
@@ -114,16 +115,79 @@ var
   ModePage: TWizardPage;
   ModeRadio0: TRadioButton;
   ModeRadio1: TRadioButton;
+  ExistingDetectedDir: string;
 
-(* РљР°С‚Р°Р»РѕРі, СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёР№ РІС‹Р±СЂР°РЅРЅРѕРјСѓ СЂРµР¶РёРјСѓ.
+function FindExistingInstallDir(): string;
+var
+  Dir: string;
+begin
+  Result := '';
 
-   РџСѓСЃС‚Р°СЏ СЃС‚СЂРѕРєР° РѕР·РЅР°С‡Р°РµС‚ В«РѕСЃС‚Р°РІРёС‚СЊ РєР°С‚Р°Р»РѕРі, РІС‹Р±СЂР°РЅРЅС‹Р№ InnoВ»: РІ РѕР±С‹С‡РЅРѕРј
-   СЂРµР¶РёРјРµ СЌС‚Рѕ РєР°С‚Р°Р»РѕРі Program Files РїСЂРё РЅР°Р»РёС‡РёРё РїСЂР°РІ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° Рё
-   РєР°С‚Р°Р»РѕРі РІ РїСЂРѕС„РёР»Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Р±РµР· РЅРёС…. РџРѕРґРјРµРЅСЏС‚СЊ РµРіРѕ СЃРІРѕРёРј Р·РЅР°С‡РµРЅРёРµРј
-   Р±С‹Р»Рѕ Р±С‹ РїСЂСЏРјРѕР№ РїРѕРґРјРµРЅРѕР№ СЂРµС€РµРЅРёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ. *)
+  // 1. Проверяем ветку деинсталляции Inno Setup в HKLM
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE,
+      'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1',
+      'InstallLocation', Dir) and (Dir <> '') and DirExists(Dir) then
+  begin
+    Result := Dir;
+    Exit;
+  end;
+
+  // 2. Проверяем ветку деинсталляции Inno Setup в HKCU
+  if RegQueryStringValue(HKEY_CURRENT_USER,
+      'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1',
+      'InstallLocation', Dir) and (Dir <> '') and DirExists(Dir) then
+  begin
+    Result := Dir;
+    Exit;
+  end;
+
+  // 3. Проверяем ветку деинсталляции 32-bit (WOW6432Node) в HKLM
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE,
+      'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{#SetupSetting("AppId")}_is1',
+      'InstallLocation', Dir) and (Dir <> '') and DirExists(Dir) then
+  begin
+    Result := Dir;
+    Exit;
+  end;
+
+  // 4. Проверяем устаревшую ветку скрипта MotionCommander в HKCU
+  if RegQueryStringValue(HKEY_CURRENT_USER,
+      'Software\Microsoft\Windows\CurrentVersion\Uninstall\MotionCommander',
+      'InstallLocation', Dir) and (Dir <> '') and DirExists(Dir) then
+  begin
+    Result := Dir;
+    Exit;
+  end;
+
+  // 5. Проверяем стандартную папку Program Files при наличии исполняемого файла
+  Dir := ExpandConstant('{autopf}\{#MyAppName}');
+  if FileExists(Dir + '\{#MyAppExeName}') then
+  begin
+    Result := Dir;
+    Exit;
+  end;
+
+  // 6. Проверяем папки в LocalAppData
+  Dir := ExpandConstant('{localappdata}\Programs\{#MyAppName}');
+  if FileExists(Dir + '\{#MyAppExeName}') then
+  begin
+    Result := Dir;
+    Exit;
+  end;
+
+  Dir := ExpandConstant('{localappdata}\Programs\MotionCommander');
+  if FileExists(Dir + '\{#MyAppExeName}') then
+  begin
+    Result := Dir;
+    Exit;
+  end;
+end;
+
 function DirectoryForMode(): string;
 begin
-  if ModeRadio1.Checked then
+  if ExistingDetectedDir <> '' then
+    Result := ExistingDetectedDir
+  else if ModeRadio1.Checked then
     Result := ExpandConstant('{localappdata}\Programs\{#MyAppName}')
   else
     Result := '';
@@ -254,7 +318,12 @@ end;
 
 procedure InitializeWizard;
 begin
+  ExistingDetectedDir := FindExistingInstallDir();
   CreateModePage;
+  if ExistingDetectedDir <> '' then
+  begin
+    WizardForm.DirEdit.Text := ExistingDetectedDir;
+  end;
 end;
 
 (* РњР°СЂРєРµСЂ install.json С‡РёС‚Р°РµС‚ Helpers.AppPaths РїСЂРё СЃС‚Р°СЂС‚Рµ РїСЂРѕРіСЂР°РјРјС‹. Р‘РµР·
@@ -417,6 +486,10 @@ begin
   begin
     WriteInstallMarker;
     WriteDataDirectoryMarker;
+
+    // Очищаем устаревшие/дублирующие ветки в реестре, чтобы в Windows не отображалось две копии программы
+    RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\MotionCommander');
+    RegDeleteKeyIncludingSubkeys(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\MotionCommander');
   end;
 end;
 

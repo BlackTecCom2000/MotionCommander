@@ -76,6 +76,10 @@ if (-not (Test-Path "$publishDir\MotionCommanderDiagnostics.exe")) {
     throw "Диагностический инструмент не опубликован: $publishDir\MotionCommanderDiagnostics.exe отсутствует"
 }
 
+# Копируем Install.cmd и Install.ps1 в каталог публикации, чтобы архив/папка имели установщик
+Copy-Item "$repoRoot\Install.cmd" -Destination "$publishDir\Install.cmd" -Force
+Copy-Item "$repoRoot\scripts\Install.ps1" -Destination "$publishDir\Install.ps1" -Force
+
 Write-Host "Packaging portable ZIP archives..." -ForegroundColor Cyan
 $zipFile = "$distDir\MotionCommander-v$cleanVer-Portable.zip"
 $latestZip = "$distDir\MotionCommander-Latest-Portable.zip"
