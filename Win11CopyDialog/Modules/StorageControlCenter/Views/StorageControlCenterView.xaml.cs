@@ -320,8 +320,8 @@ public partial class StorageControlCenterView : UserControl
     {
         var border = new Border
         {
-            Width = 205,
-            Height = 88,
+            Width = 225,
+            Height = 96,
             CornerRadius = new CornerRadius(9),
             Background = (Brush)FindResource("CardBackgroundBrush"),
             BorderBrush = (Brush)FindResource("CardBorderBrush"),
@@ -481,17 +481,52 @@ public partial class StorageControlCenterView : UserControl
         Grid.SetRow(row0, 0);
         mainGrid.Children.Add(row0);
 
-        // --- ROW 1: Название модели диска ---
-        var row1 = new StackPanel { Margin = new Thickness(0, 0, 0, 3) };
+        // --- ROW 1: Название модели диска + Буквы томов + Уникальный идентификатор ---
+        var row1 = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
+        var modelPanel = new DockPanel();
+        var driveBadge = new Border
+        {
+            Background = (Brush)FindResource("ChipBackgroundBrush"),
+            BorderBrush = (Brush)FindResource("AccentBrush"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 0, 4, 0),
+            Margin = new Thickness(0, 0, 5, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        driveBadge.Child = new TextBlock
+        {
+            Text = disk.DriveLettersFormatted,
+            FontSize = 9,
+            FontWeight = FontWeights.Bold,
+            Foreground = (Brush)FindResource("AccentBrush")
+        };
+        DockPanel.SetDock(driveBadge, Dock.Left);
+        modelPanel.Children.Add(driveBadge);
+
         var modelText = new TextBlock
         {
             Text = disk.Model,
-            FontSize = 10.5,
+            FontSize = 10,
             FontWeight = FontWeights.Bold,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Foreground = (Brush)FindResource("PrimaryTextBrush")
+            Foreground = (Brush)FindResource("PrimaryTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center
         };
-        row1.Children.Add(modelText);
+        modelPanel.Children.Add(modelText);
+        row1.Children.Add(modelPanel);
+
+        // Уникальный серийный номер и шина для гарантированного отличия идентичных SSD
+        var idText = new TextBlock
+        {
+            Text = disk.HardwareIdentity + (disk.Partitions.Count > 0 ? $" • {disk.Partitions.Count} разд." : ""),
+            FontSize = 8.5,
+            Style = (Style)FindResource("MutedText"),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Margin = new Thickness(0, 1, 0, 0)
+        };
+        row1.Children.Add(idText);
+
         Grid.SetRow(row1, 1);
         mainGrid.Children.Add(row1);
 
@@ -535,7 +570,7 @@ public partial class StorageControlCenterView : UserControl
 
         border.ToolTip = new ToolTip
         {
-            Content = $"Накопитель: {disk.Model}\nДиск: #{disk.DiskNumber} • Интерфейс: {disk.BusType}\nТип: {disk.MediaType} • Разметка: {disk.PartitionStyle}\nЕмкость: {disk.TotalSizeFormatted} (Свободно: {disk.FreeSpaceFormatted})\nЗдоровье: {disk.Score.TotalScore:F0}/100 ({disk.Score.Grade})\nТемпература: {disk.TemperatureC:F0}°C\nS/N: {disk.SerialNumber}"
+            Content = $"Накопитель: {disk.Model}\nТома: {disk.DriveLettersFormatted}\nДиск: #{disk.DiskNumber} • Серийный номер: {disk.SerialNumber}\nИнтерфейс: {disk.BusTypeString} • Разметка: {disk.PartitionsSummary}\nЕмкость: {disk.TotalSizeFormatted} (Свободно: {disk.FreeSpaceFormatted})\nЗдоровье: {disk.Score.TotalScore:F0}/100 ({disk.Score.Grade})\nТемпература: {disk.TemperatureFormatted}"
         };
 
         border.MouseEnter += (s, e) =>
@@ -1149,6 +1184,21 @@ public partial class StorageControlCenterView : UserControl
             3 => 1024 * 1024 * 1024,
             _ => 256 * 1024 * 1024
         };
+
+        string sizeFormatted = Helpers.Formatters.Bytes(sizeBytes);
+        var confirm = MessageBox.Show(
+            $"⚠ ВНИМАНИЕ: Запуск аппаратного бенчмарка скорости\n\n" +
+            $"• Целевой накопитель: {target}\n" +
+            $"• Будет записан временный тестовый файл размером {sizeFormatted}\n" +
+            $"• Накопитель будет кратковременно нагружен на 100% линейными и случайными операциями\n" +
+            $"• Длительность тестирования: ~15–30 секунд\n" +
+            $"• Все временные данные будут автоматически удалены сразу после завершения\n\n" +
+            $"Продолжить тестирование?",
+            "Подтверждение бенчмарка",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
 
         var config = new BenchmarkConfig
         {

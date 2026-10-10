@@ -14,6 +14,8 @@ using Win11CopyDialog.Modules.PerformanceEngine;
 using Win11CopyDialog.Modules.UpdateEngine;
 using Win11CopyDialog.Views.Dialogs;
 using System.Windows.Media;
+using Win11CopyDialog.Modules.StorageControlCenter.Models;
+using Win11CopyDialog.Modules.StorageControlCenter.Services;
 
 namespace Win11CopyDialog;
 
@@ -40,6 +42,7 @@ public partial class MainWindow : Window
     private double _currentSpeedMb;
     private double _peakSpeedMb;
     private CancellationTokenSource? _transferCts;
+    private UserActivityContext _currentDiagContext = UserActivityContext.Auto;
 
     public MainWindow(string? initialPath = null, int initialTab = 0)
     {
@@ -1528,20 +1531,469 @@ public partial class MainWindow : Window
                ?? "Неизвестный процессор";
     }
 
+    // ================= ДИАГНОСТИКА И ОПТИМИЗАЦИЯ =================
+
+    private void DiagSubTab_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ViewDiagMonitoring == null) return;
+
+        ViewDiagMonitoring.Visibility = Visibility.Collapsed;
+        ViewDiagBottleneck.Visibility = Visibility.Collapsed;
+        ViewDiagRecommendations.Visibility = Visibility.Collapsed;
+        ViewDiagCompare.Visibility = Visibility.Collapsed;
+        ViewDiagProfiles.Visibility = Visibility.Collapsed;
+        ViewDiagProcesses.Visibility = Visibility.Collapsed;
+        ViewDiagBenchmark.Visibility = Visibility.Collapsed;
+
+        if (DiagTabMonitoringRadio?.IsChecked == true)
+        {
+            ViewDiagMonitoring.Visibility = Visibility.Visible;
+            TickDiagnosticsMonitoring();
+        }
+        else if (DiagTabBottleneckRadio?.IsChecked == true)
+        {
+            ViewDiagBottleneck.Visibility = Visibility.Visible;
+            TickDiagnosticsMonitoring();
+        }
+        else if (DiagTabRecommendationsRadio?.IsChecked == true)
+        {
+            ViewDiagRecommendations.Visibility = Visibility.Visible;
+            DiagRefreshRecommendations();
+        }
+        else if (DiagTabCompareRadio?.IsChecked == true)
+        {
+            ViewDiagCompare.Visibility = Visibility.Visible;
+            DiagRefreshCompareDisks();
+        }
+        else if (DiagTabProfilesRadio?.IsChecked == true)
+        {
+            ViewDiagProfiles.Visibility = Visibility.Visible;
+            DiagRefreshAuditLog();
+        }
+        else if (DiagTabProcessesRadio?.IsChecked == true)
+        {
+            ViewDiagProcesses.Visibility = Visibility.Visible;
+            DiagRefreshProcesses();
+        }
+        else if (DiagTabBenchmarkRadio?.IsChecked == true)
+        {
+            ViewDiagBenchmark.Visibility = Visibility.Visible;
+            DiagInitBenchmarkCombo();
+        }
+    }
+
     private void RefreshDiagnosticsUI()
     {
-        var disks = HardwareAnalyzer.GetPhysicalDisks();
-        DiagDisksList.ItemsSource = disks;
+        TickDiagnosticsMonitoring();
+        DiagRefreshCompareDisks();
+        DiagRefreshRecommendations();
+        DiagRefreshProcesses();
+        DiagRefreshAuditLog();
+        DiagInitBenchmarkCombo();
+    }
 
-        var sys = SystemResourceMonitor.GetSnapshot();
-        DiagCpuName.Text = $"{GetProcessorName()} ({HardwareAnalyzer.LogicalCoreCount} потоков)";
-        DiagCpuProgress.SetSafe(sys.CpuTotalPercent);
-        DiagCpuLoadText.Text = $"Загрузка CPU: {sys.CpuTotalPercent:F0}%";
+    private void TickDiagnosticsMonitoring()
+    {
+        if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
 
-        DiagRamText.Text = $"{sys.TotalMemoryGb:F1} ГБ RAM ({sys.MemoryUsagePercent:F0}% занято)";
-        DiagRamProgress.SetSafe(sys.MemoryUsagePercent);
-        DiagRamDetailText.Text = $"Свободно физической памяти: {sys.AvailableMemoryGb:F1} ГБ";
+        var sample = DynamicSystemMonitorService.CaptureCurrentSample();
+        var history = DynamicSystemMonitorService.GetHistory();
 
+        // 1. Обновление текстовых показателей
+        if (DiagLiveCpuPercentText != null) DiagLiveCpuPercentText.Text = $"{sample.CpuPercent:F0}%";
+        if (DiagLiveCpuNameText != null) DiagLiveCpuNameText.Text = $"{GetProcessorName()} ({HardwareAnalyzer.LogicalCoreCount} потоков)";
+        if (DiagLiveCpuCoresText != null) DiagLiveCpuCoresText.Text = $"Потоков CPU: {HardwareAnalyzer.LogicalCoreCount}";
+        if (DiagLiveCpuAvgText != null && history.Count > 0) DiagLiveCpuAvgText.Text = $"Среднее: {history.Average(s => s.CpuPercent):F0}%";
+
+        if (DiagLiveRamPercentText != null) DiagLiveRamPercentText.Text = $"{sample.RamPercent:F0}%";
+        if (DiagLiveRamUsageText != null) DiagLiveRamUsageText.Text = $"{sample.RamUsedGb:F1} ГБ из {sample.RamTotalGb:F1} ГБ ({sample.RamPercent:F0}%)";
+        if (DiagLiveRamAvailText != null) DiagLiveRamAvailText.Text = $"Свободно: {Math.Max(0, sample.RamTotalGb - sample.RamUsedGb):F1} ГБ";
+
+        if (DiagLiveDiskSpeedText != null) DiagLiveDiskSpeedText.Text = $"{sample.DiskTotalMBps:F1} МБ/с";
+        if (DiagLiveDiskSplitText != null) DiagLiveDiskSplitText.Text = $"Чтение: {sample.DiskReadMBps:F1} МБ/с • Запись: {sample.DiskWriteMBps:F1} МБ/с";
+        if (DiagLiveDiskActiveText != null) DiagLiveDiskActiveText.Text = $"Активность: {sample.DiskActivePercent:F0}% (очередь {sample.DiskQueueDepth:F1})";
+        if (DiagLiveDiskTempText != null) DiagLiveDiskTempText.Text = sample.HasDiskTemp ? $"Температура: {sample.DiskTempC:F0} °C" : "Температура: н/д";
+
+        // 2. Спарклайны на Canvas
+        if (ViewDiagMonitoring != null && ViewDiagMonitoring.Visibility == Visibility.Visible)
+        {
+            RenderSparkline(DiagCpuCanvas, history.Select(s => s.CpuPercent), 100.0, (Brush)FindResource("AccentBrush"));
+            RenderSparkline(DiagRamCanvas, history.Select(s => s.RamPercent), 100.0, new SolidColorBrush(Color.FromRgb(16, 185, 129)));
+            double maxDisk = Math.Max(100.0, history.Count > 0 ? history.Max(s => s.DiskTotalMBps) * 1.2 : 100.0);
+            RenderSparkline(DiagDiskCanvas, history.Select(s => s.DiskTotalMBps), maxDisk, new SolidColorBrush(Color.FromRgb(245, 158, 11)));
+        }
+
+        // 3. Сравнение baseline (ДО / ПОСЛЕ)
+        var delta = DynamicSystemMonitorService.GetComparisonDelta();
+        if (delta != null)
+        {
+            if (DiagDeltaCpuText != null) DiagDeltaCpuText.Text = delta.CpuDeltaFormatted;
+            if (DiagDeltaRamText != null) DiagDeltaRamText.Text = delta.RamDeltaFormatted;
+            if (DiagDeltaDiskText != null) DiagDeltaDiskText.Text = delta.DiskSpeedDeltaFormatted;
+            if (DiagDeltaTempText != null) DiagDeltaTempText.Text = delta.DiskTempDeltaFormatted;
+        }
+        else
+        {
+            if (DiagDeltaCpuText != null) DiagDeltaCpuText.Text = "Снимок не зафиксирован";
+            if (DiagDeltaRamText != null) DiagDeltaRamText.Text = "—";
+            if (DiagDeltaDiskText != null) DiagDeltaDiskText.Text = "—";
+            if (DiagDeltaTempText != null) DiagDeltaTempText.Text = "—";
+        }
+
+        // 4. Детектор Bottleneck
+        var bn = BottleneckAnalyzerService.Analyze(_currentDiagContext, sample);
+        if (BottleneckTitle != null) BottleneckTitle.Text = bn.Title;
+        if (BottleneckDesc != null) BottleneckDesc.Text = bn.Description;
+        if (BottleneckRec != null) BottleneckRec.Text = bn.ActionableRecommendation;
+        if (DiagBottleneckStatusText != null)
+        {
+            DiagBottleneckStatusText.Text = bn.StatusBadge;
+            try { DiagBottleneckStatusText.Foreground = new BrushConverter().ConvertFromString(bn.StatusColor) as Brush; } catch { }
+        }
+        if (BottleneckBadgeBorder != null)
+        {
+            try { BottleneckBadgeBorder.Background = new BrushConverter().ConvertFromString(bn.StatusColor) as Brush; } catch { }
+        }
+        if (BottleneckDataBasisText != null) BottleneckDataBasisText.Text = bn.DataBasis;
+        if (BottleneckMissingWarningText != null)
+        {
+            BottleneckMissingWarningText.Text = bn.MissingTelemetryWarning;
+            BottleneckMissingWarningText.Visibility = string.IsNullOrEmpty(bn.MissingTelemetryWarning) ? Visibility.Collapsed : Visibility.Visible;
+        }
+    }
+
+    private void RenderSparkline(Canvas? canvas, IEnumerable<double> values, double maxScale, Brush strokeBrush)
+    {
+        if (canvas == null || canvas.ActualWidth < 10 || canvas.ActualHeight < 10) return;
+        canvas.Children.Clear();
+
+        double w = canvas.ActualWidth;
+        double h = canvas.ActualHeight;
+
+        var valList = values.ToList();
+        if (valList.Count < 2) return;
+
+        var pts = new PointCollection();
+        double stepX = w / Math.Max(1, valList.Count - 1);
+
+        for (int i = 0; i < valList.Count; i++)
+        {
+            double normalized = Math.Clamp(valList[i] / Math.Max(1.0, maxScale), 0.0, 1.0);
+            double y = h - (normalized * (h - 6)) - 3;
+            pts.Add(new Point(i * stepX, y));
+        }
+
+        var polyline = new System.Windows.Shapes.Polyline
+        {
+            Points = pts,
+            Stroke = strokeBrush,
+            StrokeThickness = 2.0,
+            StrokeLineJoin = PenLineJoin.Round
+        };
+        canvas.Children.Add(polyline);
+    }
+
+    private void DiagSetBaseline_Click(object sender, RoutedEventArgs e)
+    {
+        DynamicSystemMonitorService.SaveBaselineSnapshot();
+        HapticAudio.PlayClick();
+        TickDiagnosticsMonitoring();
+        MessageBox.Show("Контрольный «Снимок ДО» успешно сохранён!\nТеперь вы можете применить оптимизации, профили или стресс-тесты и оценить изменения.", "Контрольная точка зафиксирована", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void DiagClearBaseline_Click(object sender, RoutedEventArgs e)
+    {
+        DynamicSystemMonitorService.ClearBaseline();
+        HapticAudio.PlayClick();
+        TickDiagnosticsMonitoring();
+    }
+
+    private void DiagContextCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DiagContextCombo == null) return;
+        _currentDiagContext = DiagContextCombo.SelectedIndex switch
+        {
+            1 => UserActivityContext.Gaming,
+            2 => UserActivityContext.FileTransfer,
+            3 => UserActivityContext.Benchmark,
+            4 => UserActivityContext.GeneralWork,
+            _ => UserActivityContext.Auto
+        };
+        TickDiagnosticsMonitoring();
+    }
+
+    private void DiagRefreshRecommendations_Click(object sender, RoutedEventArgs e)
+    {
+        DiagRefreshRecommendations();
+        HapticAudio.PlayClick();
+    }
+
+    private void DiagRefreshRecommendations()
+    {
+        try
+        {
+            var disks = StorageDiscoveryService.GetAllDisks();
+            var recs = StorageAdvisorService.GenerateRecommendations(disks);
+            if (DiagRecommendationsList != null) DiagRecommendationsList.ItemsSource = recs;
+        }
+        catch { }
+    }
+
+    private void DiagRecommendationAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is StorageRecommendation rec)
+        {
+            HapticAudio.PlayClick();
+
+            if (rec.Category == RecommendationCategory.Cleanup)
+            {
+                SwitchTab(TabStorageRadio);
+                StorageCenterControl?.SelectSubTab(4); // Очистка
+            }
+            else if (rec.Category == RecommendationCategory.Trim ||
+                     rec.Category == RecommendationCategory.Defrag)
+            {
+                SwitchTab(TabStorageRadio);
+                StorageCenterControl?.SelectSubTab(3); // Оптимизатор
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Рекомендация: {rec.Title}\n\n" +
+                    $"🔍 Что проверить:\n{rec.WhatToCheck}\n\n" +
+                    $"⚙ Почему это поможет:\n{rec.WhyItHelps}\n\n" +
+                    $"📈 Ожидаемый эффект:\n{rec.ExpectedEffect}\n\n" +
+                    $"🛡 Оценка безопасности:\n{rec.RiskExplanation}",
+                    "Экспертная рекомендация",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+    }
+
+    private void DiagRefreshCompareDisks()
+    {
+        try
+        {
+            var disks = StorageDiscoveryService.GetAllDisks();
+            if (DiagDisksList != null) DiagDisksList.ItemsSource = disks;
+
+            if (DiagCompareACombo != null && DiagCompareBCombo != null)
+            {
+                if (DiagCompareACombo.Items.Count != disks.Count)
+                {
+                    DiagCompareACombo.Items.Clear();
+                    DiagCompareBCombo.Items.Clear();
+
+                    foreach (var d in disks)
+                    {
+                        DiagCompareACombo.Items.Add(d.ComparisonTitle);
+                        DiagCompareBCombo.Items.Add(d.ComparisonTitle);
+                    }
+
+                    if (disks.Count > 0) DiagCompareACombo.SelectedIndex = 0;
+                    if (disks.Count > 1) DiagCompareBCombo.SelectedIndex = 1;
+                    else if (disks.Count > 0) DiagCompareBCombo.SelectedIndex = 0;
+                }
+            }
+            UpdateSideBySideComparison();
+        }
+        catch { }
+    }
+
+    private void DiagCompareCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        UpdateSideBySideComparison();
+    }
+
+    private void UpdateSideBySideComparison()
+    {
+        try
+        {
+            var disks = StorageDiscoveryService.GetAllDisks();
+            if (disks.Count == 0) return;
+
+            int idxA = DiagCompareACombo?.SelectedIndex ?? 0;
+            int idxB = DiagCompareBCombo?.SelectedIndex ?? (disks.Count > 1 ? 1 : 0);
+
+            if (idxA >= 0 && idxA < disks.Count)
+            {
+                var dA = disks[idxA];
+                if (DiagCompAName != null) DiagCompAName.Text = dA.Model;
+                if (DiagCompALetters != null) DiagCompALetters.Text = $"Тома: {dA.DriveLettersFormatted}";
+                if (DiagCompAId != null) DiagCompAId.Text = $"Идентификатор: {dA.HardwareIdentity}";
+                if (DiagCompASize != null) DiagCompASize.Text = $"Емкость: {dA.TotalSizeFormatted} (Свободно: {dA.FreeSpaceFormatted})";
+                if (DiagCompABus != null) DiagCompABus.Text = $"Интерфейс: {dA.MediaTypeString} • Шина: {dA.BusTypeString}";
+                if (DiagCompAPart != null) DiagCompAPart.Text = $"Разметка: {dA.PartitionsSummary} • S.M.A.R.T: {dA.Score.TotalScore:F0}/100 ({dA.Score.Grade})";
+            }
+
+            if (idxB >= 0 && idxB < disks.Count)
+            {
+                var dB = disks[idxB];
+                if (DiagCompBName != null) DiagCompBName.Text = dB.Model;
+                if (DiagCompBLetters != null) DiagCompBLetters.Text = $"Тома: {dB.DriveLettersFormatted}";
+                if (DiagCompBId != null) DiagCompBId.Text = $"Идентификатор: {dB.HardwareIdentity}";
+                if (DiagCompBSize != null) DiagCompBSize.Text = $"Емкость: {dB.TotalSizeFormatted} (Свободно: {dB.FreeSpaceFormatted})";
+                if (DiagCompBBus != null) DiagCompBBus.Text = $"Интерфейс: {dB.MediaTypeString} • Шина: {dB.BusTypeString}";
+                if (DiagCompBPart != null) DiagCompBPart.Text = $"Разметка: {dB.PartitionsSummary} • S.M.A.R.T: {dB.Score.TotalScore:F0}/100 ({dB.Score.Grade})";
+            }
+        }
+        catch { }
+    }
+
+    private void DiagApplyGamingProfile_Click(object sender, RoutedEventArgs e)
+    {
+        DiagApplyProfileWithConfirmation(
+            OptimizationProfileId.Gaming,
+            "Игры и минимальная задержка",
+            "• Схема питания: Высокая производительность Windows\n" +
+            "• Отключение парковки ядер процессора\n" +
+            "• Понижение приоритета фоновых служб поиска\n" +
+            "• Очистка SLC-кэша накопителей");
+    }
+
+    private void DiagApplyQuietProfile_Click(object sender, RoutedEventArgs e)
+    {
+        DiagApplyProfileWithConfirmation(
+            OptimizationProfileId.Quiet,
+            "Тихая работа и тишина СО",
+            "• Схема питания: Энергосбережение (Power Saver)\n" +
+            "• Ограничение пикового тепловыделения процессора\n" +
+            "• Щадящий режим для вентиляторов охлаждения\n" +
+            "• Таймаут отключения механических дисков");
+    }
+
+    private void DiagApplyTransferProfile_Click(object sender, RoutedEventArgs e)
+    {
+        DiagApplyProfileWithConfirmation(
+            OptimizationProfileId.FileTransfer,
+            "Копирование файлов и максимальный I/O",
+            "• Схема питания: Высокая производительность\n" +
+            "• Очистка освобожденных блоков SSD (ReTrim)\n" +
+            "• Direct I/O буфер в Motion Commander (до 4 МБ)\n" +
+            "• Повышенный приоритет дисковой очереди");
+    }
+
+    private void DiagApplyBalancedProfile_Click(object sender, RoutedEventArgs e)
+    {
+        DiagApplyProfileWithConfirmation(
+            OptimizationProfileId.Balanced,
+            "Сбалансированный режим (Windows)",
+            "• Схема питания: Сбалансированная (Balanced Windows 11)\n" +
+            "• Динамическое управление тактовой частотой\n" +
+            "• Стандартные дисковые приоритеты системы");
+    }
+
+    private async void DiagApplyProfileWithConfirmation(OptimizationProfileId profileId, string profileName, string effectDescription)
+    {
+        var confirm = MessageBox.Show(
+            $"Подтверждение применения профиля «{profileName}»:\n\n" +
+            $"{effectDescription}\n\n" +
+            $"• Перед применением исходные настройки Windows сохраняются в резервную копию.\n" +
+            $"• Вы сможете в любой момент отменить изменения кнопкой «Восстановить исходные настройки».\n\n" +
+            $"Применить выбранный профиль сейчас?",
+            "Подтверждение изменений",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        HapticAudio.PlayClick();
+        var (success, msg) = await SystemProfileOptimizerService.ApplyProfileAsync(profileId);
+        if (success)
+        {
+            HapticAudio.PlaySuccess();
+            MessageBox.Show(msg, "Профиль применён", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show(msg, "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        DiagRefreshAuditLog();
+        TickDiagnosticsMonitoring();
+    }
+
+    private async void DiagRollbackProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            "Вы уверены, что хотите отменить все примененные твики и восстановить исходную конфигурацию Windows из резервной копии?",
+            "Откат к исходным настройкам",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        HapticAudio.PlayClick();
+        var (success, msg) = await SystemProfileOptimizerService.RollbackToOriginalAsync();
+        if (success)
+        {
+            HapticAudio.PlaySuccess();
+            MessageBox.Show(msg, "Настройки восстановлены", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            MessageBox.Show(msg, "Ошибка отката", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        DiagRefreshAuditLog();
+        TickDiagnosticsMonitoring();
+    }
+
+    private void DiagRefreshAudit_Click(object sender, RoutedEventArgs e)
+    {
+        DiagRefreshAuditLog();
+        HapticAudio.PlayClick();
+    }
+
+    private async void DiagRefreshAuditLog()
+    {
+        try
+        {
+            var lines = await SystemProfileOptimizerService.GetRecentAuditLogAsync(20);
+            if (DiagAuditLogText != null) DiagAuditLogText.Text = string.Join(Environment.NewLine, lines);
+        }
+        catch { }
+    }
+
+    private void DiagRefreshProcesses_Click(object sender, RoutedEventArgs e)
+    {
+        DiagRefreshProcesses();
+        HapticAudio.PlayClick();
+    }
+
+    private void DiagRefreshProcesses()
+    {
+        try
+        {
+            var heavy = ProcessAndStartupService.GetTopHeavyProcesses(12);
+            if (DiagProcessesList != null) DiagProcessesList.ItemsSource = heavy;
+
+            var startup = ProcessAndStartupService.GetStartupItems();
+            if (DiagStartupList != null) DiagStartupList.ItemsSource = startup;
+        }
+        catch { }
+    }
+
+    private void DiagOpenStartupSettings_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        ProcessAndStartupService.OpenWindowsStartupSettings();
+    }
+
+    private void DiagOpenTaskMgr_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        ProcessAndStartupService.OpenTaskManager();
+    }
+
+    private void DiagOpenServices_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        ProcessAndStartupService.OpenServicesManager();
+    }
+
+    private void DiagInitBenchmarkCombo()
+    {
+        if (BenchTargetCombo == null) return;
         if (BenchTargetCombo.Items.Count == 0)
         {
             foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady))
@@ -1555,6 +2007,21 @@ public partial class MainWindow : Window
     private async void RunBenchmark_Click(object sender, RoutedEventArgs e)
     {
         string target = BenchTargetCombo.SelectedItem?.ToString() ?? Path.GetTempPath();
+
+        var confirm = MessageBox.Show(
+            $"⚠ ВНИМАНИЕ: Запуск комплексного бенчмарка накопителя\n\n" +
+            $"• Целевой накопитель: {target}\n" +
+            $"• Будет записан тестовый массив файлов объёмом до 500 МБ - 1 ГБ.\n" +
+            $"• Накопитель будет кратковременно нагружен на 100% линейными и случайными операциями (IOPS).\n" +
+            $"• Длительность тестирования: ~15–30 секунд.\n" +
+            $"• Все временные данные будут автоматически очищены сразу после завершения.\n\n" +
+            $"Начать тестирование?",
+            "Подтверждение запуска бенчмарка",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
         HapticAudio.PlayClick();
         RunBenchBtn.IsEnabled = false;
         BenchProgress.Visibility = Visibility.Visible;
@@ -1661,6 +2128,11 @@ public partial class MainWindow : Window
         }
         _speedSamples.Enqueue(_currentSpeedMb);
         RenderSpeedGraph();
+
+        if (DiagnosticsView != null && DiagnosticsView.Visibility == Visibility.Visible)
+        {
+            TickDiagnosticsMonitoring();
+        }
     }
 
     private void LiveSpeedCanvas_SizeChanged(object sender, SizeChangedEventArgs e)

@@ -19,10 +19,14 @@ public sealed class DiskHardwareInfo
 {
     public int DeviceId { get; set; }
     public string Model { get; set; } = "";
+    public string SerialNumber { get; set; } = "";
     public string BusType { get; set; } = "";
     public StorageMediaType MediaType { get; set; } = StorageMediaType.Unknown;
     public long SizeBytes { get; set; }
     public List<string> DriveLetters { get; set; } = new();
+    public string PartitionStyle { get; set; } = "";
+    public int PartitionsCount { get; set; }
+    public bool IsSystemDisk { get; set; }
 
     public string SizeFormatted => Formatters.Bytes(SizeBytes);
     public string MediaTypeString => MediaType switch
@@ -43,6 +47,17 @@ public sealed class DiskHardwareInfo
         StorageMediaType.USB => "💾",
         _ => "🖴"
     };
+
+    public string DriveLettersFormatted =>
+        DriveLetters != null && DriveLetters.Count > 0
+            ? string.Join(" ", DriveLetters.Select(l => $"[{l}]"))
+            : "[Без буквы]";
+
+    public string HardwareIdentity =>
+        $"Диск #{DeviceId} • {BusType}" + (!string.IsNullOrWhiteSpace(SerialNumber) ? $" • SN: {SerialNumber.Trim()}" : "");
+
+    public string ComparisonTitle =>
+        $"{DriveLettersFormatted} {Model} ({SizeFormatted}) — {HardwareIdentity}";
 }
 
 public sealed class TransferScenarioProfile
@@ -133,10 +148,13 @@ public static class HardwareAnalyzer
                     int mediaTypeInt = Convert.ToInt32(mo["MediaType"] ?? 0);
                     long size = Convert.ToInt64(mo["Size"] ?? 0);
 
+                    string serialNum = mo["SerialNumber"]?.ToString()?.Trim() ?? "";
+
                     var info = new DiskHardwareInfo
                     {
                         DeviceId = devId,
                         Model = friendlyName,
+                        SerialNumber = serialNum,
                         SizeBytes = size
                     };
 
@@ -189,10 +207,13 @@ public static class HardwareAnalyzer
                         else if (model.Contains("SSD", StringComparison.OrdinalIgnoreCase)) mType = StorageMediaType.SSD;
                         else if (ifType.Equals("USB", StringComparison.OrdinalIgnoreCase)) mType = StorageMediaType.USB;
 
+                        string serialFallback = mo["SerialNumber"]?.ToString()?.Trim() ?? "";
+
                         disks.Add(new DiskHardwareInfo
                         {
                             DeviceId = devId,
                             Model = model,
+                            SerialNumber = serialFallback,
                             BusType = ifType,
                             MediaType = mType,
                             SizeBytes = size

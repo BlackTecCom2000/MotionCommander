@@ -1,6 +1,6 @@
 #define MyAppName "Motion Commander"
 #ifndef MyAppVersion
-#define MyAppVersion "3.8.39"
+#define MyAppVersion "3.8.40"
 #endif
 #ifndef MySourceDir
 #define MySourceDir "..\dist\publish"

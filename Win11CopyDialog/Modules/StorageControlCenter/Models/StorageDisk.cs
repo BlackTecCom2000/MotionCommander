@@ -284,6 +284,27 @@ public sealed class StorageDisk
         _ => "Шина не определена"
     };
 
+    public List<string> DriveLettersList =>
+        Partitions.Where(p => !string.IsNullOrWhiteSpace(p.DriveLetter)).Select(p => p.DriveLetter).Distinct().ToList();
+
+    public string DriveLettersFormatted
+    {
+        get
+        {
+            var letters = Partitions.Where(p => !string.IsNullOrWhiteSpace(p.DriveLetter)).Select(p => $"[{p.DriveLetter}:]").Distinct().ToList();
+            return letters.Count > 0 ? string.Join(" ", letters) : "[Без буквы]";
+        }
+    }
+
+    public string HardwareIdentity =>
+        $"Диск #{DiskNumber} • {BusTypeString}" + (!string.IsNullOrWhiteSpace(SerialNumber) ? $" • SN: {SerialNumber.Trim()}" : "");
+
+    public string PartitionsSummary =>
+        $"{PartitionStyle} • {Partitions.Count} разд.";
+
+    public string ComparisonTitle =>
+        $"{DriveLettersFormatted} {Model} ({TotalSizeFormatted}) — {HardwareIdentity}";
+
     public string IconGlyph => MediaType switch
     {
         StoragePhysicalMedia.NVMeSSD => "⚡",

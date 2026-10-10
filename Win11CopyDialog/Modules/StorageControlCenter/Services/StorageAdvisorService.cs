@@ -10,6 +10,8 @@ public static class StorageAdvisorService
 
         foreach (var disk in disks)
         {
+            string targetLetter = disk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "";
+
             // 1. Проверка свободного места на SSD/NVMe (SLC Cache exhaustion)
             if (disk.MediaType is StoragePhysicalMedia.NVMeSSD or StoragePhysicalMedia.SataSSD)
             {
@@ -19,46 +21,61 @@ public static class StorageAdvisorService
                     {
                         Category = RecommendationCategory.Space,
                         Severity = disk.FreeSpacePercent < 8.0 ? RecommendationSeverity.Critical : RecommendationSeverity.Warning,
+                        Risk = RecommendationRiskLevel.Safe,
                         Title = $"Критически мало места на SSD ({disk.Model})",
-                        Description = $"Свободно всего {disk.FreeSpacePercent:F1}%. При заполнении твердотельного накопителя выше 85% деградирует динамический SLC-кэш, что снижает скорость записи до 4-6 раз.",
+                        Description = $"Свободно всего {disk.FreeSpacePercent:F1}%. При заполнении накопителя выше 85% деградирует динамический SLC-кэш.",
+                        WhatToCheck = "Проверьте корзину, папку загрузок и системный кэш Windows. Твердотельным накопителям требуется от 15% до 20% свободного места для формирования пула свободных страниц флеш-памяти.",
+                        WhyItHelps = "При нехватке места контроллер SSD вынужден писать данные напрямую в многоуровневые ячейки (TLC/QLC) со сборкой мусора 'на лету', что снижает линейную запись с 2000-5000 МБ/с до 50-100 МБ/с.",
+                        ExpectedEffect = "+15-40 ГБ свободного объема, полное восстановление скорости SLC-кэша и снижение износа ячеек (Write Amplification).",
+                        RiskExplanation = "Очистка временных файлов и кэшей полностью безопасна для документов и операционной системы.",
+                        DataBasis = $"Свободно {disk.FreeSpacePercent:F1}% ({disk.FreeSpaceFormatted}) из {disk.TotalSizeFormatted}. Том: {disk.DriveLettersFormatted}.",
                         ActionText = "Запустить быструю очистку",
                         ActionCommand = "Cleanup",
                         EstimatedBenefit = "+15-30 ГБ места и восстановление пиковой скорости SLC",
-                        TargetDiskNumber = disk.DiskNumber
+                        TargetDiskNumber = disk.DiskNumber,
+                        TargetDriveLetter = targetLetter
                     });
                 }
             }
 
             // 2. Проверка температуры NVMe (Thermal Throttling).
-            //    Раньше срабатывало на подставном значении 41/34/36/31 °C,
-            //    то есть практически никогда. Теперь — только при реальном замере.
             if (disk.HasTemperature && disk.TemperatureC >= 65.0)
             {
                 recs.Add(new StorageRecommendation
                 {
                     Category = RecommendationCategory.Thermal,
                     Severity = disk.TemperatureC >= 72.0 ? RecommendationSeverity.Critical : RecommendationSeverity.Warning,
+                    Risk = RecommendationRiskLevel.Safe,
                     Title = $"Обнаружен термический троттлинг ({disk.Model} — {disk.TemperatureC:F0} °C)",
                     Description = "Контроллер накопителя сбрасывает тактовые частоты и линии PCIe для защиты от перегрева кристаллов памяти.",
+                    WhatToCheck = "Проверьте контакт радиатора M.2 с чипом контроллера, состояние термопрокладки (не ссохлась ли она) и воздушный поток в корпусе (слот M.2 часто подогревается видеокартой).",
+                    WhyItHelps = "Контроллеры NVMe при нагреве выше 70 °C принудительно включают троттлинг со снижением скорости в 3-5 раз, чтобы не допустить деградации пайки BGA и кремниевого кристалла.",
+                    ExpectedEffect = "Снижение температуры ядра SSD на 10-18 °C; ровная скорость копирования без ступенчатых просадок до 80 МБ/с.",
+                    RiskExplanation = "Аппаратная проверка радиатора и активация щадящего профиля безопасны для ваших данных.",
+                    DataBasis = $"Измеренная температура ядра: {disk.TemperatureC:F0} °C (критический порог: 70 °C). Источник: {disk.TemperatureSourceDescription}.",
                     ActionText = "Включить энергоэффективный профиль I/O",
                     ActionCommand = "ThrottleProfile",
                     EstimatedBenefit = "Снижение нагрева на 8-12 °C и стабильный линейный поток",
-                    TargetDiskNumber = disk.DiskNumber
+                    TargetDiskNumber = disk.DiskNumber,
+                    TargetDriveLetter = targetLetter
                 });
             }
 
             // 3. Проверка фрагментации на HDD.
-            //    Раньше фрагментация была подставной константой (4.8% для HDD),
-            //    и реальный анализатор defrag /A не вызывался вообще.
             if (disk.HasFragmentation && disk.MediaType == StoragePhysicalMedia.HDD && disk.FragmentationPercent > 8.0)
             {
-                string targetLetter = disk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "";
                 recs.Add(new StorageRecommendation
                 {
                     Category = RecommendationCategory.Defrag,
                     Severity = disk.FragmentationPercent > 15.0 ? RecommendationSeverity.Warning : RecommendationSeverity.Info,
+                    Risk = RecommendationRiskLevel.Safe,
                     Title = $"Фрагментация HDD {targetLetter}: измерено {disk.FragmentationPercent:F1}%",
                     Description = "Магнитные головки совершают избыточные перемещения между секторами, снижая скорость случайного доступа.",
+                    WhatToCheck = "Проверьте целостность непрерывных цепочек кластеров на магнитном накопителе с помощью системного дефрагментатора.",
+                    WhyItHelps = "Разрозненные фрагменты файлов вынуждают актуатор считывающих головок физически перемещаться по дорожкам пластин с механической задержкой 12-18 мс на каждый кластер.",
+                    ExpectedEffect = "Ускорение линейного чтения больших файлов на 30-50%, снижение уровня треска и продление ресурса механики диска.",
+                    RiskExplanation = "Штатная дефрагментация Windows использует безопасное перемещение кластеров через API файловой системы.",
+                    DataBasis = $"Фактический замер дефрагментатора: {disk.FragmentationPercent:F1}% фрагментированных данных. Том: {targetLetter}:",
                     ActionText = "Запустить Smart Defrag",
                     ActionCommand = "Defrag",
                     EstimatedBenefit = "Снижение числа перемещений головок и времени доступа",
@@ -68,8 +85,6 @@ public static class StorageAdvisorService
             }
 
             // 4. Проверка активности TRIM.
-            //    Раньше IsTrimSupported всегда был true по умолчанию, поэтому
-            //    рекомендация выдавалась даже для накопителей без TRIM.
             if (disk.HasTrimInfo && disk.MediaType is StoragePhysicalMedia.NVMeSSD or StoragePhysicalMedia.SataSSD)
             {
                 if (!disk.IsTrimEnabled)
@@ -78,25 +93,37 @@ public static class StorageAdvisorService
                     {
                         Category = RecommendationCategory.Trim,
                         Severity = RecommendationSeverity.Warning,
+                        Risk = RecommendationRiskLevel.Safe,
                         Title = $"TRIM отключён для {disk.Model}",
                         Description = "Проверка fsutil показала, что уведомления об освобождении блоков отключены. Для SSD это ускоряет износ ячеек.",
+                        WhatToCheck = "Проверьте статус службы DisableDeleteNotify в файловой системе NTFS через утилиту fsutil behavior query.",
+                        WhyItHelps = "Команда TRIM информирует микроконтроллер SSD об удалённых файлах, позволяя выполнять фоновую сборку мусора без задержки перед новой записью.",
+                        ExpectedEffect = "Устранение падений скорости записи новых файлов и продление ресурса ячеек TLC/QLC на 20-35%.",
+                        RiskExplanation = "Включение TRIM — стандартная рекомендуемая конфигурация Microsoft для всех SSD накопителей.",
+                        DataBasis = $"fsutil behavior query DisableDeleteNotify вернул неактивный статус TRIM. Диск: {disk.HardwareIdentity}.",
                         ActionText = "Включить TRIM",
                         ActionCommand = "Trim",
                         EstimatedBenefit = "Снижение интенсивности записи и продление срока службы SSD",
-                        TargetDiskNumber = disk.DiskNumber
+                        TargetDiskNumber = disk.DiskNumber,
+                        TargetDriveLetter = targetLetter
                     });
                 }
                 else
                 {
-                    string targetLetter = disk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "";
                     recs.Add(new StorageRecommendation
                     {
                         Category = RecommendationCategory.Trim,
                         Severity = RecommendationSeverity.Info,
+                        Risk = RecommendationRiskLevel.Safe,
                         Title = string.IsNullOrEmpty(targetLetter)
-                            ? "TRIM включён — рекомендуется регулярная оптимизация"
-                            : $"TRIM включён для {targetLetter} — рекомендуется регулярная оптимизация",
-                        Description = "Подтверждено проверкой fsutil: команда TRIM информирует контроллер об освободившихся блоках для фоновой сборки мусора.",
+                            ? $"TRIM активен для {disk.Model} — рекомендуется плановый ReTrim"
+                            : $"TRIM активен для тома {targetLetter}: — рекомендуется плановый ReTrim",
+                        Description = "Подтверждено проверкой fsutil: уведомления контроллера активны. Регулярная оптимизация поддерживает скорость свободных блоков.",
+                        WhatToCheck = "Выполните плановый вызов Optimize-Volume ReTrim для принудительной синхронизации свободных LBA секторов.",
+                        WhyItHelps = "ReTrim заставляет контроллер предварительно стереть блоки флеш-памяти в фоновом режиме, сохраняя мгновенную готовность к записи.",
+                        ExpectedEffect = "Стабильное время отклика на уровне < 1.0 мс при сохранении крупных файлов.",
+                        RiskExplanation = "Операция ReTrim полностью безопасна: она очищает только неиспользуемые свободные сектора.",
+                        DataBasis = $"Подтверждено Storage Management API: поддержка TRIM активна. Накопитель: {disk.Model}.",
                         ActionText = "Выполнить ReTrim",
                         ActionCommand = "Trim",
                         EstimatedBenefit = "Поддержание стабильного времени отклика ячеек памяти",
@@ -104,6 +131,29 @@ public static class StorageAdvisorService
                         TargetDriveLetter = targetLetter
                     });
                 }
+            }
+
+            // 5. Критические атрибуты S.M.A.R.T.
+            if (disk.HasSectorHealth && (disk.ReallocatedSectors > 0 || disk.PendingSectors > 0 || disk.UncorrectableSectors > 0))
+            {
+                recs.Add(new StorageRecommendation
+                {
+                    Category = RecommendationCategory.Health,
+                    Severity = RecommendationSeverity.Critical,
+                    Risk = RecommendationRiskLevel.Risky,
+                    Title = $"Внимание: деградация секторов ({disk.Model})",
+                    Description = $"Обнаружены сбойные секторы: Reallocated={disk.ReallocatedSectors}, Pending={disk.PendingSectors}, Uncorrectable={disk.UncorrectableSectors}.",
+                    WhatToCheck = "Проверьте надежность подключения кабелей питания и данных, а также немедленно скопируйте важные файлы на другой накопитель или в облако.",
+                    WhyItHelps = "Наличие ожидающих переназначения или поврежденных секторов свидетельствует о физической деградации магнитных дорожек HDD или ячеек флеш-памяти SSD.",
+                    ExpectedEffect = "Предотвращение безвозвратной потери ценных документов и системных сбоев Windows.",
+                    RiskExplanation = "Внимание: при деградации накопителя интенсивные тесты и дефрагментация противопоказаны. Сначала создайте резервную копию!",
+                    DataBasis = $"S.M.A.R.T. атрибуты 5/197/198 сообщают о дефектных секторах. Диск #{disk.DiskNumber} (SN: {disk.SerialNumber}).",
+                    ActionText = "Открыть Partition / Backup",
+                    ActionCommand = "Backup",
+                    EstimatedBenefit = "Сохранение личных данных до полного отказа накопителя",
+                    TargetDiskNumber = disk.DiskNumber,
+                    TargetDriveLetter = targetLetter
+                });
             }
         }
 

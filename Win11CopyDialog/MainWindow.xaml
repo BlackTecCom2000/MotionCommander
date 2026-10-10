@@ -1152,121 +1152,623 @@
                 </Grid>
 
                 <!-- ================= 5. ДИАГНОСТИКА И БЕНЧМАРК ================= -->
-                <Grid x:Name="DiagnosticsView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed" Margin="18">
-                    <ScrollViewer x:Name="DiagnosticsScrollViewer" VerticalScrollBarVisibility="Auto">
-                        <StackPanel MaxWidth="760" HorizontalAlignment="Center">
-                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock Text="Аппаратные ресурсы ПК" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
-                                    <Grid Margin="0,0,0,10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,6,0">
-                                            <StackPanel>
+                <!-- ================= 5. ДИАГНОСТИКА И БЕНЧМАРК ================= -->
+                <Grid x:Name="DiagnosticsView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed" Margin="14,6,14,10">
+                    <Grid.Resources>
+                        <Style x:Key="DiagSubTab" TargetType="RadioButton">
+                            <Setter Property="OverridesDefaultStyle" Value="True"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="FontSize" Value="11"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Padding" Value="10,6"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="TabBorder" Background="{TemplateBinding Background}" CornerRadius="6"
+                                                BorderThickness="1" BorderBrush="Transparent" Padding="{TemplateBinding Padding}" Margin="2,0">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
+                                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
+                                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Grid.Resources>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Подвкладки управления -->
+                        <RowDefinition Height="*"/>    <!-- Рабочая область -->
+                    </Grid.RowDefinitions>
+
+                    <!-- НАВИГАЦИОННАЯ ПАНЕЛЬ ПОДРАЗДЕЛОВ ДИАГНОСТИКИ -->
+                    <Border Grid.Row="0" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,10">
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton x:Name="DiagTabMonitoringRadio" GroupName="DiagSubGroup" Content="📈 Мониторинг &amp; Графики" Style="{StaticResource DiagSubTab}" IsChecked="True" Checked="DiagSubTab_Checked"/>
+                                <RadioButton x:Name="DiagTabBottleneckRadio" GroupName="DiagSubGroup" Content="🔍 Поиск узких мест" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
+                                <RadioButton x:Name="DiagTabRecommendationsRadio" GroupName="DiagSubGroup" Content="💡 Умные рекомендации" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
+                                <RadioButton x:Name="DiagTabCompareRadio" GroupName="DiagSubGroup" Content="🖴 Сравнение накопителей" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
+                                <RadioButton x:Name="DiagTabProfilesRadio" GroupName="DiagSubGroup" Content="🎛 Профили &amp; Безопасность" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
+                                <RadioButton x:Name="DiagTabProcessesRadio" GroupName="DiagSubGroup" Content="⚡ Нагрузка &amp; Автозагрузка" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
+                                <RadioButton x:Name="DiagTabBenchmarkRadio" GroupName="DiagSubGroup" Content="🏎 Бенчмарк-комплекс" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+
+                    <!-- РАБОЧАЯ ОБЛАСТЬ ПОДРАЗДЕЛОВ -->
+                    <Grid Grid.Row="1">
+
+                        <!-- 1. МОНИТОРИНГ В ДИНАМИКЕ И ГРАФИКИ -->
+                        <ScrollViewer x:Name="ViewDiagMonitoring" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <!-- Живые карточки метрик с историей -->
+                                <UniformGrid Columns="3" Margin="0,0,0,10">
+                                    <!-- CPU Card -->
+                                    <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,5,0">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
                                                 <TextBlock Text="Процессор (CPU)" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
-                                                <TextBlock x:Name="DiagCpuName" Text="Intel Core (16 потоков)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,4"/>
-                                                <ProgressBar x:Name="DiagCpuProgress" Height="4" Maximum="100" Value="15"/>
-                                                <TextBlock x:Name="DiagCpuLoadText" Text="Загрузка CPU: 15%" FontSize="10" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12" Margin="6,0,0,0">
-                                            <StackPanel>
-                                                <TextBlock Text="Оперативная память (RAM)" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
-                                                <TextBlock x:Name="DiagRamText" Text="32 ГБ RAM" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,4"/>
-                                                <ProgressBar x:Name="DiagRamProgress" Height="4" Maximum="100" Value="55"/>
-                                                <TextBlock x:Name="DiagRamDetailText" Text="Свободно: 14,4 ГБ" FontSize="10" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-
-                                    <TextBlock Text="Обнаруженные физические накопители" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,6,0,6"/>
-                                    <ItemsControl x:Name="DiagDisksList">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Style="{StaticResource Card}" Padding="10,6" Margin="0,0,0,4">
-                                                    <DockPanel>
-                                                        <Border DockPanel.Dock="Right" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="8" Padding="8,2" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding MediaTypeString}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
-                                                        </Border>
-                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding Icon}" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding Model}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
-                                                            <TextBlock Text="{Binding SizeFormatted, StringFormat=' ({0})'}" FontSize="11" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="4,0,0,0"/>
-                                                        </StackPanel>
-                                                    </DockPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- 2. Детектор Bottleneck -->
-                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock Text="Детектор узких мест (Real-Time Bottleneck Detector)" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
-                                    <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14">
-                                        <DockPanel>
-                                            <Border x:Name="BottleneckBadgeBorder" DockPanel.Dock="Left" Width="44" Height="44" CornerRadius="22" Background="{DynamicResource AccentBrush}" Margin="0,0,12,0">
-                                                <TextBlock x:Name="BottleneckBadgeIcon" Text="⚡" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="DiagLiveCpuPercentText" Text="0%" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagLiveCpuNameText" Text="Загрузка процессора" FontSize="10.5" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,0,0,6"/>
+                                            <!-- Мини-график истории CPU -->
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="4" Height="65" Margin="0,0,0,6">
+                                                <Canvas x:Name="DiagCpuCanvas" ClipToBounds="True"/>
                                             </Border>
+                                            <DockPanel>
+                                                <TextBlock x:Name="DiagLiveCpuCoresText" Text="Потоков: —" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagLiveCpuAvgText" Text="Среднее: —" FontSize="9.5" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- RAM Card -->
+                                    <Border Style="{StaticResource Card}" Padding="14" Margin="3,0,3,0">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="Оперативная память (RAM)" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagLiveRamPercentText" Text="0%" FontSize="13" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagLiveRamUsageText" Text="0 ГБ из 0 ГБ" FontSize="10.5" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <!-- Мини-график истории RAM -->
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="4" Height="65" Margin="0,0,0,6">
+                                                <Canvas x:Name="DiagRamCanvas" ClipToBounds="True"/>
+                                            </Border>
+                                            <DockPanel>
+                                                <TextBlock x:Name="DiagLiveRamAvailText" Text="Свободно: —" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="Физическая память" FontSize="9.5" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Disk Throughput Card -->
+                                    <Border Style="{StaticResource Card}" Padding="14" Margin="5,0,0,0">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="Накопители (I/O Throughput)" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagLiveDiskSpeedText" Text="0 МБ/с" FontSize="13" FontWeight="Bold" Foreground="#F59E0B" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagLiveDiskSplitText" Text="Чтение: 0 МБ/с • Запись: 0 МБ/с" FontSize="10.5" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <!-- Мини-график истории Disk -->
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="4" Height="65" Margin="0,0,0,6">
+                                                <Canvas x:Name="DiagDiskCanvas" ClipToBounds="True"/>
+                                            </Border>
+                                            <DockPanel>
+                                                <TextBlock x:Name="DiagLiveDiskActiveText" Text="Активность: 0%" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagLiveDiskTempText" Text="Температура: н/д" FontSize="9.5" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+
+                                <!-- Блок «Сравнение: ДО и ПОСЛЕ изменений» (Baseline Comparison) -->
+                                <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,10">
+                                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                                <Button x:Name="DiagSetBaselineBtn" Style="{StaticResource CyberButton}" Content="📌 Зафиксировать «Снимок ДО»" Padding="12,5" Margin="0,0,6,0" Click="DiagSetBaseline_Click"/>
+                                                <Button x:Name="DiagClearBaselineBtn" Style="{StaticResource CyberToolButton}" Content="✕ Сбросить" Padding="10,5" Click="DiagClearBaseline_Click"/>
+                                            </StackPanel>
                                             <StackPanel VerticalAlignment="Center">
-                                                <TextBlock x:Name="BottleneckTitle" Text="Максимальный сбалансированный поток" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                                <TextBlock x:Name="BottleneckDesc" Text="Шина ввода/вывода и накопители работают синхронно без задержек." FontSize="11" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
-                                                <TextBlock x:Name="BottleneckRec" Text="Рекомендация: оптимальная утилизация оборудования." FontSize="10" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0"/>
+                                                <TextBlock Text="Сравнение показателей: ДО и ПОСЛЕ изменений" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                <TextBlock Text="Зафиксируйте контрольную точку, примените профиль или твик, и сравните эффект." FontSize="10" Style="{StaticResource MutedText}"/>
                                             </StackPanel>
                                         </DockPanel>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
 
-                            <!-- 3. Бенчмарк-комплекс -->
-                            <Border Style="{StaticResource Card}" Padding="16">
-                                <StackPanel>
-                                    <Grid Margin="0,0,0,10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="Аппаратный бенчмарк-комплекс (Benchmark Engine)" FontSize="13" FontWeight="Bold" Style="{StaticResource MutedText}"/>
-                                            <TextBlock Text="5 комплексных тестов: запись, чтение, стриминг, 1 000 мелких файлов (IOPS), сжатие" FontSize="11" Style="{StaticResource MutedText}"/>
+                                        <Border x:Name="DiagBaselineActiveBadge" Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Delta CPU -->
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="Дельта CPU" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                    <TextBlock x:Name="DiagDeltaCpuText" Text="Снимок не зафиксирован" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <!-- Delta RAM -->
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="Дельта RAM" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                    <TextBlock x:Name="DiagDeltaRamText" Text="—" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <!-- Delta Disk -->
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Скорость диска" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                    <TextBlock x:Name="DiagDeltaDiskText" Text="—" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <!-- Delta Temp -->
+                                                <StackPanel Grid.Column="3">
+                                                    <TextBlock Text="Температура ядра" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                    <TextBlock x:Name="DiagDeltaTempText" Text="—" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- 2. ПОИСК УЗКИХ МЕСТ (CONTEXT-AWARE BOTTLENECK DETECTOR) -->
+                        <ScrollViewer x:Name="ViewDiagBottleneck" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <!-- Контекст активности пользователя -->
+                                <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,10">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="Текущая задача:" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <ComboBox x:Name="DiagContextCombo" Width="200" SelectionChanged="DiagContextCombo_SelectionChanged">
+                                                <ComboBoxItem Content="⚡ Автоопределение (Auto)" IsSelected="True"/>
+                                                <ComboBoxItem Content="🎮 Игры и 3D-графика"/>
+                                                <ComboBoxItem Content="📁 Копирование файлов / I/O"/>
+                                                <ComboBoxItem Content="🏎 Бенчмарк / Стресс-тест"/>
+                                                <ComboBoxItem Content="☕ Офис, веб и покой"/>
+                                            </ComboBox>
                                         </StackPanel>
-                                        <Button x:Name="RunBenchBtn" Grid.Column="1" Style="{StaticResource CyberButton}" Content="🚀 Запустить бенчмарк" Height="34" Padding="14,0" Click="RunBenchmark_Click"/>
-                                    </Grid>
-
-                                    <DockPanel Margin="0,0,0,8">
-                                        <TextBlock Text="Целевой накопитель для тестирования:" FontSize="11" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <ComboBox x:Name="BenchTargetCombo" Height="26" VerticalContentAlignment="Center" Width="180" HorizontalAlignment="Left"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Контекстный анализатор узких мест" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Анализ учитывает реальный профиль нагрузки: игровой рендер, дисковый поток или простой." FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
                                     </DockPanel>
+                                </Border>
 
-                                    <ProgressBar x:Name="BenchProgress" Height="6" Margin="0,6,0,4" Minimum="0" Maximum="100" Visibility="Collapsed"/>
-                                    <TextBlock x:Name="BenchStatusText" Text="" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
+                                <!-- Карточка диагноза Bottleneck -->
+                                <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14">
+                                            <DockPanel>
+                                                <Border x:Name="BottleneckBadgeBorder" DockPanel.Dock="Left" Width="48" Height="48" CornerRadius="24" Background="#10B981" Margin="0,0,14,0">
+                                                    <TextBlock x:Name="BottleneckBadgeIcon" Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <DockPanel Margin="0,0,0,2">
+                                                        <TextBlock x:Name="BottleneckTitle" Text="Максимальный сбалансированный поток" FontSize="13.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                        <Border x:Name="BottleneckStatusPill" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="4" Padding="6,1" HorizontalAlignment="Right" Margin="8,0,0,0">
+                                                            <TextBlock x:Name="DiagBottleneckStatusText" Text="Оптимально" FontSize="9.5" FontWeight="Bold" Foreground="#10B981"/>
+                                                        </Border>
+                                                    </DockPanel>
+                                                    <TextBlock x:Name="BottleneckDesc" Text="Шина ввода/вывода, память и процессор работают синхронно без задержек." FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,2,0,4"/>
+                                                    <TextBlock x:Name="BottleneckRec" Text="Рекомендация: конфигурация оптимальна, вмешательства не требуются." FontSize="10.5" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
 
-                                    <ListView x:Name="BenchResultsList" BorderThickness="0" Background="Transparent" Visibility="Collapsed">
-                                        <ListView.View>
-                                            <GridView>
-                                                <GridViewColumn Header="Тест" Width="260" DisplayMemberBinding="{Binding TestName}"/>
-                                                <GridViewColumn Header="Категория" Width="140" DisplayMemberBinding="{Binding Category}"/>
-                                                <GridViewColumn Header="Скорость" Width="110">
-                                                    <GridViewColumn.CellTemplate>
-                                                        <DataTemplate>
-                                                            <TextBlock Text="{Binding ThroughputMBps, StringFormat='{}{0:F1} МБ/с'}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                                                        </DataTemplate>
-                                                    </GridViewColumn.CellTemplate>
-                                                </GridViewColumn>
-                                                <GridViewColumn Header="IOPS" Width="80" DisplayMemberBinding="{Binding Iops}"/>
-                                                <GridViewColumn Header="Задержка" Width="90" DisplayMemberBinding="{Binding AverageLatencyMs, StringFormat='{}{0:F1} мс'}"/>
-                                                <GridViewColumn Header="Результат" Width="180" DisplayMemberBinding="{Binding SummaryText}"/>
-                                            </GridView>
-                                        </ListView.View>
-                                    </ListView>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </ScrollViewer>
+                                        <!-- На каких данных основан вывод -->
+                                        <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="12,8" Margin="0,10,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="📊 Обоснование вердикта (на каких измерениях основан вывод):" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,3"/>
+                                                <TextBlock x:Name="BottleneckDataBasisText" Text="Сбор телеметрии..." FontSize="10" FontFamily="Consolas" Foreground="{DynamicResource PrimaryTextBrush}" TextWrapping="Wrap"/>
+                                                <TextBlock x:Name="BottleneckMissingWarningText" Text="" FontSize="9.5" Foreground="#F59E0B" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- 3. УМНЫЕ РЕКОМЕНДАЦИИ С ОБЪЯСНЕНИЕМ -->
+                        <ScrollViewer x:Name="ViewDiagRecommendations" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <Border Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,10">
+                                    <DockPanel>
+                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                            <Button Style="{StaticResource CyberToolButton}" Content="🔄 Обновить аудит" Padding="10,5" Click="DiagRefreshRecommendations_Click"/>
+                                        </StackPanel>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Рекомендации экспертной оптимизации с объяснением" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Что проверить, почему это поможет, ожидаемый измеримый эффект и оценка безопасности." FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Список подробных рекомендаций -->
+                                <ItemsControl x:Name="DiagRecommendationsList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <!-- Верхняя строка карточки: заголовок, категория, бейдж риска -->
+                                                    <DockPanel Margin="0,0,0,8">
+                                                        <Border Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{Binding RiskBadgeColor}" BorderThickness="1" CornerRadius="6" Padding="8,2" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding RiskBadgeText}" FontSize="9.5" FontWeight="Bold" Foreground="{Binding RiskBadgeColor}"/>
+                                                        </Border>
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding SeverityIcon}" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+
+                                                    <TextBlock Text="{Binding Description}" FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                                    <!-- Детальные блоки: Что проверить, Почему поможет, Ожидаемый эффект -->
+                                                    <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="🔍 Что проверить:" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                            <TextBlock Text="{Binding WhatToCheck}" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,2,0,6"/>
+
+                                                            <TextBlock Text="⚙ Почему это поможет:" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                            <TextBlock Text="{Binding WhyItHelps}" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,2,0,6"/>
+
+                                                            <TextBlock Text="📈 Ожидаемый эффект:" FontSize="10.5" FontWeight="Bold" Foreground="#10B981"/>
+                                                            <TextBlock Text="{Binding ExpectedEffect}" FontSize="10" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,6"/>
+
+                                                            <TextBlock Text="🛡 Оценка безопасности:" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                            <TextBlock Text="{Binding RiskExplanation}" FontSize="9.5" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,1,0,0"/>
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- Основание вывода и кнопка действия -->
+                                                    <DockPanel>
+                                                        <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="{Binding ActionText}" Padding="14,6" Tag="{Binding}" Click="DiagRecommendationAction_Click"/>
+                                                        <TextBlock Text="{Binding DataBasis, StringFormat='📊 {0}'}" FontSize="9" Style="{StaticResource MutedText}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                    </DockPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- 4. СРАВНЕНИЕ НАКОПИТЕЛЕЙ (DRIVE COMPARISON & DISAMBIGUATION) -->
+                        <ScrollViewer x:Name="ViewDiagCompare" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <!-- Инструмент прямого сравнения двух дисков бок-о-бок -->
+                                <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Инструмент точного сравнения накопителей (Side-by-Side Comparison)" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Позволяет различить накопители с одинаковой моделью и ёмкостью по букве, разделу, шине и серийному номеру." FontSize="10" Style="{StaticResource MutedText}" Margin="0,0,0,12"/>
+
+                                        <!-- Селекторы двух дисков -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="30"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Накопитель A:" FontSize="10.5" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="DiagCompareACombo" SelectionChanged="DiagCompareCombo_SelectionChanged"/>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Column="1" Text="VS" FontWeight="Black" FontSize="12" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,18,0,0"/>
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Накопитель B:" FontSize="10.5" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,4"/>
+                                                <ComboBox x:Name="DiagCompareBCombo" SelectionChanged="DiagCompareCombo_SelectionChanged"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Карточки сравнения параметров -->
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="12"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Панель Накопителя A -->
+                                            <Border Grid.Column="0" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                                                <StackPanel x:Name="DiagCompareAPanel">
+                                                    <TextBlock x:Name="DiagCompAName" Text="Выберите накопитель A" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                    <TextBlock x:Name="DiagCompALetters" Text="Тома: —" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,2"/>
+                                                    <TextBlock x:Name="DiagCompAId" Text="Идентификатор: —" FontSize="10" Style="{StaticResource MutedText}" Margin="0,0,0,2"/>
+                                                    <TextBlock x:Name="DiagCompASize" Text="Емкость: —" FontSize="10" Style="{StaticResource MutedText}" Margin="0,0,0,2"/>
+                                                    <TextBlock x:Name="DiagCompABus" Text="Интерфейс шины: —" FontSize="10" Style="{StaticResource MutedText}" Margin="0,0,0,2"/>
+                                                    <TextBlock x:Name="DiagCompAPart" Text="Схема разметки: —" FontSize="10" Style="{StaticResource MutedText}"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Панель Накопителя B -->
+                                            <Border Grid.Column="2" Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                                                <StackPanel x:Name="DiagCompareBPanel">
+                                                    <TextBlock x:Name="DiagCompBName" Text="Выберите накопитель B" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                    <TextBlock x:Name="DiagCompBLetters" Text="Тома: —" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,2"/>
+                                                    <TextBlock x:Name="DiagCompBId" Text="Идентификатор: —" FontSize="10" Style="{StaticResource MutedText}" Margin="0,0,0,2"/>
+                                                    <TextBlock x:Name="DiagCompBSize" Text="Емкость: —" FontSize="10" Style="{StaticResource MutedText}" Margin="0,0,0,2"/>
+                                                    <TextBlock x:Name="DiagCompBBus" Text="Интерфейс шины: —" FontSize="10" Style="{StaticResource MutedText}" Margin="0,0,0,2"/>
+                                                    <TextBlock x:Name="DiagCompBPart" Text="Схема разметки: —" FontSize="10" Style="{StaticResource MutedText}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Полный список накопителей с уникальной идентификацией -->
+                                <Border Style="{StaticResource Card}" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Обнаруженные физические накопители системы" FontSize="12" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,10"/>
+                                        <ItemsControl x:Name="DiagDisksList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource Card}" Padding="12,8" Margin="0,0,0,6">
+                                                        <DockPanel>
+                                                            <!-- Правый бейдж: тип носителя -->
+                                                            <Border DockPanel.Dock="Right" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding MediaTypeString}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                            </Border>
+
+                                                            <!-- Левый бейдж: Буквы томов -->
+                                                            <Border DockPanel.Dock="Left" Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding DriveLettersFormatted}" FontSize="11" FontWeight="Black" Foreground="{DynamicResource AccentBrush}"/>
+                                                            </Border>
+
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding Icon}" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding Model}" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding SizeFormatted, StringFormat=' ({0})'}" FontSize="11" Style="{StaticResource MutedText}" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                                <TextBlock Text="{Binding HardwareIdentity}" FontSize="10" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- 5. ПРОФИЛИ ЗАДАЧ И БЕЗОПАСНОСТЬ (PROFILES & ROLLBACK) -->
+                        <ScrollViewer x:Name="ViewDiagProfiles" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <!-- Панель доверия и отката -->
+                                <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                                    <DockPanel>
+                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                            <Button x:Name="DiagRollbackBtn" Style="{StaticResource CyberButton}" Content="⮌ ВОССТАНОВИТЬ ИСХОДНЫЕ НАСТРОЙКИ (Откат)" Padding="14,8" FontWeight="Bold" Click="DiagRollbackProfile_Click"/>
+                                        </StackPanel>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Безопасность и доверие: 1-клик откат и аудит" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Перед применением любого твика создается снимок параметров. В любой момент можно вернуть стандартное состояние." FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Карточки профилей задач -->
+                                <UniformGrid Columns="2" Margin="0,0,0,12">
+                                    <!-- Профиль 1: Игры -->
+                                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,6,10">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="🎮 Игры и минимальная задержка" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                <Button Style="{StaticResource CyberButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyGamingProfile_Click"/>
+                                            </DockPanel>
+                                            <TextBlock Text="Приоритет FPS и устранение микрофризов I/O" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="• Схема питания: Высокая производительность Windows&#x0a;• Отключение парковки ядер CPU и задержек пробуждения&#x0a;• Понижение фонового приоритета служб Windows Search&#x0a;• Очистка SLC-кэша SSD перед запуском" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Ожидаемый эффект: устранение просадок 1% low FPS, плавная загрузка текстур." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Профиль 2: Тихая работа -->
+                                    <Border Style="{StaticResource Card}" Padding="16" Margin="6,0,0,10">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="🍃 Тихая работа и тишина СО" FontSize="13" FontWeight="Bold" Foreground="#10B981"/>
+                                                <Button Style="{StaticResource CyberButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyQuietProfile_Click"/>
+                                            </DockPanel>
+                                            <TextBlock Text="Энергосбережение и минимальный нагрев" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="• Схема питания: Энергосбережение (Power Saver)&#x0a;• Ограничение пикового тепловыделения ядер процессора&#x0a;• Щадящий режим для вентиляторов охлаждения&#x0a;• Таймаут отключения механических дисков при простое" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Ожидаемый эффект: снижение температуры на 6-12 °C, тихая работа вентиляторов." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Профиль 3: Копирование файлов -->
+                                    <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,6,0">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="🚀 Копирование файлов и I/O" FontSize="13" FontWeight="Bold" Foreground="#F59E0B"/>
+                                                <Button Style="{StaticResource CyberButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyTransferProfile_Click"/>
+                                            </DockPanel>
+                                            <TextBlock Text="Максимальная линейная пропускная способность" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="• Схема питания: Высокая производительность&#x0a;• Вызов Optimize-Volume ReTrim для очистки SLC-буфера&#x0a;• Direct I/O буфер в Motion Commander (до 4 МБ)&#x0a;• Повышенный приоритет дисковой очереди для операций" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Ожидаемый эффект: прирост линейной скорости на 15–35%, стабильный поток без задержек." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Профиль 4: Сбалансированный -->
+                                    <Border Style="{StaticResource Card}" Padding="16" Margin="6,0,0,0">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <TextBlock Text="⚖ Сбалансированный (Windows)" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                <Button Style="{StaticResource CyberToolButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyBalancedProfile_Click"/>
+                                            </DockPanel>
+                                            <TextBlock Text="Штатный режим Windows 11 по умолчанию" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="• Схема питания: Сбалансированная (Balanced)&#x0a;• Автоматическое динамическое управление тактовой частотой&#x0a;• Стандартное распределение приоритетов Windows" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Ожидаемый эффект: стандартное поведение системы без специальных твиков." FontSize="9.5" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+
+                                <!-- Журнал аудита действий -->
+                                <Border Style="{StaticResource Card}" Padding="16">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,8">
+                                            <Button Style="{StaticResource CyberToolButton}" Content="🔄 Обновить журнал" Padding="10,4" DockPanel.Dock="Right" Click="DiagRefreshAudit_Click"/>
+                                            <TextBlock Text="📜 Журнал аудита действий (Audit Log)" FontSize="12" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                        </DockPanel>
+                                        <TextBox x:Name="DiagAuditLogText" Height="100" FontFamily="Consolas" FontSize="10.5" Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource PrimaryTextBrush}" BorderThickness="1" BorderBrush="{DynamicResource GlassBorderBrush}" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Padding="8"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- 6. ФОНОВАЯ НАГРУЗКА И АВТОЗАГРУЗКА (PROCESSES & STARTUP) -->
+                        <ScrollViewer x:Name="ViewDiagProcesses" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <!-- Верхняя панель со ссылками на штатные утилиты Windows -->
+                                <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                                    <DockPanel>
+                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource CyberButton}" Content="⚙ Автозагрузка Windows" Padding="12,6" Margin="0,0,6,0" Click="DiagOpenStartupSettings_Click"/>
+                                            <Button Style="{StaticResource CyberToolButton}" Content="📊 Диспетчер задач" Padding="10,6" Margin="0,0,6,0" Click="DiagOpenTaskMgr_Click"/>
+                                            <Button Style="{StaticResource CyberToolButton}" Content="🛠 Службы" Padding="10,6" Click="DiagOpenServices_Click"/>
+                                        </StackPanel>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Контроль автозагрузки и фоновой нагрузки" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Список ресурсоёмких процессов с понятным описанием и быстрый переход в системные настройки." FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Левая колонка: Ресурсоёмкие процессы -->
+                                    <Border Grid.Column="0" Style="{StaticResource Card}" Padding="14">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,8">
+                                                <Button Style="{StaticResource CyberToolButton}" Content="🔄" Width="26" Height="26" Padding="0" DockPanel.Dock="Right" Click="DiagRefreshProcesses_Click"/>
+                                                <TextBlock Text="Топ процессов по памяти и нагрузке" FontSize="12" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                            </DockPanel>
+                                            <ItemsControl x:Name="DiagProcessesList">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,5">
+                                                            <DockPanel>
+                                                                <TextBlock Text="{Binding MemoryFormatted}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FontSize="11" DockPanel.Dock="Right" VerticalAlignment="Center"/>
+                                                                <StackPanel VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Name, StringFormat='{}{0}.exe'}" FontWeight="SemiBold" FontSize="11"/>
+                                                                    <TextBlock Text="{Binding FriendlyDescription}" FontSize="9.5" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Правая колонка: Программы в автозагрузке -->
+                                    <Border Grid.Column="2" Style="{StaticResource Card}" Padding="14">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,8">
+                                                <Button Style="{StaticResource CyberToolButton}" Content="🔄" Width="26" Height="26" Padding="0" DockPanel.Dock="Right" Click="DiagRefreshProcesses_Click"/>
+                                                <TextBlock Text="Программы в автозагрузке Windows" FontSize="12" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                            </DockPanel>
+                                            <ItemsControl x:Name="DiagStartupList">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{DynamicResource WindowBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,5">
+                                                            <DockPanel>
+                                                                <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="4" Padding="6,1" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding ImpactRating}" FontSize="9.5" FontWeight="Bold" Foreground="{Binding ImpactColor}"/>
+                                                                </Border>
+                                                                <StackPanel VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="11"/>
+                                                                    <TextBlock Text="{Binding Scope}" FontSize="9.5" Style="{StaticResource MutedText}"/>
+                                                                </StackPanel>
+                                                            </DockPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- 7. АППАРАТНЫЙ БЕНЧМАРК-КОМПЛЕКС -->
+                        <ScrollViewer x:Name="ViewDiagBenchmark" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+                                <!-- Карточка запуска бенчмарка с предупреждением -->
+                                <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Аппаратный бенчмарк-комплекс (Benchmark Engine)" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                <TextBlock Text="Комплексный замер: линейная запись, чтение, потоковое копирование, мелкие файлы (IOPS) и сжатие." FontSize="10.5" Style="{StaticResource MutedText}"/>
+                                            </StackPanel>
+                                            <Button x:Name="RunBenchBtn" Grid.Column="1" Style="{StaticResource CyberButton}" Content="🚀 Запустить бенчмарк" Height="36" Padding="16,0" Click="RunBenchmark_Click"/>
+                                        </Grid>
+
+                                        <DockPanel Margin="0,0,0,10">
+                                            <TextBlock Text="Целевой накопитель для тестирования:" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <ComboBox x:Name="BenchTargetCombo" Height="26" VerticalContentAlignment="Center" Width="220" HorizontalAlignment="Left"/>
+                                        </DockPanel>
+
+                                        <!-- Предупреждение перед тестом -->
+                                        <Border Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                                            <StackPanel>
+                                                <TextBlock Text="⚠ Условия тестирования и безопасность накопителя:" FontSize="10.5" FontWeight="Bold" Foreground="#F59E0B"/>
+                                                <TextBlock Text="• Будет записан временный тестовый файл размером до 500 МБ в выбранном томе.&#x0a;• Накопитель будет кратковременно загружен на 100% операциями чтения и записи.&#x0a;• Ориентировочное время теста: 15–30 секунд.&#x0a;• Все временные файлы удаляются автоматически сразу после завершения тестирования." FontSize="10" Style="{StaticResource MutedText}" Margin="0,3,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <ProgressBar x:Name="BenchProgress" Height="6" Margin="0,10,0,4" Minimum="0" Maximum="100" Visibility="Collapsed"/>
+                                        <TextBlock x:Name="BenchStatusText" Text="" FontSize="11" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
+
+                                        <ListView x:Name="BenchResultsList" BorderThickness="0" Background="Transparent" Visibility="Collapsed">
+                                            <ListView.View>
+                                                <GridView>
+                                                    <GridViewColumn Header="Тест" Width="240" DisplayMemberBinding="{Binding TestName}"/>
+                                                    <GridViewColumn Header="Категория" Width="130" DisplayMemberBinding="{Binding Category}"/>
+                                                    <GridViewColumn Header="Скорость" Width="110">
+                                                        <GridViewColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding ThroughputMBps, StringFormat='{}{0:F1} МБ/с'}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                                            </DataTemplate>
+                                                        </GridViewColumn.CellTemplate>
+                                                    </GridViewColumn>
+                                                    <GridViewColumn Header="IOPS" Width="80" DisplayMemberBinding="{Binding Iops}"/>
+                                                    <GridViewColumn Header="Задержка" Width="90" DisplayMemberBinding="{Binding AverageLatencyMs, StringFormat='{}{0:F1} мс'}"/>
+                                                    <GridViewColumn Header="Результат" Width="220" DisplayMemberBinding="{Binding SummaryText}"/>
+                                                </GridView>
+                                            </ListView.View>
+                                        </ListView>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                    </Grid>
                 </Grid>
             </Grid>
 
