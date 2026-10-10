@@ -483,18 +483,31 @@
                             <ListView x:Name="BenchmarkResultsList" BorderThickness="0" Background="Transparent">
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="Тип теста" Width="240" DisplayMemberBinding="{Binding TestType}"/>
-                                        <GridViewColumn Header="Блок" Width="80" DisplayMemberBinding="{Binding BlockSize}"/>
-                                        <GridViewColumn Header="Очередь" Width="80" DisplayMemberBinding="{Binding QueueThreads}"/>
-                                        <GridViewColumn Header="Чтение (Read)" Width="140" DisplayMemberBinding="{Binding ReadSpeedFormatted}"/>
-                                        <GridViewColumn Header="Запись (Write)" Width="140" DisplayMemberBinding="{Binding WriteSpeedFormatted}"/>
-                                        <GridViewColumn Header="Read IOPS" Width="110" DisplayMemberBinding="{Binding ReadIopsFormatted}"/>
-                                        <GridViewColumn Header="Write IOPS" Width="110" DisplayMemberBinding="{Binding WriteIopsFormatted}"/>
-                                        <GridViewColumn Header="Латентность" Width="100" DisplayMemberBinding="{Binding ReadLatencyUs, StringFormat='{}{0:F1} мкс'}"/>
-                                        <GridViewColumn Header="Статус" Width="100" DisplayMemberBinding="{Binding Status}"/>
+                                        <GridViewColumn Header="Тип теста" Width="200" DisplayMemberBinding="{Binding TestType}"/>
+                                        <GridViewColumn Header="Источник данных / Режим" Width="220" DisplayMemberBinding="{Binding DataSourceType}"/>
+                                        <GridViewColumn Header="Условия теста" Width="200" DisplayMemberBinding="{Binding TestConditionsSummary}"/>
+                                        <GridViewColumn Header="Блок" Width="70" DisplayMemberBinding="{Binding BlockSize}"/>
+                                        <GridViewColumn Header="Очередь" Width="70" DisplayMemberBinding="{Binding QueueThreads}"/>
+                                        <GridViewColumn Header="Чтение (Read)" Width="120" DisplayMemberBinding="{Binding ReadSpeedFormatted}"/>
+                                        <GridViewColumn Header="Запись (Write)" Width="120" DisplayMemberBinding="{Binding WriteSpeedFormatted}"/>
+                                        <GridViewColumn Header="Read IOPS" Width="95" DisplayMemberBinding="{Binding ReadIopsFormatted}"/>
+                                        <GridViewColumn Header="Write IOPS" Width="95" DisplayMemberBinding="{Binding WriteIopsFormatted}"/>
+                                        <GridViewColumn Header="Латентность" Width="90" DisplayMemberBinding="{Binding ReadLatencyUs, StringFormat='{}{0:F1} мкс'}"/>
+                                        <GridViewColumn Header="Статус" Width="85" DisplayMemberBinding="{Binding Status}"/>
                                     </GridView>
                                 </ListView.View>
                             </ListView>
+
+                            <!-- Блок подтверждения достоверности и очистки -->
+                            <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="8" Padding="12,10" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <TextBlock Text="🛡 Источник данных и условия измерений:" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                        <TextBlock x:Name="BenchTempCleanedText" Text="✓ Временные тестовые файлы удаляются автоматически" FontSize="10" FontWeight="SemiBold" Foreground="#10B981" HorizontalAlignment="Right"/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="BenchLimitationsDisclaimerText" Text="Все тесты выполняются с флагами прямого синхронного ввода-вывода (WriteThrough) в обход кэша записи ОС Windows, предотвращая завышение показателей из оперативной памяти. Ограничение: тест однопоточный (Q1T1); контроллеры NVMe с многоочередным доступом (Q32/Q64) могут выдавать более высокую пиковую скорость при параллельной нагрузке." FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
                 </StackPanel>

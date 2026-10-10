@@ -25,6 +25,7 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
     private DateTime? _pausedSince;
     private double _smoothedSpeed;
     private double _wavePhase;
+    private Win11CopyDialog.Modules.OperationsQueue.Models.QueuedOperationItem? _currentQueueOp;
 
     public ObservableCollection<CopyItem> Items { get; } = new();
 
@@ -294,6 +295,43 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
             return;
         }
 
+        // Проверка свободного места на целевом накопителе
+        string firstDest = expansion.Pairs.FirstOrDefault().destFile;
+        if (!string.IsNullOrEmpty(firstDest))
+        {
+            try
+            {
+                string root = Path.GetPathRoot(firstDest) ?? "";
+                if (!string.IsNullOrEmpty(root))
+                {
+                    var drive = new DriveInfo(root);
+                    if (drive.IsReady && drive.AvailableFreeSpace < TotalBytes)
+                    {
+                        long deficit = TotalBytes - drive.AvailableFreeSpace;
+                        OperationError = $"Недостаточно места на накопителе {drive.Name}!\n" +
+                                         $"Требуется: {FormatSize(TotalBytes)}, доступно: {FormatSize(drive.AvailableFreeSpace)} (дефицит: {FormatSize(deficit)}).\n" +
+                                         "Освободите место перед копированием.";
+                        OnChanged(nameof(OperationError));
+                        Finish(completed: false);
+                        return;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        try
+        {
+            _currentQueueOp = Win11CopyDialog.Modules.OperationsQueue.Services.UnifiedOperationsQueueService.Instance.Enqueue(
+                Win11CopyDialog.Modules.OperationsQueue.Models.QueuedOperationType.Copy,
+                $"Копирование {Items.Count} файлов ({FormatSize(TotalBytes)})",
+                $"Целевой каталог: {Path.GetDirectoryName(firstDest) ?? firstDest}",
+                pauseCallback: () => Pause(),
+                resumeCallback: () => Resume(),
+                cancelCallback: () => Cancel());
+        }
+        catch { }
+
         _tick.Start();
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -348,6 +386,20 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
                 OnChanged(nameof(Elapsed));
                 OnChanged(nameof(Eta));
                 ProgressTick?.Invoke(this, EventArgs.Empty);
+
+                if (_currentQueueOp != null)
+                {
+                    try
+                    {
+                        Win11CopyDialog.Modules.OperationsQueue.Services.UnifiedOperationsQueueService.Instance.UpdateProgress(
+                            _currentQueueOp.Id,
+                            OverallProgress,
+                            $"{CurrentSpeed / (1024.0 * 1024.0):F1} МБ/с",
+                            Eta.ToString(@"mm\:ss"),
+                            $"{CurrentItem?.FileName ?? "Файл"} ({FormatSize(CopiedBytes)} / {FormatSize(TotalBytes)})");
+                    }
+                    catch { }
+                }
             }
 
             // Отчёт об успехе только если действительно всё скопировано без фатальных ошибок.
@@ -636,9 +688,33 @@ public sealed class CopyEngine : INotifyPropertyChanged, IDisposable
         IsCompleted = completed;
         IsCancelled = cancelled;
         if (completed) { CurrentSpeed = 0; }
+
+        if (_currentQueueOp != null)
+        {
+            try
+            {
+                if (completed)
+                    Win11CopyDialog.Modules.OperationsQueue.Services.UnifiedOperationsQueueService.Instance.MarkCompleted(_currentQueueOp.Id);
+                else if (cancelled)
+                    Win11CopyDialog.Modules.OperationsQueue.Services.UnifiedOperationsQueueService.Instance.MarkCancelled(_currentQueueOp.Id);
+                else
+                    Win11CopyDialog.Modules.OperationsQueue.Services.UnifiedOperationsQueueService.Instance.MarkFailed(_currentQueueOp.Id, OperationError);
+            }
+            catch { }
+            _currentQueueOp = null;
+        }
+
         Completed?.Invoke(this, EventArgs.Empty);
         OnChanged(nameof(Elapsed));
         OnChanged(nameof(Eta));
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes >= 1024L * 1024L * 1024L) return $"{bytes / (1024.0 * 1024.0 * 1024.0):F1} ГБ";
+        if (bytes >= 1024L * 1024L) return $"{bytes / (1024.0 * 1024.0):F1} МБ";
+        if (bytes >= 1024L) return $"{bytes / 1024.0:F1} КБ";
+        return $"{bytes} Б";
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using Win11CopyDialog.Modules.FileManager.Models;
+using Win11CopyDialog.Modules.Navigation.Services;
 
 namespace Win11CopyDialog.Modules.FileManager.Services;
 
@@ -105,6 +106,30 @@ public static class FileSystemService
                 ColorHex = "#06B6D4"
             });
         }
+
+        // Пользовательские избранные папки (⭐)
+        try
+        {
+            foreach (var favPath in FavoritesManager.GetFavorites())
+            {
+                if (Directory.Exists(favPath) && items.All(i => !string.Equals(i.Path, favPath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    string dirName = Path.GetFileName(favPath);
+                    if (string.IsNullOrEmpty(dirName)) dirName = favPath;
+                    items.Add(new QuickAccessItem
+                    {
+                        Name = dirName,
+                        Subtitle = "⭐ Избранное",
+                        Path = favPath,
+                        Icon = "⭐",
+                        Glyph = "\uE735",
+                        VectorIconKey = "Icon_Folder",
+                        ColorHex = "#F59E0B"
+                    });
+                }
+            }
+        }
+        catch { }
 
         return items;
     }

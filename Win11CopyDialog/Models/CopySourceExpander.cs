@@ -12,7 +12,9 @@ public enum OverwritePolicy
     /// <summary>Перезаписать существующий файл.</summary>
     Overwrite = 1,
     /// <summary>Пропустить существующий файл.</summary>
-    SkipExisting = 2
+    SkipExisting = 2,
+    /// <summary>Перезаписать, только если исходный файл новее существующего.</summary>
+    KeepNewer = 3
 }
 
 /// <summary>Результат развёртки источников в список пар файл→файл.</summary>
@@ -275,6 +277,21 @@ public static class CopySourceExpander
 
         if (policy == OverwritePolicy.SkipExisting && File.Exists(target))
             return;
+
+        if (policy == OverwritePolicy.KeepNewer && File.Exists(target))
+        {
+            try
+            {
+                var srcTime = File.GetLastWriteTimeUtc(source);
+                var dstTime = File.GetLastWriteTimeUtc(target);
+                if (dstTime >= srcTime)
+                {
+                    // Файл назначения новее или равен по времени: пропускаем копирование
+                    return;
+                }
+            }
+            catch { }
+        }
 
         bool needsRename = false;
         if (policy == OverwritePolicy.AutoRename)

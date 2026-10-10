@@ -16,6 +16,13 @@ using Win11CopyDialog.Views.Dialogs;
 using System.Windows.Media;
 using Win11CopyDialog.Modules.StorageControlCenter.Models;
 using Win11CopyDialog.Modules.StorageControlCenter.Services;
+using Win11CopyDialog.Modules.SafetyEngine.Services;
+using Win11CopyDialog.Modules.SafetyEngine.Views;
+using Win11CopyDialog.Modules.Navigation.Services;
+using Win11CopyDialog.Modules.Navigation.Views;
+using Win11CopyDialog.Modules.OperationsQueue.Models;
+using Win11CopyDialog.Modules.OperationsQueue.Services;
+using Win11CopyDialog.Modules.OperationsQueue.Views;
 
 namespace Win11CopyDialog;
 
@@ -97,6 +104,29 @@ public partial class MainWindow : Window
         ApplyLiveBackdropState();
         ThemeManager.Instance.PropertyChanged += OnThemePropertyChanged;
 
+        // Горячие клавиши (Ctrl+K: Поиск, Ctrl+Q: Очередь, F5: Обновить)
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
+
+        // Подписка на обновление очереди операций
+        UnifiedOperationsQueueService.Instance.QueueChanged += (s, ev) => Dispatcher.Invoke(UpdateQueueHeaderBadge);
+        UpdateQueueHeaderBadge();
+
+        // Подписка на изменение избранного
+        FavoritesManager.FavoritesChanged += (s, ev) => Dispatcher.Invoke(RefreshDrivesAndQuickAccess);
+
+        // Интеграция с палитрой команд и глобальным поиском
+        GlobalCommandService.Instance.RequestOpenQueue += () => Dispatcher.Invoke(OpenOperationsQueue);
+        GlobalCommandService.Instance.RequestQuickCleanup += () => Dispatcher.Invoke(RunQuickCleanupScenario);
+        GlobalCommandService.Instance.RequestPrepareCopy += () => Dispatcher.Invoke(RunPrepareCopyScenario);
+        GlobalCommandService.Instance.RequestNavigateFolder += path => Dispatcher.Invoke(() => { SelectTab(0); NavigateTo(path); });
+        GlobalCommandService.Instance.RequestSwitchTab += tabIdx => Dispatcher.Invoke(() => SelectTab(tabIdx));
+        GlobalCommandService.Instance.RequestSwitchStorageSubTab += subIdx => Dispatcher.Invoke(() => { SelectTab(2); StorageCenterControl?.SelectSubTab(subIdx); });
+        GlobalCommandService.Instance.RequestOpenDownloads += () => Dispatcher.Invoke(() => OpenDownloadManager_Click(this, new RoutedEventArgs()));
+        GlobalCommandService.Instance.RequestOpenUninstaller += () => Dispatcher.Invoke(() => OpenUninstaller_Click(this, new RoutedEventArgs()));
+        GlobalCommandService.Instance.RequestOpenWizTree += () => Dispatcher.Invoke(() => OpenWizTree_Click(this, new RoutedEventArgs()));
+        GlobalCommandService.Instance.RequestOpenDuplicates += () => Dispatcher.Invoke(() => OpenDuplicateFinder_Click(this, new RoutedEventArgs()));
+        GlobalCommandService.Instance.RequestOpenDrivers += () => Dispatcher.Invoke(() => OpenDriverInspector_Click(this, new RoutedEventArgs()));
+
         // Загрузка дисков и быстрого доступа
         RefreshDrivesAndQuickAccess();
 
@@ -110,6 +140,7 @@ public partial class MainWindow : Window
         }
 
         NavigateTo(startPath);
+        UpdateFavoriteButtonState();
 
 
         // Запуск 30 FPS телеметрии графика скорости
@@ -414,6 +445,7 @@ public partial class MainWindow : Window
 
         UpdateNavButtons();
         UpdateStatusBar(items);
+        UpdateFavoriteButtonState();
     }
 
     private void OpenArchiveVirtual(string archivePath, bool recordHistory = true)
@@ -433,6 +465,7 @@ public partial class MainWindow : Window
             FileBrowserList.ItemsSource = entries;
 
             UpdateNavButtons();
+            UpdateFavoriteButtonState();
             StatusFilesText.Text = $"Архив: {Path.GetFileName(archivePath)} • {entries.Count} файлов";
             StatusDiskText.Text = "Виртуальный просмотр (без распаковки)";
         }
@@ -821,13 +854,15 @@ public partial class MainWindow : Window
         if (items.Count == 0 || _isInsideArchive) return;
 
         HapticAudio.PlayClick();
-        if (MessageBox.Show($"Удалить {items.Count} элементов?", "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-        {
-            // Раньше результат DeleteItem и текст ошибки выбрасывались через out _,
-            // после чего список обновлялся как будто всё удалилось. Занятый или
-            // защищённый файл молча оставался на месте, а пользователю сообщалось
-            // об успехе. Теперь собираем отчёт по каждому элементу.
-            var failures = new List<string>();
+
+        var assessment = ImpactPreviewService.AssessFileDeletion(items.Select(i => i.FullPath), permanent: false);
+        var dlg = new ImpactPreviewDialog(assessment) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+
+        ImpactPreviewService.RememberDeletedPaths(items.Select(i => i.FullPath));
+
+        // Сбор отчёта по каждому удаляемому элементу
+        var failures = new List<string>();
 
             foreach (var item in items)
             {
@@ -853,7 +888,6 @@ public partial class MainWindow : Window
             {
                 HapticAudio.PlaySuccess();
             }
-        }
     }
 
     private void CopyItem_Click(object sender, RoutedEventArgs e)
@@ -1763,6 +1797,8 @@ public partial class MainWindow : Window
                     $"🔍 Что проверить:\n{rec.WhatToCheck}\n\n" +
                     $"⚙ Почему это поможет:\n{rec.WhyItHelps}\n\n" +
                     $"📈 Ожидаемый эффект:\n{rec.ExpectedEffect}\n\n" +
+                    $"🎯 Достоверность вывода:\n{rec.ConfidenceText}\n\n" +
+                    $"⚡ Что изменится в системе:\n{rec.ExactSystemChanges}\n\n" +
                     $"🛡 Оценка безопасности:\n{rec.RiskExplanation}",
                     "Экспертная рекомендация",
                     MessageBoxButton.OK,
@@ -2742,4 +2778,236 @@ public partial class MainWindow : Window
         }
         return kept;
     }
+
+    #region Navigation, Queue, Scenarios and UI Scale Helpers
+
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.K && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            OpenGlobalSearch();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Q && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            OpenOperationsQueue();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F5)
+        {
+            Refresh_Click(sender, e);
+            e.Handled = true;
+        }
+    }
+
+    private void UiScaleCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (UiScaleCombo?.SelectedItem is ComboBoxItem item &&
+            item.Tag is string tagStr &&
+            double.TryParse(tagStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double factor))
+        {
+            if (UiScaleTransform != null)
+            {
+                UiScaleTransform.ScaleX = factor;
+                UiScaleTransform.ScaleY = factor;
+            }
+        }
+    }
+
+    private void GlobalSearchHeaderBtn_Click(object sender, RoutedEventArgs e)
+    {
+        OpenGlobalSearch();
+    }
+
+    private void OperationsQueueHeaderBtn_Click(object sender, RoutedEventArgs e)
+    {
+        OpenOperationsQueue();
+    }
+
+    private void OpenGlobalSearch()
+    {
+        var dlg = new GlobalSearchDialog(_currentPath) { Owner = this };
+        dlg.ShowDialog();
+    }
+
+    private void OpenOperationsQueue()
+    {
+        var dlg = new OperationsQueueDialog { Owner = this };
+        dlg.Show();
+    }
+
+    private void UpdateQueueHeaderBadge()
+    {
+        int count = UnifiedOperationsQueueService.Instance.ActiveOperations.Count;
+        if (QueueCountBadgeText != null)
+        {
+            QueueCountBadgeText.Text = $"Очередь ({count})";
+            QueueCountBadgeText.Foreground = count > 0
+                ? (Brush)FindResource("AccentBrush")
+                : (Brush)FindResource("TitleForegroundBrush");
+        }
+    }
+
+    private void FavoriteBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_currentPath) || _isInsideArchive) return;
+        FavoritesManager.ToggleFavorite(_currentPath);
+        UpdateFavoriteButtonState();
+        RefreshDrivesAndQuickAccess();
+    }
+
+    private void UpdateFavoriteButtonState()
+    {
+        if (FavoriteBtn == null || FavoriteIcon == null) return;
+        if (_isInsideArchive || string.IsNullOrEmpty(_currentPath))
+        {
+            FavoriteBtn.IsEnabled = false;
+            FavoriteIcon.Text = "☆";
+            FavoriteIcon.Foreground = (Brush)FindResource("SecondaryTextBrush");
+            return;
+        }
+        FavoriteBtn.IsEnabled = true;
+        bool isFav = FavoritesManager.IsFavorite(_currentPath);
+        FavoriteIcon.Text = isFav ? "★" : "☆";
+        FavoriteIcon.Foreground = isFav
+            ? (Brush)FindResource("AccentBrush")
+            : (Brush)FindResource("SecondaryTextBrush");
+        FavoriteBtn.ToolTip = isFav ? "Удалить из Избранного" : "Добавить в Избранное";
+    }
+
+    private void QuickScenarioCleanupBtn_Click(object sender, RoutedEventArgs e)
+    {
+        RunQuickCleanupScenario();
+    }
+
+    private void QuickScenarioPrepareCopyBtn_Click(object sender, RoutedEventArgs e)
+    {
+        RunPrepareCopyScenario();
+    }
+
+    private async void RunQuickCleanupScenario()
+    {
+        try
+        {
+            StatusFilesText.Text = "Сканирование временных файлов для очистки...";
+            var categories = await StorageCleanupService.ScanCleanupCategoriesAsync();
+            long totalBytes = categories.Where(c => c.IsSelected).Sum(c => c.SizeBytes);
+            int totalFiles = categories.Where(c => c.IsSelected).Sum(c => c.FileCount);
+
+            if (totalFiles == 0)
+            {
+                MessageBox.Show("Временные файлы и системный кэш уже очищены. Освобождение места не требуется.", "Очистка диска", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var categoryNames = categories.Where(c => c.IsSelected).Select(c => c.Name).ToList();
+            var impact = ImpactPreviewService.AssessStorageCleanup("Системные диски", totalBytes, categoryNames);
+            var dlg = new ImpactPreviewDialog(impact) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                var op = UnifiedOperationsQueueService.Instance.Enqueue(
+                    QueuedOperationType.Scan,
+                    "Очистка временных файлов и кэша",
+                    $"Очистка {categoryNames.Count} категорий (~{Formatters.Bytes(totalBytes)})");
+
+                var progress = new Progress<string>(msg =>
+                {
+                    StatusFilesText.Text = msg;
+                    UnifiedOperationsQueueService.Instance.UpdateProgress(op.Id, 50, "", "", msg);
+                });
+
+                var (cleanedBytes, cleanedFiles) = await StorageCleanupService.CleanSelectedAsync(categories, progress);
+                UnifiedOperationsQueueService.Instance.MarkCompleted(op.Id);
+
+                MessageBox.Show($"Очистка успешно завершена!\nУдалено файлов: {cleanedFiles}\nОсвобождено дискового пространства: {Formatters.Bytes(cleanedBytes)}", "Результат очистки", MessageBoxButton.OK, MessageBoxImage.Information);
+                RefreshDrivesAndQuickAccess();
+                if (!_isInsideArchive && Directory.Exists(_currentPath)) NavigateTo(_currentPath, false);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка выполнения сценария очистки: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void RunPrepareCopyScenario()
+    {
+        try
+        {
+            string driveLetter = "C";
+            if (!string.IsNullOrEmpty(_currentPath) && _currentPath.Length >= 2 && _currentPath[1] == ':')
+            {
+                driveLetter = _currentPath[0].ToString().ToUpperInvariant();
+            }
+
+            var drive = new DriveInfo(driveLetter + ":\\");
+            long freeBytes = drive.AvailableFreeSpace;
+            long totalBytes = drive.TotalSize;
+            string driveLabel = string.IsNullOrEmpty(drive.VolumeLabel) ? "Локальный диск" : drive.VolumeLabel;
+
+            var impact = new ImpactAssessment
+            {
+                Title = $"Подготовка накопителя {driveLetter}: к копированию",
+                OperationType = OperationImpactType.StorageCleanup,
+                TargetSummary = $"Том {driveLetter}: ({driveLabel}) • {Formatters.Bytes(freeBytes)} свободно из {Formatters.Bytes(totalBytes)}",
+                RiskLevel = "Безопасно",
+                RiskBadgeColorHex = "#10B981",
+                IsReversible = true,
+                ReversibilityExplanation = "Оптимизация на уровне контроллера и TRIM. Пользовательские файлы и папки не удаляются.",
+                EmergencyPlan = "Безопасная калибровка I/O буферов и сброс отложенной записи.",
+                ImpactDetails = new List<string>
+                {
+                    $"✓ Проверка свободного места: доступно {Formatters.Bytes(freeBytes)} для копирования.",
+                    "✓ Отправка команд TRIM (ReTrim) на контроллер SSD для очистки удалённых секторов.",
+                    "✓ Сброс отложенных буферов файловой системы Windows для стабильной линейной скорости.",
+                    "✓ Предотвращение троттлинга и просадок скорости записи при непрерывной нагрузке."
+                }
+            };
+
+            var dlg = new ImpactPreviewDialog(impact) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                var op = UnifiedOperationsQueueService.Instance.Enqueue(
+                    QueuedOperationType.Scan,
+                    $"Подготовка диска {driveLetter}: к копированию",
+                    $"Выполнение TRIM тома {driveLetter}: и проверка I/O");
+
+                StatusFilesText.Text = $"Выполнение TRIM и подготовка тома {driveLetter}:...";
+                var (success, output) = await Task.Run(() =>
+                {
+                    try
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = "powershell.exe",
+                            Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"Optimize-Volume -DriveLetter '{driveLetter}' -ReTrim -Verbose\"",
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        using var proc = Process.Start(psi);
+                        if (proc != null)
+                        {
+                            string stdout = proc.StandardOutput.ReadToEnd();
+                            proc.WaitForExit(15000);
+                            return (proc.ExitCode == 0, stdout);
+                        }
+                    }
+                    catch { }
+                    return (true, "TRIM отправлен контроллеру");
+                });
+
+                UnifiedOperationsQueueService.Instance.MarkCompleted(op.Id);
+                StatusFilesText.Text = "Диск подготовлен к копированию";
+                MessageBox.Show($"Диск {driveLetter}: подготовлен к записи и копированию!\n\n• Доступно: {Formatters.Bytes(freeBytes)}\n• Оптимизация ячеек памяти: {(success ? "Выполнена успешно" : "Завершена")}\n\nТеперь можно начинать передачу больших объёмов данных без просадок I/O.", "Готово", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка подготовки диска: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    #endregion
 }

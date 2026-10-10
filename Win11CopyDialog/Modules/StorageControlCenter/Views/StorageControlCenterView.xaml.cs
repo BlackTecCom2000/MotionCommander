@@ -1227,6 +1227,7 @@ public partial class StorageControlCenterView : UserControl
             var res = await StorageBenchmarkService.RunBenchmarkAsync(config, progress, myCts.Token);
             BenchmarkResultsList.ItemsSource = res.Items;
             BenchScoreSummaryText.Text = $"Общий рейтинг: {res.OverallPerformanceScore:F0} баллов";
+            if (BenchTempCleanedText != null) BenchTempCleanedText.Text = res.TempCleanupStatus;
         }
         catch (OperationCanceledException)
         {
@@ -1848,6 +1849,18 @@ public partial class StorageControlCenterView : UserControl
                             string numOnly = new string(clusterStr.TakeWhile(char.IsDigit).ToArray());
                             if (int.TryParse(numOnly, out int cVal)) cluster = cVal;
                         }
+
+                        var assessment = Win11CopyDialog.Modules.SafetyEngine.Services.ImpactPreviewService.AssessFormatting(
+                            _selectedPartition.DriveLetter,
+                            label,
+                            fs,
+                            _selectedPartition.SizeBytes);
+
+                        var dlg = new Win11CopyDialog.Modules.SafetyEngine.Views.ImpactPreviewDialog(assessment)
+                        {
+                            Owner = Window.GetWindow(this)
+                        };
+                        if (dlg.ShowDialog() != true) return;
 
                         var (ok, resMsg) = await PartitionManagementService.FormatPartitionAsync(_selectedPartition, fs, label, quick, cluster);
                         MessageBox.Show(resMsg, "Форматирование", MessageBoxButton.OK, ok ? MessageBoxImage.Information : MessageBoxImage.Warning);

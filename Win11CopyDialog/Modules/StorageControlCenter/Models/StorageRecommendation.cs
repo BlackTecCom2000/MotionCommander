@@ -51,11 +51,25 @@ public sealed class StorageRecommendation
     /// <summary>На каких реальных данных основан вывод (WMI, SMART, телеметрия).</summary>
     public string DataBasis { get; set; } = "";
 
+    /// <summary>Насколько уверенно сделан вывод (в процентах, например 95%).</summary>
+    public int ConfidencePercent { get; set; } = 95;
+    public string ConfidenceText => $"{ConfidencePercent}% ({GetConfidenceDescription(ConfidencePercent)})";
+
+    /// <summary>Что именно изменится в системе/накопителе при нажатии кнопки действия.</summary>
+    public string ExactSystemChanges { get; set; } = "";
+
     public string ActionText { get; set; } = "";
     public string ActionCommand { get; set; } = "";
     public string EstimatedBenefit { get; set; } = "";
     public int TargetDiskNumber { get; set; } = -1;
     public string TargetDriveLetter { get; set; } = "";
+
+    private static string GetConfidenceDescription(int pct) => pct switch
+    {
+        >= 90 => "Высокая точность (Аппаратный датчик / WMI)",
+        >= 70 => "Уверенная оценка (Эвристика системы)",
+        _ => "Предварительная оценка"
+    };
 
     public string SeverityIcon => Severity switch
     {

@@ -22,15 +22,15 @@ public static class StorageBenchmarkService
 
         try
         {
-            // 1. Последовательная запись 1 МБ.
-            //    Метки Q8T1 больше не используются: тест однопоточный и
-            //    одноочередной (один FileStream, один цикл), а заявлять
-            //    «8 очередей» было прямым введением в заблуждение.
+            // 1. Последовательная запись 1 МБ
             var seqWrite = new StorageBenchmarkItem
             {
                 TestType = "Последовательная запись (Seq Write)",
                 BlockSize = "1 МБ",
                 QueueThreads = "Q1T1",
+                DataSourceType = "Прямой Direct I/O (WriteThrough, обход кэша записи ОС)",
+                TestConditionsSummary = $"Размер выборки {config.FileSizeBytes / (1024 * 1024)} МБ • Блок 1 МБ • Флаги: WriteThrough | Asynchronous",
+                LimitationsSummary = "Однопоточный тест (Q1T1). Не отражает пиковую многопоточную скорость NVMe (Q32/Q64).",
                 Status = "Тестирование..."
             };
             session.Items.Add(seqWrite);
@@ -38,9 +38,6 @@ public static class StorageBenchmarkService
 
             seqWrite.WriteSpeedMBps = await RunSequentialWriteAsync(benchFile, config.FileSizeBytes, 1024 * 1024, ct);
 
-            // Настоящий IOPS для последовательного теста = скорость / размер блока.
-            // Раньше здесь было WriteSpeedMBps * 1024*1024 / (1024*1024), то есть
-            // тождество: показанные «3000 IOPS» на самом деле были 3000 МБ/с.
             const double seqBlockMB = 1.0;
             seqWrite.WriteIops = seqWrite.WriteSpeedMBps / seqBlockMB;
             seqWrite.Status = "Завершено";
@@ -51,6 +48,9 @@ public static class StorageBenchmarkService
                 TestType = "Последовательное чтение (Seq Read)",
                 BlockSize = "1 МБ",
                 QueueThreads = "Q1T1",
+                DataSourceType = "Последовательный ввод/вывод (SequentialScan | WriteThrough)",
+                TestConditionsSummary = $"Чтение файла {config.FileSizeBytes / (1024 * 1024)} МБ блоками по 1 МБ",
+                LimitationsSummary = "Однопоточный режим чтения. Контроллеры NVMe с параллельными линиями PCIe дают больший результат при multi-queue.",
                 Status = "Тестирование..."
             };
             session.Items.Add(seqRead);
@@ -60,15 +60,15 @@ public static class StorageBenchmarkService
             seqRead.ReadIops = seqRead.ReadSpeedMBps / seqBlockMB;
             seqRead.Status = "Завершено";
 
-            // 3. Случайное чтение 4K.
-            //    Метка Q32T1 была ложной: RunRandom4KReadAsync выполняет
-            //    последовательный цикл в одном потоке, без Task.WhenAll и без
-            //    очередей запросов. Указываем честное «Q1T1».
+            // 3. Случайное чтение 4K
             var rnd4kRead = new StorageBenchmarkItem
             {
                 TestType = "Случайное чтение 4K (Rnd 4K)",
                 BlockSize = "4 КБ",
                 QueueThreads = "Q1T1",
+                DataSourceType = "Случайный доступ RandomAccess (Случайный LBA)",
+                TestConditionsSummary = "4,000 случайных операций с блоком 4 КБ по всей площади тестового файла",
+                LimitationsSummary = "Глубина очереди 1 (Q1T1). Измеряет минимальную физическую задержку контроллера.",
                 Status = "Тестирование..."
             };
             session.Items.Add(rnd4kRead);
@@ -83,6 +83,9 @@ public static class StorageBenchmarkService
                 TestType = "Случайная запись 4K (Rnd 4K)",
                 BlockSize = "4 КБ",
                 QueueThreads = "Q1T1",
+                DataSourceType = "Случайная запись RandomAccess (WriteThrough, сброс кэша)",
+                TestConditionsSummary = "2,000 случайных записей блоками 4 КБ с немедленным сбросом буфера",
+                LimitationsSummary = "Реальная скорость случайной записи без задержки в RAM-буфере Windows.",
                 Status = "Тестирование..."
             };
             session.Items.Add(rnd4kWrite);
@@ -102,9 +105,18 @@ public static class StorageBenchmarkService
         {
             try
             {
-                if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true);
+                if (Directory.Exists(tempFolder))
+                {
+                    Directory.Delete(tempFolder, true);
+                    session.TempFilesCleanedUp = true;
+                    session.TempCleanupStatus = "✓ Временный тестовый файл bench.dat удален (0 байт осталось на диске)";
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                session.TempFilesCleanedUp = false;
+                session.TempCleanupStatus = $"⚠ Внимание: не удалось удалить временную папку ({ex.Message})";
+            }
         }
 
         return session;
