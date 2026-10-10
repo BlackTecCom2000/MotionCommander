@@ -1,19 +1,20 @@
 ﻿{
-    "version":  "3.8.38",
+    "version":  "3.8.39",
     "releaseDate":  "2026-10-11",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Комплексная доработка Менеджера установленных программ: извлечение нативных иконок, подсчет реального размера папок на диске, фильтры категорий, сортировка, тихое удаление и сканер остатков",
+                      "Комплексная модернизация Менеджера установленных программ: извлечение нативных иконок, подсчет реального размера папок на диске, фильтры категорий, сортировка, тихое удаление и сканер остатков",
                       "Пакетное удаление программ с поддержкой множественного выбора",
                       "Быстрые действия: открытие каталога программы, переход к разделу в Regedit, поиск в сети и копирование информации",
-                      "Автообновление теперь приоритетно загружает легковесные дельта-патчи (3.4 МБ вместо 40 МБ всего проекта)",
-                      "Добавлены кнопки заголовка (Свернуть, Закрыть) в окно процесса обновления"
+                      "Автообновление теперь гарантированно загружает легковесные дельта-патчи вместо повторной загрузки всего проекта",
+                      "Сборка релизного инсталлятора Setup.exe и портативного пакета"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.38-Patch.zip",
-    "patchSizeMb":  37.97,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.38-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.38-Portable.zip"
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.39-Patch.zip",
+    "patchSizeMb":  3.3,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.39-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.39-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.39-Setup.exe"
 }

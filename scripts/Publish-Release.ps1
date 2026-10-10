@@ -56,6 +56,7 @@ if (!$SkipBuild) {
 
 # 3. Publish binaries and package portable ZIP in dist/
 Write-Host "[3/7] Publishing binaries..." -ForegroundColor Cyan
+$distDir = "$repoRoot\dist"
 $publishDir = "$distDir\publish_v$cleanVer"
 if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
 New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
