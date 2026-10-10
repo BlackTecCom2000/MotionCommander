@@ -1043,9 +1043,9 @@ public partial class MainWindow : Window
                 e.Handled = true;
             }
         }
-        else if (e.Key == Key.Delete)
+        else if (e.Key == Key.Delete || e.Key == Key.F8)
         {
-            DeleteItem_Click(sender, new RoutedEventArgs());
+            CmdF8_Click(sender, new RoutedEventArgs());
             e.Handled = true;
         }
         else if (e.Key == Key.F2)
@@ -1053,12 +1053,101 @@ public partial class MainWindow : Window
             ContextRename_Click(sender, new RoutedEventArgs());
             e.Handled = true;
         }
+        else if (e.Key == Key.F3)
+        {
+            CmdF3_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F4)
+        {
+            CmdF4_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
         else if (e.Key == Key.F5)
         {
-            Refresh_Click(sender, new RoutedEventArgs());
+            CmdF5_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F6)
+        {
+            CmdF6_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F7)
+        {
+            CmdF7_Click(sender, new RoutedEventArgs());
             e.Handled = true;
         }
     }
+
+    private void CmdF3_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (FileBrowserList.SelectedItem is FileSystemItem item && !item.IsDirectory && File.Exists(item.FullPath))
+        {
+            try
+            {
+                var psi = new ProcessStartInfo { FileName = item.FullPath, UseShellExecute = true };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось открыть файл для просмотра: {ex.Message}", "Просмотр (F3)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void CmdF4_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (FileBrowserList.SelectedItem is FileSystemItem item && !item.IsDirectory && File.Exists(item.FullPath))
+        {
+            try
+            {
+                var psi = new ProcessStartInfo { FileName = "notepad.exe", Arguments = $"\"{item.FullPath}\"", UseShellExecute = true };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось открыть файл в редакторе: {ex.Message}", "Правка (F4)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void CmdF5_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (FileBrowserList.SelectedItems.Count > 0)
+        {
+            CopyToFolder_Click(sender, e);
+        }
+        else
+        {
+            Refresh_Click(sender, e);
+        }
+    }
+
+    private void CmdF6_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (FileBrowserList.SelectedItems.Count > 0)
+        {
+            MoveToFolder_Click(sender, e);
+        }
+    }
+
+    private void CmdF7_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        NewFolder_Click(sender, e);
+    }
+
+    private void CmdF8_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        DeleteItem_Click(sender, e);
+    }
+
 
     private void ContextOpen_Click(object sender, RoutedEventArgs e) => FileBrowserList_DoubleClick(this, null!);
     private void ContextCompress_Click(object sender, RoutedEventArgs e) => CreateArchive_Click(this, e);
@@ -2106,7 +2195,10 @@ public partial class MainWindow : Window
     private void Max_Click(object sender, RoutedEventArgs e)
     {
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        MaxBtn.Content = WindowState == WindowState.Maximized ? "❐" : "□";
+        if (MaxBtnGlyph != null)
+            MaxBtnGlyph.Text = WindowState == WindowState.Maximized ? "❐" : "□";
+        else
+            MaxBtn.Content = WindowState == WindowState.Maximized ? "❐" : "□";
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 

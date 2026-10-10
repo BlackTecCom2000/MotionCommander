@@ -542,6 +542,82 @@ public partial class FileManagerWindow : Window, INotifyPropertyChanged
         _copyCts?.Cancel();
     }
 
+    private void BtnF3_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var item = FileList.SelectedItem;
+        if (item != null && item.Type == FileEntryType.File && File.Exists(item.FullPath))
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo { FileName = item.FullPath, UseShellExecute = true };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось открыть файл: {ex.Message}", "Просмотр (F3)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void BtnF4_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        var item = FileList.SelectedItem;
+        if (item != null && item.Type == FileEntryType.File && File.Exists(item.FullPath))
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo { FileName = "notepad.exe", Arguments = $"\"{item.FullPath}\"", UseShellExecute = true };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Не удалось открыть редактор: {ex.Message}", "Правка (F4)", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+    }
+
+    private void BtnF5_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        FileList.TriggerCopy();
+    }
+
+    private void BtnF6_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        FileList.TriggerCut();
+    }
+
+    private async void BtnF7_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (string.IsNullOrEmpty(_currentPath) || !Directory.Exists(_currentPath)) return;
+        string newName = "Новая папка";
+        string targetPath = Path.Combine(_currentPath, newName);
+        int idx = 1;
+        while (Directory.Exists(targetPath) || File.Exists(targetPath))
+        {
+            targetPath = Path.Combine(_currentPath, $"{newName} ({idx++})");
+        }
+        try
+        {
+            Directory.CreateDirectory(targetPath);
+            await LoadFolderAsync(_currentPath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка создания папки: {ex.Message}", "Создать папку (F7)", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void BtnF8_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        FileList.TriggerDelete();
+    }
+
     private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Max_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();

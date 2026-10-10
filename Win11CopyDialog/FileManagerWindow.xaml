@@ -120,23 +120,57 @@
                                          ItemActivated="FileList_ItemActivated"
                                          SelectionChangedEvent="FileList_SelectionChanged"/>
 
-                    <!-- Status Bar -->
+                    <!-- Status Bar & Commander Fn Bar -->
                     <Border Grid.Row="1" Style="{StaticResource GlassToolbar}"
-                            BorderThickness="0,1,0,0" Padding="10,5">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="StatusText" Text="Готово" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryTextBrush}"/>
-                            <TextBlock x:Name="SelectionText" Grid.Column="1" Text="" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryTextBrush}"
-                                       HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="FreeSpaceText" Grid.Column="2" Text="" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryTextBrush}" Margin="12,0,0,0"/>
-                        </Grid>
+                            BorderThickness="0,1,0,0" Padding="6,3">
+                        <StackPanel>
+                            <UniformGrid Columns="6" Rows="1" Margin="0,0,0,3">
+                                <Button Style="{StaticResource CommanderFnButton}" Click="BtnF3_Click" ToolTip="Просмотр выбранного файла (F3)">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Run Text="F3" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Просмотр"/>
+                                    </TextBlock>
+                                </Button>
+                                <Button Style="{StaticResource CommanderFnButton}" Click="BtnF4_Click" ToolTip="Правка в текстовом редакторе (F4)">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Run Text="F4" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Правка"/>
+                                    </TextBlock>
+                                </Button>
+                                <Button Style="{StaticResource CommanderFnButton}" Click="BtnF5_Click" ToolTip="Копировать (F5)">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Run Text="F5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Копия"/>
+                                    </TextBlock>
+                                </Button>
+                                <Button Style="{StaticResource CommanderFnButton}" Click="BtnF6_Click" ToolTip="Перенос / Вырезать (F6)">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Run Text="F6" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Перенос"/>
+                                    </TextBlock>
+                                </Button>
+                                <Button Style="{StaticResource CommanderFnButton}" Click="BtnF7_Click" ToolTip="Создать новую папку (F7)">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Run Text="F7" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Папка"/>
+                                    </TextBlock>
+                                </Button>
+                                <Button Style="{StaticResource CommanderFnButton}" Click="BtnF8_Click" ToolTip="Удалить выбранное (F8 / Del)">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Run Text="F8" FontWeight="Bold" Foreground="#EF4444"/> <Run Text="Удалить"/>
+                                    </TextBlock>
+                                </Button>
+                            </UniformGrid>
+                            <Grid Margin="4,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="StatusText" Text="Готово" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                <TextBlock x:Name="SelectionText" Grid.Column="1" Text="" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="FreeSpaceText" Grid.Column="2" Text="" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="12,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
                     </Border>
                 </Grid>
 

@@ -101,6 +101,19 @@ public partial class DriverInspectorWindow : Window
         Loaded += async (_, _) => await LoadDriversAsync();
     }
 
+    private void Min_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        WindowState = WindowState.Minimized;
+    }
+
+    private void Max_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        if (MaxBtn != null) MaxBtn.Content = WindowState == WindowState.Maximized ? "❐" : "□";
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();

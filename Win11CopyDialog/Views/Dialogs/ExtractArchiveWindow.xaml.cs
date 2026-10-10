@@ -35,6 +35,12 @@ public partial class ExtractArchiveWindow : Window
         }
     }
 
+    private void Min_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        WindowState = WindowState.Minimized;
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();

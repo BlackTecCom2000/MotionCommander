@@ -47,8 +47,9 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch">
                         <Button x:Name="PinButton" Style="{StaticResource CaptionButton}"
                                 Content="📌" ToolTip="Поверх всех окон" Click="PinButton_Click"/>
-                        <Button Style="{StaticResource CaptionButton}" Content="─" Click="MinButton_Click"/>
-                        <Button Style="{StaticResource CaptionCloseButton}" Content="✕" Click="CloseButton_Click"/>
+                        <Button Style="{StaticResource CaptionButton}" Content="─" ToolTip="Свернуть" Click="MinButton_Click"/>
+                        <Button x:Name="MaxButton" Style="{StaticResource CaptionButton}" Content="□" ToolTip="Развернуть" Click="MaxButton_Click"/>
+                        <Button Style="{StaticResource CaptionCloseButton}" Content="✕" ToolTip="Закрыть" Click="CloseButton_Click"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -62,6 +63,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="PercentText" Text="0% завершено" FontSize="18" FontWeight="Bold"
                                    Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center">
@@ -71,7 +73,9 @@
                         </TextBlock>
                         <Button x:Name="PauseButton" Grid.Column="1" Style="{StaticResource IconButton}"
                                 Content="⏸" ToolTip="Приостановить" Click="PauseButton_Click" Margin="0,0,4,0"/>
-                        <Button x:Name="CancelTopButton" Grid.Column="2" Style="{StaticResource IconButton}"
+                        <Button x:Name="SkipTopButton" Grid.Column="2" Style="{StaticResource IconButton}"
+                                Content="⏭" ToolTip="Пропустить текущий файл" Click="SkipButton_Click" Margin="0,0,4,0"/>
+                        <Button x:Name="CancelTopButton" Grid.Column="3" Style="{StaticResource IconButton}"
                                 Content="✕" ToolTip="Отменить" Click="CancelButton_Click"/>
                     </Grid>
 

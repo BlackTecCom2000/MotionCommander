@@ -240,6 +240,11 @@ public partial class CopyDialogWindow : Window
     }
 
     private void MinButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void MaxButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        if (MaxButton != null) MaxButton.Content = WindowState == WindowState.Maximized ? "❐" : "□";
+    }
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnClosed(EventArgs e)

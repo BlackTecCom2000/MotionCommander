@@ -412,13 +412,13 @@
                             </StackPanel>
                         </Button>
                         <Button Style="{StaticResource CaptionButton}" ToolTip="Свернуть" Click="Min_Click" WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Path Data="{StaticResource Icon_Minimize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="2" Stretch="Fill"/>
+                            <TextBlock Text="─" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                         <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" ToolTip="Развернуть" Click="Max_Click" WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Path Data="{StaticResource Icon_Maximize}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                            <TextBlock x:Name="MaxBtnGlyph" Text="□" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                         <Button Style="{StaticResource CaptionCloseButton}" ToolTip="Закрыть" Click="Close_Click" WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Path Data="{StaticResource Icon_Close}" Fill="{DynamicResource TitleForegroundBrush}" Width="10" Height="10" Stretch="Uniform"/>
+                            <TextBlock Text="✕" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -504,6 +504,30 @@
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
                                         <TextBlock Text="Хэши" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="ContextRename_Click" ToolTip="Переименовать выбранный элемент (F2)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Rename}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Имя" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="MoveToFolder_Click" ToolTip="Переместить в другую папку (F6)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Move}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Перенос" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="ContextProperties_Click" ToolTip="Свойства выбранного элемента (Alt+Enter)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Properties}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Свойства" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource RibbonActionButton}" Click="SelectAll_Click" ToolTip="Выделить все элементы (Ctrl+A)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_SelectAll}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Выделить всё" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
 
@@ -1246,19 +1270,57 @@
                 </Grid>
             </Grid>
 
-            <!-- FOOTER -->
+            <!-- FOOTER & COMMANDER FUNCTION KEYS -->
             <Border Grid.Row="3" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,1,0,0">
-<!-- Статус-бар внизу -->
-                        <Border Background="Transparent" Padding="12,6">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="StatusFilesText" FontSize="11" Style="{StaticResource MutedText}" Text="0 элементов"/>
-                                <TextBlock x:Name="StatusDiskText" Grid.Column="1" FontSize="11" Style="{StaticResource MutedText}" Text=""/>
-                            </Grid>
-                        </Border>
+                <DockPanel LastChildFill="True">
+                    <!-- Панель функциональных клавиш Commander (F3-F8) -->
+                    <Border x:Name="CommanderFnBar" DockPanel.Dock="Top" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
+                            BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="6,3">
+                        <UniformGrid Columns="6" Rows="1">
+                            <Button Style="{StaticResource CommanderFnButton}" Click="CmdF3_Click" ToolTip="Просмотр выбранного файла (F3)">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Run Text="F3" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Просмотр"/>
+                                </TextBlock>
+                            </Button>
+                            <Button Style="{StaticResource CommanderFnButton}" Click="CmdF4_Click" ToolTip="Правка в текстовом редакторе (F4)">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Run Text="F4" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Правка"/>
+                                </TextBlock>
+                            </Button>
+                            <Button Style="{StaticResource CommanderFnButton}" Click="CmdF5_Click" ToolTip="Копировать в папку / обновить (F5)">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Run Text="F5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Копия"/>
+                                </TextBlock>
+                            </Button>
+                            <Button Style="{StaticResource CommanderFnButton}" Click="CmdF6_Click" ToolTip="Переместить в папку (F6)">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Run Text="F6" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Перенос"/>
+                                </TextBlock>
+                            </Button>
+                            <Button Style="{StaticResource CommanderFnButton}" Click="CmdF7_Click" ToolTip="Создать новую папку (F7 / Ctrl+Shift+N)">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Run Text="F7" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/> <Run Text="Папка"/>
+                                </TextBlock>
+                            </Button>
+                            <Button Style="{StaticResource CommanderFnButton}" Click="CmdF8_Click" ToolTip="Удалить выбранное (F8 / Del)">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Run Text="F8" FontWeight="Bold" Foreground="#EF4444"/> <Run Text="Удалить"/>
+                                </TextBlock>
+                            </Button>
+                        </UniformGrid>
+                    </Border>
+                    <!-- Статус-бар внизу -->
+                    <Border Background="Transparent" Padding="12,5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="StatusFilesText" FontSize="11" Style="{StaticResource MutedText}" Text="0 элементов"/>
+                            <TextBlock x:Name="StatusDiskText" Grid.Column="1" FontSize="11" Style="{StaticResource MutedText}" Text=""/>
+                        </Grid>
+                    </Border>
+                </DockPanel>
             </Border>
             
             <!-- SEAMLESS UPDATE MORPHING OVERLAY -->

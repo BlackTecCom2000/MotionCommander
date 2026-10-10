@@ -1,23 +1,16 @@
 ﻿{
-    "version":  "3.8.36",
-    "releaseDate":  "2026-10-04",
+    "version":  "3.8.37",
+    "releaseDate":  "2026-10-11",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Исправлен ложно-зелёный итог проверки экранов. Раньше при обрыве прогона диагностика печатала «все экраны без дефектов» и возвращала код 0, не создав ни одного экрана. Теперь незавершённый прогон считается провалом с прямым сообщением об этом.",
-                      "Причина установлена измерением, а не догадкой: насос приложения завершался раньше, чем очередь успевала выполнить проверку, поэтому второй прогон стартовал уже после Application.Shutdown и все его экраны падали с «идет завершение работы объекта Application».",
-                      "Флаг проверки экранов в диагностике переименован в --screens. При совпадении с --view-audit основной программы App.OnStartup видел ключ в аргументах собственного процесса и поднимал второй параллельный прогон.",
-                      "Проверка исключений при создании экранов теперь печатает всю цепочку вложенных исключений. Раньше сообщение звучало как «предоставление значения StaticResourceExtension вызвало исключение» и не называло ни ключ, ни словарь, из-за чего поиск вёл перебором.",
-                      "Добавлен режим --res-probe: показывает, сколько словарей подключено и в каком из них лежит названный ключ. Он же подтвердил, что ресурсы берутся из App.xaml, а не из отдельного списка, который со временем разошёлся бы с программой.",
-                      "Метаданные для подписи: AssemblyTitle задан как Motion Commander. FileDescription был именем сборки Win11CopyDialog, и это значение проверяется при подписи — без исправления подпись была бы отклонена.",
-                      "Скрипт подписи исправлен: вместо рекомендации самоподписанного сертификата указан реальный путь SignPath Foundation, бесплатный для публичных репозиториев под MIT. Самоподписанный сертификат блокировку Smart App Control не отменяет.",
-                      "Добавлен docs/code-signing.md с измеренным состоянием машины: подписи нет, сертификатов нет, signtool не установлен, Smart App Control блокирует неподписанные exe."
+                      "Добавлены стандартные кнопки управления окном (Свернуть, Развернуть, Закрыть) во всех окнах и служебных диалогах"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.36-Patch.zip",
-    "patchSizeMb":  3.27,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.36-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.36-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.36-Setup.exe"
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Patch.zip",
+    "patchSizeMb":  3.28,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Setup.exe"
 }

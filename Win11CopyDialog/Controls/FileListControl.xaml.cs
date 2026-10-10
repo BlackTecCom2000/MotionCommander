@@ -80,6 +80,26 @@ public sealed partial class FileListControl : UserControl, INotifyPropertyChange
             SelectionChangedEvent?.Invoke(FileListView.SelectedItems.Cast<FileEntry>().ToArray());
     }
 
+    public FileEntry? SelectedItem => FileListView?.SelectedItem as FileEntry;
+    public FileEntry[] SelectedEntries => FileListView?.SelectedItems.Cast<FileEntry>().ToArray() ?? Array.Empty<FileEntry>();
+
+    public void TriggerCopy() => CopyCut(false);
+    public void TriggerCut() => CopyCut(true);
+    public void TriggerPaste() => Paste();
+    public void TriggerDelete()
+    {
+        if (FileListView?.SelectedItems.Count > 0)
+        {
+            foreach (var entry in FileListView.SelectedItems.Cast<FileEntry>().ToList())
+                Delete(entry);
+        }
+    }
+    public void TriggerRename()
+    {
+        if (FileListView?.SelectedItem is FileEntry entry)
+            Rename(entry);
+    }
+
     private static void OnItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is FileListControl ctl)

@@ -31,7 +31,11 @@
                             <TextBlock Text="Мгновенное сканирование занятого места, визуальная карта веса папок и выявление тяжелых файлов" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </StackPanel>
-                    <Button Grid.Column="1" Style="{StaticResource CaptionCloseButton}" Content="✕" Click="Close_Click"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Style="{StaticResource CaptionButton}" Content="─" ToolTip="Свернуть" Click="Min_Click"/>
+                        <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" Content="□" ToolTip="Развернуть" Click="Max_Click"/>
+                        <Button Style="{StaticResource CaptionCloseButton}" Content="✕" ToolTip="Закрыть" Click="Close_Click"/>
+                    </StackPanel>
                 </Grid>
             </Border>
 
