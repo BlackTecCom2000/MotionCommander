@@ -254,8 +254,11 @@ public partial class MainWindow : Window
             var updateInfo = await UpdateService.CheckForUpdatesAsync();
             if (updateInfo.IsUpdateAvailable)
             {
+                string patchNote = updateInfo.PatchSizeMb > 0 
+                    ? $"Быстрый инкрементальный патч (~{updateInfo.PatchSizeMb:F1} МБ вместо ~40 МБ)" 
+                    : "Быстрый инкрементальный патч";
                 var res = MessageBox.Show(
-                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая версия: v{updateInfo.CurrentVersion}\n\nСкачать и установить обновление?", 
+                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая версия: v{updateInfo.CurrentVersion}\n\nТип обновления: {patchNote}.\n\nПрименить обновление?", 
                     "Доступно обновление", 
                     MessageBoxButton.YesNo, 
                     MessageBoxImage.Information);
@@ -294,8 +297,11 @@ public partial class MainWindow : Window
             {
                 AvailableUpdateBtn.Visibility = Visibility.Visible;
                 AvailableUpdateBtn.ToolTip = $"Доступна новая версия: v{updateInfo.LatestVersion}";
+                string patchNote = updateInfo.PatchSizeMb > 0 
+                    ? $"Быстрый инкрементальный патч (~{updateInfo.PatchSizeMb:F1} МБ вместо ~40 МБ)" 
+                    : "Быстрый инкрементальный патч";
                 var res = MessageBox.Show(
-                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая: v{updateInfo.CurrentVersion}\n\nСкачать и установить?",
+                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая: v{updateInfo.CurrentVersion}\n\nТип обновления: {patchNote}.\n\nПрименить обновление?",
                     "Доступно обновление", MessageBoxButton.YesNo, MessageBoxImage.Information);
 
                 if (res == MessageBoxResult.Yes)

@@ -56,8 +56,7 @@ if (!$SkipBuild) {
 
 # 3. Publish binaries and package portable ZIP in dist/
 Write-Host "[3/7] Publishing binaries..." -ForegroundColor Cyan
-$distDir = "$repoRoot\dist"
-$publishDir = "$distDir\publish"
+$publishDir = "$distDir\publish_v$cleanVer"
 if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
 New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
 
@@ -154,7 +153,7 @@ $issFile = "$repoRoot\installer\MotionCommander.iss"
 # предлагало пользователю скачать файл, которого в репозитории нет.
 $setupCreated = $false
 if ($iscc -and (Test-Path $issFile)) {
-    & $iscc "/DMyAppVersion=$cleanVer" $issFile
+    & $iscc "/DMyAppVersion=$cleanVer" "/DMySourceDir=..\dist\publish_v$cleanVer" $issFile
     if ($LASTEXITCODE -eq 0) {
         $setupExe = "$distDir\MotionCommander-v$cleanVer-Setup.exe"
         $latestSetup = "$distDir\MotionCommander-Latest-Setup.exe"

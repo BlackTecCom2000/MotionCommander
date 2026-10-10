@@ -155,6 +155,7 @@ public partial class VersionSelectDialog : Window
             LatestVersion = _selectedItem.Version,
             IsUpdateAvailable = true,
             DownloadUrl = _selectedItem.DownloadUrl,
+            PatchUrl = _selectedItem.PatchUrl,
             InstallerUrl = _selectedItem.DownloadUrl,
             SetupExeUrl = _selectedItem.SetupExeUrl,
             ReleaseDate = _selectedItem.ReleaseDate,

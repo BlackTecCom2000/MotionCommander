@@ -43,7 +43,12 @@ public partial class UpdateProgressWindow : Window
 
         try
         {
-            bool isPatch = _updateInfo.HasPatch && _updateInfo.SwitchMode == VersionSwitchMode.Upgrade;
+            if (string.IsNullOrWhiteSpace(_updateInfo.PatchUrl) && !string.IsNullOrWhiteSpace(_updateInfo.LatestVersion))
+            {
+                _updateInfo.PatchUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{_updateInfo.LatestVersion}-Patch.zip";
+            }
+
+            bool isPatch = !string.IsNullOrWhiteSpace(_updateInfo.PatchUrl) && _updateInfo.SwitchMode == VersionSwitchMode.Upgrade;
             string url = isPatch ? _updateInfo.PatchUrl : (!string.IsNullOrEmpty(_updateInfo.DownloadUrl) ? _updateInfo.DownloadUrl : _updateInfo.InstallerUrl);
 
             string actionPrefix = _updateInfo.SwitchMode switch
@@ -54,7 +59,7 @@ public partial class UpdateProgressWindow : Window
             };
 
             TitleText.Text = isPatch 
-                ? $"Загрузка инкрементального патча v{_updateInfo.LatestVersion}..." 
+                ? $"Быстрый патч обновления v{_updateInfo.LatestVersion}..." 
                 : $"{actionPrefix} v{_updateInfo.LatestVersion}...";
 
             string downloadedFile;
@@ -131,6 +136,11 @@ public partial class UpdateProgressWindow : Window
             MessageBox.Show($"Ошибка загрузки обновления:\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             this.Close();
         }
+    }
+
+    private void Min_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
     }
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)

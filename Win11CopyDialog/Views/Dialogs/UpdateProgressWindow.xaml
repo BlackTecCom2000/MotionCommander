@@ -24,13 +24,23 @@
 
             <!-- ШАПКА -->
             <Border Grid.Row="0" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="28" Height="28" CornerRadius="8" Background="{DynamicResource LiquidGlassActiveHighlight}"
-                            BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,10,0">
-                        <TextBlock Text="🚀" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <TextBlock x:Name="TitleText" Text="Загрузка обновления..." FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="28" Height="28" CornerRadius="8" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                                BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,10,0">
+                            <TextBlock Text="🚀" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock x:Name="TitleText" Text="Загрузка обновления..." FontSize="14" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Style="{StaticResource CaptionButton}" Content="─" ToolTip="Свернуть" Click="Min_Click"/>
+                        <Button Style="{StaticResource CaptionCloseButton}" Content="✕" ToolTip="Отмена" Click="CancelBtn_Click"/>
+                    </StackPanel>
+                </Grid>
             </Border>
 
             <!-- ТЕЛО -->

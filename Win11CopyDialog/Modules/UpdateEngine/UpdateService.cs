@@ -23,6 +23,7 @@ public sealed class ReleaseVersionItem
     public string ReleaseDate { get; set; } = "";
     public string Body { get; set; } = "";
     public string DownloadUrl { get; set; } = "";
+    public string PatchUrl { get; set; } = "";
     public string SetupExeUrl { get; set; } = "";
     public bool IsCurrent { get; set; }
     public bool IsUpgrade { get; set; }
@@ -131,6 +132,11 @@ public static class UpdateService
                         info.Changelog.Add(line);
                     }
                 }
+            }
+
+            if (string.IsNullOrWhiteSpace(info.PatchUrl) && !string.IsNullOrWhiteSpace(info.LatestVersion))
+            {
+                info.PatchUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{info.LatestVersion}-Patch.zip";
             }
 
             info.IsUpdateAvailable = IsNewerVersion(currentVerStr, info.LatestVersion);
@@ -352,6 +358,7 @@ public static class UpdateService
                     Version = v,
                     TagName = $"v{v}",
                     Name = $"Motion Commander v{v}",
+                    PatchUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Patch.zip",
                     DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Portable.zip",
                     SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Setup.exe",
                     Body = $"Релиз v{v} из дистрибутивов Motion Commander.",

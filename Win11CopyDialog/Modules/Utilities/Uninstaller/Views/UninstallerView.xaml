@@ -3,22 +3,57 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Win11CopyDialog.Modules.Utilities.Uninstaller.Views"
              mc:Ignorable="d" 
-             d:DesignHeight="700" d:DesignWidth="1000">
+             d:DesignHeight="750" d:DesignWidth="1100">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <!-- Pill Filter RadioButton Style -->
+        <Style x:Key="FilterPillStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderSubtle}"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="PillBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="14" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="PillBorder" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                                <Setter TargetName="PillBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PillBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
-    <Grid Margin="18">
+    <Grid Margin="16,10,16,16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/> <!-- 0: Header -->
+            <RowDefinition Height="Auto"/> <!-- 1: Filters & Search Toolbar -->
+            <RowDefinition Height="*"/>    <!-- 2: Apps List -->
+            <RowDefinition Height="Auto"/> <!-- 3: Status / Batch Footer -->
         </Grid.RowDefinitions>
 
-        <!-- Top Panel -->
-        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
+        <!-- 0. ВЕРХНЯЯ ПАНЕЛЬ С ЗАГОЛОВКОМ И СТАТИСТИКОЙ -->
+        <Border Grid.Row="0" Style="{StaticResource GlassSectionCard}" Padding="16,12" Margin="0,0,0,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -26,89 +61,251 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="🗑 Менеджер установленных программ" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                    <TextBlock x:Name="StatusText" Text="Загрузка списка программ..." FontSize="12" Style="{StaticResource MutedText}" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="32" Height="32" CornerRadius="10" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                                BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,12,0">
+                            <TextBlock Text="🗑" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Менеджер установленных программ" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock x:Name="StatusStatsText" Text="Загрузка списка программ..." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBox x:Name="SearchBox" Width="250" Height="34" Margin="0,0,10,0" Padding="10,0" 
-                             VerticalContentAlignment="Center" Background="#141923" Foreground="{DynamicResource PrimaryTextBrush}"
-                             BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
-                             TextChanged="SearchBox_TextChanged" />
-                    
-                    <Button x:Name="RefreshBtn" Style="{StaticResource CyberButton}" Content="🔄 Обновить" Padding="14,6" Margin="0,0,10,0" Click="RefreshBtn_Click"/>
+                    <Button x:Name="BatchUninstallBtn" Style="{StaticResource GlassDangerButton}" Content="🗑 Удалить выбранные (0)"
+                            Padding="14,6" Margin="0,0,8,0" Visibility="Collapsed" Click="BatchUninstallBtn_Click"/>
+                    <Button x:Name="ScanLeftoversBtn" Style="{StaticResource GlassButton}" Content="🧹 Поиск остатков" 
+                            Padding="12,6" Margin="0,0,8,0" Click="ScanLeftoversBtn_Click"/>
+                    <Button x:Name="RefreshBtn" Style="{StaticResource GlassButton}" Content="🔄 Обновить" 
+                            Padding="12,6" Click="RefreshBtn_Click"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Apps List -->
-        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="4">
-            <ListView x:Name="AppsList" Background="Transparent" BorderThickness="0"
-                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                      SelectionMode="Single" SelectionChanged="AppsList_SelectionChanged">
-                <ListView.ItemContainerStyle>
-                    <Style TargetType="ListViewItem">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-                        <Setter Property="Padding" Value="10,8"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                        <Style.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#1A202C"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </ListView.ItemContainerStyle>
-                
-                <ListView.ItemTemplate>
-                    <DataTemplate>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="150"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+        <!-- 1. ТУЛБАР: ПОИСК, ФИЛЬТРЫ И СОРТИРОВКА -->
+        <Border Grid.Row="1" Style="{StaticResource GlassSectionCard}" Padding="12,10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/> <!-- Поиск -->
+                    <ColumnDefinition Width="*"/>    <!-- Фильтры-таблетки -->
+                    <ColumnDefinition Width="Auto"/> <!-- Сортировка -->
+                </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <DockPanel>
-                                    <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                    <Border Margin="8,0,0,0" Padding="6,2" CornerRadius="4" Background="#33FF4444" Visibility="{Binding IsSystemComponent, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <TextBlock Text="System" FontSize="10" FontWeight="Bold" Foreground="#FF4444"/>
-                                    </Border>
-                                </DockPanel>
-                                <TextBlock Text="{Binding Publisher}" FontSize="11" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
-                            </StackPanel>
+                <!-- Поиск -->
+                <DockPanel Grid.Column="0" Width="260" Margin="0,0,14,0">
+                    <TextBox x:Name="SearchBox" Height="32" VerticalContentAlignment="Center" Padding="10,0"
+                             Style="{StaticResource GlassTextBox}"
+                             TextChanged="SearchBox_TextChanged"/>
+                </DockPanel>
 
-                            <TextBlock Grid.Column="1" Text="{Binding DisplayVersion}" FontSize="12" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{Binding EstimatedSize}" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                <!-- Фильтры-таблетки -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <RadioButton x:Name="FilterAllRadio" Content="Все программы" Style="{StaticResource FilterPillStyle}" IsChecked="True" Checked="FilterRadio_Checked"/>
+                    <RadioButton x:Name="FilterLargeRadio" Content="Крупные (>500 МБ)" Style="{StaticResource FilterPillStyle}" Checked="FilterRadio_Checked"/>
+                    <RadioButton x:Name="FilterRecentRadio" Content="Недавние (30 дней)" Style="{StaticResource FilterPillStyle}" Checked="FilterRadio_Checked"/>
+                    <RadioButton x:Name="FilterOrphanedRadio" Content="Остатки / Без файлов" Style="{StaticResource FilterPillStyle}" Checked="FilterRadio_Checked"/>
+                    <RadioButton x:Name="FilterSystemRadio" Content="Системные" Style="{StaticResource FilterPillStyle}" Checked="FilterRadio_Checked"/>
+                </StackPanel>
 
-                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button Content="Стандартное удаление" Style="{StaticResource CyberButton}" Padding="10,4" Margin="0,0,8,0"
-                                        CommandParameter="{Binding}" Click="Uninstall_Click"/>
-                                <Button Content="Force Uninstall" Foreground="#FF4444" Background="Transparent" 
-                                        BorderBrush="#FF4444" BorderThickness="1" Padding="10,4"
-                                        CommandParameter="{Binding}" Click="ForceUninstall_Click">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSystemComponent}" Value="True">
-                                                    <Setter Property="IsEnabled" Value="False"/>
-                                                    <Setter Property="Opacity" Value="0.3"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                            </StackPanel>
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
+                <!-- Сортировка и выбор всех -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Сортировка:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <ComboBox x:Name="SortComboBox" Width="170" Height="30" SelectionChanged="SortComboBox_SelectionChanged">
+                        <ComboBoxItem Content="Имя (А → Я)" IsSelected="True"/>
+                        <ComboBoxItem Content="Имя (Я → А)"/>
+                        <ComboBoxItem Content="Размер (по убыванию)"/>
+                        <ComboBoxItem Content="Размер (по возрастанию)"/>
+                        <ComboBoxItem Content="Дата установки (новые)"/>
+                        <ComboBoxItem Content="Издатель (А → Я)"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. СПИСОК ПРОГРАММ -->
+        <Border Grid.Row="2" Style="{StaticResource GlassSectionCard}" Padding="4">
+            <Grid>
+                <!-- Заголовок таблицы -->
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
+                        BorderBrush="{DynamicResource GlassBorderSubtle}" BorderThickness="0,0,0,1" Padding="12,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40"/>  <!-- Чекбокс -->
+                            <ColumnDefinition Width="44"/>  <!-- Иконка -->
+                            <ColumnDefinition Width="*"/>   <!-- Название и издатель -->
+                            <ColumnDefinition Width="130"/> <!-- Версия -->
+                            <ColumnDefinition Width="110"/> <!-- Дата -->
+                            <ColumnDefinition Width="110"/> <!-- Размер -->
+                            <ColumnDefinition Width="220"/> <!-- Действия -->
+                        </Grid.ColumnDefinitions>
+
+                        <CheckBox x:Name="SelectAllCheckBox" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                  ToolTip="Выбрать все" Click="SelectAllCheckBox_Click"/>
+                        <TextBlock Grid.Column="2" Text="Название программы" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Column="3" Text="Версия" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Column="4" Text="Дата установки" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Column="5" Text="Размер" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Grid.Column="6" Text="Действия" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Список -->
+                <ListView Grid.Row="1" x:Name="AppsList" Background="Transparent" BorderThickness="0"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          SelectionMode="Single">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderSubtle}"/>
+                            <Setter Property="Padding" Value="10,6"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource LiquidGlassMaterialLevel1Brush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="36"/>  <!-- Чекбокс -->
+                                    <ColumnDefinition Width="44"/>  <!-- Иконка -->
+                                    <ColumnDefinition Width="*"/>   <!-- Название -->
+                                    <ColumnDefinition Width="130"/> <!-- Версия -->
+                                    <ColumnDefinition Width="110"/> <!-- Дата -->
+                                    <ColumnDefinition Width="110"/> <!-- Размер -->
+                                    <ColumnDefinition Width="220"/> <!-- Кнопки действий -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Чекбокс -->
+                                <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}" VerticalAlignment="Center" HorizontalAlignment="Center" Click="AppCheckBox_Click"/>
+
+                                <!-- Иконка -->
+                                <Border Grid.Column="1" Width="32" Height="32" CornerRadius="6"
+                                        Background="{DynamicResource LiquidGlassInputBackgroundBrush}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image Source="{Binding Icon}" Width="24" Height="24" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Border>
+
+                                <!-- Название и издатель -->
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="6,0,12,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+
+                                        <!-- Бейджи -->
+                                        <Border Margin="6,0,0,0" Padding="5,1" CornerRadius="4" Background="#26FF4D4D" Visibility="{Binding IsSystemComponent, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="Системный" FontSize="9.5" FontWeight="Bold" Foreground="#FFFF6666"/>
+                                        </Border>
+                                        <Border Margin="6,0,0,0" Padding="5,1" CornerRadius="4" Background="#26FFAA00" Visibility="{Binding IsOrphaned, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="Остаток" FontSize="9.5" FontWeight="Bold" Foreground="#FFFFBB33"/>
+                                        </Border>
+                                        <Border Margin="6,0,0,0" Padding="5,1" CornerRadius="4" Background="#1A00D4FF">
+                                            <TextBlock Text="{Binding Architecture}" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding Publisher}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+
+                                <!-- Версия -->
+                                <TextBlock Grid.Column="3" Text="{Binding DisplayVersion}" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                <!-- Дата -->
+                                <TextBlock Grid.Column="4" Text="{Binding InstallDateFormatted}" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+
+                                <!-- Размер -->
+                                <Border Grid.Column="5" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="8,3" CornerRadius="6" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}">
+                                    <TextBlock Text="{Binding EstimatedSize}" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                </Border>
+
+                                <!-- Быстрые действия -->
+                                <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                    <Button Content="Удалить" Style="{StaticResource GlassButton}" Padding="8,4" Height="28" Margin="0,0,4,0"
+                                            CommandParameter="{Binding}" Click="Uninstall_Click" ToolTip="Стандартная деинсталляция"/>
+                                    <Button Content="⚡" Style="{StaticResource GlassButton}" Width="28" Height="28" Margin="0,0,4,0"
+                                            CommandParameter="{Binding}" Click="QuietUninstall_Click" ToolTip="Тихое удаление (в фоне)"/>
+                                    <Button Content="📁" Style="{StaticResource GlassButton}" Width="28" Height="28" Margin="0,0,4,0"
+                                            CommandParameter="{Binding}" Click="OpenFolder_Click" ToolTip="Открыть папку программы"
+                                            IsEnabled="{Binding InstallLocationExists}"/>
+                                    
+                                    <!-- Меню дополнительных действий -->
+                                    <Button Content="•••" Style="{StaticResource GlassButton}" Width="28" Height="28"
+                                            CommandParameter="{Binding}" Click="MoreActionsBtn_Click" ToolTip="Дополнительные действия">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="🗑 Стандартное удаление" Click="ContextUninstall_Click"/>
+                                                <MenuItem Header="⚡ Тихое удаление" Click="ContextQuietUninstall_Click"/>
+                                                <MenuItem Header="💥 Принудительное удаление (Force)" Click="ContextForceUninstall_Click"/>
+                                                <Separator/>
+                                                <MenuItem Header="🧹 Найти и очистить остатки" Click="ContextScanResiduals_Click"/>
+                                                <MenuItem Header="📁 Открыть папку программы" Click="ContextOpenFolder_Click"/>
+                                                <MenuItem Header="🗝 Показать в реестре (Regedit)" Click="ContextOpenRegistry_Click"/>
+                                                <MenuItem Header="🌐 Найти информацию в Интернете" Click="ContextSearchOnline_Click"/>
+                                                <Separator/>
+                                                <MenuItem Header="📋 Скопировать сведения" Click="ContextCopyInfo_Click"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </Border>
+
+        <!-- 3. ДИАЛОГ ОЧИСТКИ ОСТАТКОВ (DRAWER OVERLAY) -->
+        <Border x:Name="ResidualsOverlay" Grid.Row="0" Grid.RowSpan="4" Background="#CC0A0E17" Visibility="Collapsed">
+            <Border Style="{StaticResource GlassSectionCard}" Width="620" MaxHeight="520" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="20">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                        <TextBlock Text="🧹 Очистка остаточных файлов и реестра" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock x:Name="ResidualsSubtitle" Text="Найдены остатки программы на накопителе и в реестре." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}" CornerRadius="8" Padding="8" Margin="0,0,0,16">
+                        <ListView x:Name="ResidualsList" Background="Transparent" BorderThickness="0">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,3">
+                                        <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <TextBlock Text="{Binding SizeFormatted}" DockPanel.Dock="Right" FontSize="11" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding PathOrKey}" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Border>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Style="{StaticResource GlassButton}" Content="Отмена" Padding="14,6" Margin="0,0,8,0" Click="CloseResiduals_Click"/>
+                        <Button Style="{StaticResource GlassDangerButton}" Content="🗑 Очистить выбранные остатки" Padding="16,6" Click="CleanResidualsConfirm_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </Border>
     </Grid>
 </UserControl>

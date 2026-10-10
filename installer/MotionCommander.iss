@@ -1,6 +1,9 @@
 #define MyAppName "Motion Commander"
 #ifndef MyAppVersion
-#define MyAppVersion "3.8.37"
+#define MyAppVersion "3.8.38"
+#endif
+#ifndef MySourceDir
+#define MySourceDir "..\dist\publish"
 #endif
 #define MyAppPublisher "BlackTecCom - Jaborov Daler"
 #define MyAppURL "https://github.com/BlackTecCom2000/MotionCommander"
@@ -85,7 +88,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "addtopath"; Description: "Добавить Motion Commander в PATH (команда 'motion' в терминале)"; GroupDescription: "Системные настройки:"
 
 [Files]
-Source: "..\dist\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#MySourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; Группа в меню «Пуск» создаётся ВСЕГДА. Раньше стояло AllowNoIcons=yes,

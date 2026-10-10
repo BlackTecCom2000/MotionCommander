@@ -1,16 +1,19 @@
 ﻿{
-    "version":  "3.8.37",
+    "version":  "3.8.38",
     "releaseDate":  "2026-10-11",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Добавлены стандартные кнопки управления окном (Свернуть, Развернуть, Закрыть) во всех окнах и служебных диалогах"
+                      "Комплексная доработка Менеджера установленных программ: извлечение нативных иконок, подсчет реального размера папок на диске, фильтры категорий, сортировка, тихое удаление и сканер остатков",
+                      "Пакетное удаление программ с поддержкой множественного выбора",
+                      "Быстрые действия: открытие каталога программы, переход к разделу в Regedit, поиск в сети и копирование информации",
+                      "Автообновление теперь приоритетно загружает легковесные дельта-патчи (3.4 МБ вместо 40 МБ всего проекта)",
+                      "Добавлены кнопки заголовка (Свернуть, Закрыть) в окно процесса обновления"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Patch.zip",
-    "patchSizeMb":  3.28,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.37-Setup.exe"
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.38-Patch.zip",
+    "patchSizeMb":  37.97,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.38-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.38-Portable.zip"
 }
