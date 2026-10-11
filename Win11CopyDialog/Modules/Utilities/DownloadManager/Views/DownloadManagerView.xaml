@@ -34,10 +34,10 @@
                          VerticalContentAlignment="Center"
                          Margin="0,0,10,0" ToolTip="Введите адрес http:// или https://"/>
 
-                <Button Grid.Column="1" Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{StaticResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
-                <Button Grid.Column="2" Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{StaticResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
-                <Button Grid.Column="3" Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{StaticResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
-                <Button Grid.Column="4" Content="🗑 Удалить" Command="{Binding DeleteDownloadCommand}" Style="{StaticResource CyberDangerButton}" Width="100" Height="35"/>
+                <Button Grid.Column="1" Content="➕ Добавить" Command="{Binding AddDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="2" Content="⏸ Пауза" Command="{Binding PauseDownloadCommand}" Style="{DynamicResource CyberButton}" Width="100" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="3" Content="▶ Продолжить" Command="{Binding ResumeDownloadCommand}" Style="{DynamicResource CyberButton}" Width="120" Height="35" Margin="0,0,10,0"/>
+                <Button Grid.Column="4" Content="🗑 Удалить" Command="{Binding DeleteDownloadCommand}" Style="{DynamicResource CyberDangerButton}" Width="100" Height="35"/>
             </Grid>
         </Border>
 

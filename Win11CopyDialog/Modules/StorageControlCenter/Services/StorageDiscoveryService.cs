@@ -422,7 +422,7 @@ public static class StorageDiscoveryService
         return disks;
     }
 
-    private static List<StorageDisk> QueryWmiFallback()
+    private static List<StorageDisk> QueryWmiFallback(string? failureReason = null)
     {
         var disks = new List<StorageDisk>();
         try
@@ -440,13 +440,12 @@ public static class StorageDiscoveryService
                     long size = Convert.ToInt64(obj["Size"] ?? 0);
                     string ifType = obj["InterfaceType"]?.ToString() ?? "";
 
-                    // Раньше SerialNumber не заполнялся вовсе и оставался пустым.
+                    // SerialNumber из Win32_DiskDrive
                     string serial = obj["SerialNumber"]?.ToString()?.Trim() ?? "";
                     if (serial.StartsWith("FALLBACK-", StringComparison.OrdinalIgnoreCase))
                         serial = "";
 
-                    // Win32_DiskDrive.Status — реальное состояние диска.
-                    // Раньше поле выбиралось, но не читалось.
+                    // Win32_DiskDrive.Status — реальное состояние диска ("OK", "Degraded" и т.д.)
                     string status = obj["Status"]?.ToString()?.Trim() ?? "";
 
                     var disk = new StorageDisk
@@ -458,71 +457,100 @@ public static class StorageDiscoveryService
                         AllocatedSizeBytes = size,
                         HealthStatus = string.IsNullOrEmpty(status) ? "" : status,
                         OperationalStatus = "",
-
-                        // Раньше здесь стояло:
-                        //   BusType = ifType.Contains("SCSI") ? NVMe : SATA
-                        // то есть ЛЮБОЙ диск с InterfaceType="SCSI" (а это почти
-                        // все NVMe через SCSI miniport, но также RAID и USB-хабы)
-                        // помечался как NVMe, а всё остальное — как SATA.
-                        // Теперь по умолчанию шина неизвестна и уточняется ниже.
                         BusType = StoragePhysicalBus.Unknown,
                         MediaType = StoragePhysicalMedia.Unknown,
-
-                        // Этот путь — запасной, когда WMI-хранилище накопителей
-                        // недоступно. Признак честности: данные минимальны.
-                        TelemetryNote = "WMI-хранилище накопителей недоступно, показано базовое описание из Win32_DiskDrive."
+                        TelemetryNote = string.IsNullOrEmpty(failureReason)
+                            ? "Данные получены через базовый интерфейс Win32_DiskDrive."
+                            : $"WMI Storage namespace недоступен ({failureReason}), показано описание из Win32_DiskDrive."
                     };
 
-                    // Win32_DiskDrive.MediaType: 3 = Fixed hard disk media.
-                    int mediaType = 0;
-                    try { mediaType = Convert.ToInt32(obj["MediaType"] ?? 0); } catch { }
-
+                    string mediaTypeStr = obj["MediaType"]?.ToString()?.Trim() ?? "";
                     string modelUpper = model.ToUpperInvariant();
                     string pnp = obj["PNPDeviceID"]?.ToString()?.ToUpperInvariant() ?? "";
 
-                    if (pnp.StartsWith(@"\\HOSTSTORAGEPORT") || ifType.Equals("SCSI", StringComparison.OrdinalIgnoreCase)
-                        && modelUpper.Contains("NVME"))
+                    if (pnp.Contains("NVME") || modelUpper.Contains("NVME"))
                     {
                         disk.BusType = StoragePhysicalBus.NVMe;
                         disk.MediaType = StoragePhysicalMedia.NVMeSSD;
                     }
-                    else if (pnp.StartsWith(@"\\USBSTOR") || ifType.Equals("USB", StringComparison.OrdinalIgnoreCase))
+                    else if (pnp.Contains("USB") || ifType.Equals("USB", StringComparison.OrdinalIgnoreCase))
                     {
                         disk.BusType = StoragePhysicalBus.USB;
                         disk.MediaType = StoragePhysicalMedia.USBFlash;
                     }
-                    else if (modelUpper.Contains("NVME"))
-                    {
-                        disk.BusType = StoragePhysicalBus.NVMe;
-                        disk.MediaType = StoragePhysicalMedia.NVMeSSD;
-                    }
-                    else if (modelUpper.Contains("SSD") || mediaType == 4)
+                    else if (modelUpper.Contains("SSD") || mediaTypeStr.Contains("SSD", StringComparison.OrdinalIgnoreCase))
                     {
                         disk.BusType = StoragePhysicalBus.SATA;
                         disk.MediaType = StoragePhysicalMedia.SataSSD;
                     }
-                    else if (mediaType == 3)
+                    else if (mediaTypeStr.Contains("FIXED", StringComparison.OrdinalIgnoreCase) ||
+                             ifType.Equals("IDE", StringComparison.OrdinalIgnoreCase) ||
+                             ifType.Equals("SCSI", StringComparison.OrdinalIgnoreCase))
                     {
                         disk.BusType = StoragePhysicalBus.SATA;
                         disk.MediaType = StoragePhysicalMedia.HDD;
                     }
-                    // иначе остаётся Unknown — лучше «неизвестно», чем выдумка
 
                     disks.Add(disk);
                 }
             }
         }
-        catch { }
-
-        // Добавляем DriveInfo в первый найденный диск
-        if (disks.Count > 0)
+        catch (Exception ex)
         {
-            foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady))
+            System.Diagnostics.Debug.WriteLine($"[StorageDiscovery] Win32_DiskDrive query failed: {ex.Message}");
+        }
+
+        // Сопоставляем реальные логические тома Windows с физическими дисками
+        MapDriveInfoVolumesToDisks(disks);
+
+        return disks;
+    }
+
+    /// <summary>
+    /// Сопоставляет логические тома DriveInfo с конкретными физическими дисками через IOCTL extents.
+    /// Предотвращает сваливание всех разделов в disks[0].
+    /// </summary>
+    private static void MapDriveInfoVolumesToDisks(List<StorageDisk> disks)
+    {
+        if (disks.Count == 0) return;
+
+        DriveInfo[] readyDrives;
+        try
+        {
+            readyDrives = DriveInfo.GetDrives().Where(d => d.IsReady).ToArray();
+        }
+        catch
+        {
+            return;
+        }
+
+        foreach (var d in readyDrives)
+        {
+            string letter = NormalizeDriveLetter(d.Name);
+            if (string.IsNullOrEmpty(letter)) continue;
+
+            // Определяем физический диск, которому принадлежит этот том
+            int physicalDisk = GetPhysicalDiskNumberForVolume(letter);
+
+            StorageDisk? targetDisk = null;
+            if (physicalDisk >= 0)
             {
-                disks[0].Partitions.Add(new StoragePartition
+                targetDisk = disks.FirstOrDefault(x => x.DiskNumber == physicalDisk);
+            }
+
+            // Если IOCTL не определил номер диска, пробуем сопоставить по единственному диску
+            if (targetDisk == null && disks.Count == 1)
+            {
+                targetDisk = disks[0];
+            }
+
+            if (targetDisk != null)
+            {
+                targetDisk.Partitions.Add(new StoragePartition
                 {
-                    DiskNumber = disks[0].DiskNumber,
-                    DriveLetter = NormalizeDriveLetter(d.Name),
+                    DiskNumber = targetDisk.DiskNumber,
+                    PartitionNumber = targetDisk.Partitions.Count + 1,
+                    DriveLetter = letter,
                     VolumeLabel = d.VolumeLabel,
                     FileSystem = d.DriveFormat,
                     SizeBytes = d.TotalSize,
@@ -530,7 +558,77 @@ public static class StorageDiscoveryService
                 });
             }
         }
+    }
 
-        return disks;
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern IntPtr CreateFileW(
+        string lpFileName, uint dwDesiredAccess, uint dwShareMode,
+        IntPtr lpSecurityAttributes, uint dwCreationDisposition,
+        uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool DeviceIoControl(
+        IntPtr hDevice, uint dwIoControlCode,
+        IntPtr lpInBuffer, uint nInBufferSize,
+        IntPtr lpOutBuffer, uint nOutBufferSize,
+        out uint lpBytesReturned, IntPtr lpOverlapped);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    private const uint IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS = 0x00560000;
+
+    /// <summary>
+    /// Возвращает номер физического диска для буквы тома без прав администратора.
+    /// </summary>
+    public static int GetPhysicalDiskNumberForVolume(string driveLetter)
+    {
+        string letter = NormalizeDriveLetter(driveLetter);
+        if (string.IsNullOrEmpty(letter)) return -1;
+
+        string volPath = $@"\\.\{letter}:";
+        // dwDesiredAccess = 0 (FILE_ANY_ACCESS) не требует прав администратора
+        IntPtr h = CreateFileW(volPath, 0, 1 | 2 /*FILE_SHARE_READ|WRITE*/, IntPtr.Zero, 3 /*OPEN_EXISTING*/, 0, IntPtr.Zero);
+        if (h == IntPtr.Zero || h == new IntPtr(-1))
+            return -1;
+
+        try
+        {
+            int bufSize = 128;
+            IntPtr bufPtr = System.Runtime.InteropServices.Marshal.AllocHGlobal(bufSize);
+            try
+            {
+                if (DeviceIoControl(h, IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, IntPtr.Zero, 0, bufPtr, (uint)bufSize, out uint ret, IntPtr.Zero) && ret >= 12)
+                {
+                    uint numExtents = (uint)System.Runtime.InteropServices.Marshal.ReadInt32(bufPtr, 0);
+                    if (numExtents > 0)
+                    {
+                        // На 64-битных системах Extents[0].DiskNumber находится со смещением 8
+                        int diskNum = System.Runtime.InteropServices.Marshal.ReadInt32(bufPtr, 8);
+                        if (diskNum is >= 0 and < 64)
+                            return diskNum;
+
+                        // Запасное смещение 4 (на случай упаковки без 8-байтового выравнивания)
+                        int altDiskNum = System.Runtime.InteropServices.Marshal.ReadInt32(bufPtr, 4);
+                        if (altDiskNum is >= 0 and < 64)
+                            return altDiskNum;
+                    }
+                }
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.FreeHGlobal(bufPtr);
+            }
+        }
+        catch
+        {
+            // fallback
+        }
+        finally
+        {
+            CloseHandle(h);
+        }
+
+        return -1;
     }
 }

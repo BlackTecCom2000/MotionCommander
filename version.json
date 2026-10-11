@@ -1,16 +1,18 @@
 ﻿{
-    "version":  "3.8.43",
+    "version":  "3.8.44",
     "releaseDate":  "2026-10-11",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Улучшен менеджер загрузок: надёжная обработка многопоточной загрузки (Range) и серверов без поддержки диапазонов (в единый поток)"
+                      "Диагностика: единое рабочее пространство со сводкой состояния системы, статусом Bottleneck, компактной навигацией и меню «Ещё ▾» для узких окон"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.43-Patch.zip",
-    "patchSizeMb":  3.39,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.43-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.43-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.43-Setup.exe"
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.44-Patch.zip",
+    "patchSizeMb":  3.43,
+    "patchMinVersion":  "3.8.0",
+    "fullSizeMb":  38.09,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.44-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.44-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.44-Setup.exe"
 }

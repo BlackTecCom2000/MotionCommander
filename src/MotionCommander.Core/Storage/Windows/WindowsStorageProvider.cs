@@ -143,7 +143,7 @@ public sealed class WindowsStorageProvider : IStorageProvider
             try
             {
                 using var searcher = new System.Management.ManagementObjectSearcher(
-                    "SELECT Index, Model, SerialNumber, InterfaceType, Size, MediaType, Status FROM Win32_DiskDrive");
+                    "SELECT Index, Model, SerialNumber, InterfaceType, Size, MediaType, Status, PNPDeviceID FROM Win32_DiskDrive");
                 using var results = searcher.Get();
 
                 foreach (System.Management.ManagementObject obj in results)
@@ -152,26 +152,48 @@ public sealed class WindowsStorageProvider : IStorageProvider
                     {
                         int index = Convert.ToInt32(obj["Index"] ?? 0);
                         string ifType = obj["InterfaceType"]?.ToString() ?? "";
-                        int mediaType = Convert.ToInt32(obj["MediaType"] ?? 0);
+                        string mediaTypeStr = obj["MediaType"]?.ToString() ?? "";
                         string status = obj["Status"]?.ToString()?.Trim() ?? "";
+                        string model = obj["Model"]?.ToString() ?? $"Диск {index}";
+                        string pnpId = obj["PNPDeviceID"]?.ToString() ?? "";
 
                         DiskBusType bus = ifType.Equals("USB", StringComparison.OrdinalIgnoreCase)
                             ? DiskBusType.USB
                             : DiskBusType.Unknown;
+
+                        DiskMediaType media = DiskMediaType.Unknown;
+
+                        if (pnpId.IndexOf("NVME", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            model.IndexOf("NVME", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            bus = DiskBusType.NVMe;
+                            media = DiskMediaType.SSD;
+                        }
+                        else if (ifType.IndexOf("SCSI", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                 ifType.IndexOf("IDE", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                 ifType.IndexOf("SATA", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            if (bus == DiskBusType.Unknown) bus = DiskBusType.SATA;
+                        }
+
+                        if (media == DiskMediaType.Unknown)
+                        {
+                            if (bus == DiskBusType.USB || mediaTypeStr.IndexOf("Removable", StringComparison.OrdinalIgnoreCase) >= 0)
+                                media = DiskMediaType.FlashMemory;
+                            else if (mediaTypeStr.IndexOf("Fixed", StringComparison.OrdinalIgnoreCase) >= 0)
+                                media = DiskMediaType.HDD;
+                        }
 
                         result.Add(new StorageDiskInfo
                         {
                             Index = index,
                             DeviceId = index.ToString(),
                             DevicePath = $@"\\.\PHYSICALDRIVE{index}",
-                            Model = obj["Model"]?.ToString() ?? $"Диск {index}",
+                            Model = model,
                             SerialNumber = (obj["SerialNumber"]?.ToString() ?? "").Trim(),
                             SizeBytes = Convert.ToInt64(obj["Size"] ?? 0),
                             BusType = bus,
-                            MediaType = mediaType == 3
-                                ? DiskMediaType.HDD
-                                : bus == DiskBusType.USB ? DiskMediaType.FlashMemory
-                                : DiskMediaType.Unknown,
+                            MediaType = media,
                             // Win32_DiskDrive.Status — реальная строка состояния.
                             HealthMeasured = status.Length > 0,
                             HealthPercent = status.ToLowerInvariant() switch
@@ -187,7 +209,10 @@ public sealed class WindowsStorageProvider : IStorageProvider
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WindowsStorageProvider] Win32_DiskDrive fallback failed: {ex.Message}");
+            }
         }
 
         // ── 3. Дополняем реальными разделами и свободным местом ─────────

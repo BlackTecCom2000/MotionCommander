@@ -82,11 +82,29 @@ internal static class ReleaseManifest
 
     private static async Task<string> FetchManifestAsync(CancellationToken ct)
     {
+        // 1. Локальная проверка (для оффлайн-режима, тестирования и портативных сборок с манифестом рядом)
+        try
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string localChecksums = Path.Combine(baseDir, ManifestName);
+            if (!File.Exists(localChecksums))
+            {
+                localChecksums = Path.Combine(baseDir, "dist", ManifestName);
+            }
+            if (File.Exists(localChecksums))
+            {
+                return await File.ReadAllTextAsync(localChecksums, ct);
+            }
+        }
+        catch { }
+
+        // 2. Сетевой запрос с cache-bypass для предотвращения устаревания CDN-кэша после релиза
         foreach (string baseUrl in ManifestBaseUrls())
         {
             try
             {
-                using var response = await Client.GetAsync(baseUrl + ManifestName, ct);
+                string url = $"{baseUrl}{ManifestName}?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                using var response = await Client.GetAsync(url, ct);
                 if (!response.IsSuccessStatusCode) continue;
 
                 return await response.Content.ReadAsStringAsync(ct);

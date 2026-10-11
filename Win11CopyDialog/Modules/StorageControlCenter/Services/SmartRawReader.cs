@@ -176,6 +176,9 @@ public static class SmartRawReader
         /// <summary>Настоящий ли это S.M.A.R.T. (а не нули от заглушки контроллера).</summary>
         public bool IsPlausible { get; set; }
 
+        /// <summary>Являются ли прочитанные данные блоком NVMe Health Log (иначе ATA SMART).</summary>
+        public bool IsNvme { get; set; }
+
         public string ModelFromIdentify { get; set; } = "";
         public string SerialFromIdentify { get; set; } = "";
         public string FirmwareFromIdentify { get; set; } = "";
@@ -189,6 +192,8 @@ public static class SmartRawReader
     {
         public string Reason { get; init; } = "";
         public bool NeedsAdministrator { get; init; }
+        public int Win32ErrorCode { get; init; }
+        public string MethodAttempted { get; init; } = "";
     }
 
     // ===================== Чтение =====================
@@ -198,7 +203,7 @@ public static class SmartRawReader
     /// это отдельный случай, который вызывающий код обязан отличать от
     /// «диск не поддерживает S.M.A.R.T.».
     /// </summary>
-    private static DiskHandle? OpenDrive(int diskNumber, out SmartUnavailable? failure)
+    private static DiskHandle? OpenDrive(int diskNumber, out SmartUnavailable? failure, bool writeAccess = true)
     {
         failure = null;
         string path = $@"\\.\PhysicalDrive{diskNumber}";
@@ -208,7 +213,8 @@ public static class SmartRawReader
         const uint FILE_SHARE_READ = 1, FILE_SHARE_WRITE = 2;
         const uint OPEN_EXISTING = 3;
 
-        var handle = CreateFileW(path, GENERIC_READ | GENERIC_WRITE,
+        uint desiredAccess = writeAccess ? (GENERIC_READ | GENERIC_WRITE) : 0;
+        var handle = CreateFileW(path, desiredAccess,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
 
@@ -217,12 +223,26 @@ public static class SmartRawReader
             return new DiskHandle(handle);
 
         int err = Marshal.GetLastWin32Error();
+
+        // Если запрошен полный доступ и получен отказ, пробуем режим запроса свойств (access 0)
+        if (writeAccess)
+        {
+            handle = CreateFileW(path, 0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+            if (handle != IntPtr.Zero && handle != new IntPtr(-1))
+                return new DiskHandle(handle);
+            err = Marshal.GetLastWin32Error();
+        }
+
         if (err == 5) // ERROR_ACCESS_DENIED
         {
             failure = new SmartUnavailable
             {
-                Reason = "Диск доступен только с правами администратора.",
-                NeedsAdministrator = true
+                Reason = $"Накопитель #{diskNumber} доступен только с правами администратора (Win32 код 5: Access Denied).",
+                NeedsAdministrator = true,
+                Win32ErrorCode = 5,
+                MethodAttempted = "CreateFileW(PhysicalDrive)"
             };
             return null;
         }
@@ -230,8 +250,10 @@ public static class SmartRawReader
         failure = new SmartUnavailable
         {
             Reason = err == 2
-                ? "Устройство не найдено."
-                : $"Не удалось открыть накопитель (код {err})."
+                ? $"Устройство PhysicalDrive{diskNumber} не найдено."
+                : $"Не удалось открыть накопитель PhysicalDrive{diskNumber} (код ошибки Windows {err}).",
+            Win32ErrorCode = err,
+            MethodAttempted = "CreateFileW(PhysicalDrive)"
         };
         return null;
     }
@@ -435,14 +457,206 @@ public static class SmartRawReader
         };
     }
 
+    // ===================== NVMe: чтение через IOCTL_STORAGE_QUERY_PROPERTY =====================
+
+    private const uint IOCTL_STORAGE_QUERY_PROPERTY = 0x002D1400;
+    private const uint StorageAdapterProtocolSpecificProperty = 49;
+    private const uint StorageDeviceProtocolSpecificProperty = 50;
+    private const uint PropertyStandardQuery = 0;
+    private const uint ProtocolTypeNvme = 2;
+    private const uint NVMeDataTypeLogPage = 2;
+    private const uint NVME_LOG_PAGE_HEALTH_INFO = 0x02;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct StorageProtocolSpecificQuery
+    {
+        public uint PropertyId;
+        public uint QueryType;
+        public uint ProtocolType;
+        public uint DataType;
+        public uint ProtocolDataRequestValue;
+        public uint ProtocolDataRequestSubValue;
+        public uint ProtocolDataOffset;
+        public uint ProtocolDataLength;
+        public uint FixedProtocolReturnData;
+        public uint FixedProtocolReturnDataSubValue;
+        public uint AdditionalDataLength;
+        public uint Reserved;
+    }
+
+    /// <summary>
+    /// Читает NVMe S.M.A.R.T./Health Information Log (512 байт).
+    /// </summary>
+    public static RawSmartData? ReadNvmeSmart(int diskNumber, out SmartUnavailable? failure)
+    {
+        failure = null;
+        var handle = OpenDrive(diskNumber, out failure, writeAccess: false);
+        if (handle == null) return null;
+
+        try
+        {
+            // Пробуем DeviceProtocolSpecific (50), затем AdapterProtocolSpecific (49)
+            uint[] propertyIds = { StorageDeviceProtocolSpecificProperty, StorageAdapterProtocolSpecificProperty };
+            int lastErr = 0;
+
+            foreach (uint propId in propertyIds)
+            {
+                var data = QueryNvmeHealthLog(handle.HandleValue, propId, out lastErr);
+                if (data != null && HasPlausibleNvmeData(data))
+                {
+                    return new RawSmartData
+                    {
+                        Data512 = data,
+                        IsNvme = true,
+                        OverallPass = (data[0] & 0x05) == 0, // CriticalWarning bits 0 (spare) & 2 (reliability)
+                        IsPlausible = true
+                    };
+                }
+            }
+
+            failure = new SmartUnavailable
+            {
+                Reason = $"NVMe Health Log накопителя #{diskNumber} не ответил на стандартные запросы IOCTL (Win32 код {lastErr}).",
+                Win32ErrorCode = lastErr,
+                MethodAttempted = "IOCTL_STORAGE_QUERY_PROPERTY(NVMe)"
+            };
+            return null;
+        }
+        catch (Exception ex)
+        {
+            failure = new SmartUnavailable
+            {
+                Reason = $"Сбой при чтении NVMe S.M.A.R.T. накопителя #{diskNumber}: {ex.Message}",
+                MethodAttempted = "ReadNvmeSmart"
+            };
+            return null;
+        }
+        finally
+        {
+            handle.Dispose();
+        }
+    }
+
+    private static byte[]? QueryNvmeHealthLog(IntPtr hDevice, uint propertyId, out int win32Error)
+    {
+        win32Error = 0;
+        int inSize = Marshal.SizeOf<StorageProtocolSpecificQuery>();
+        var query = new StorageProtocolSpecificQuery
+        {
+            PropertyId = propertyId,
+            QueryType = PropertyStandardQuery,
+            ProtocolType = ProtocolTypeNvme,
+            DataType = NVMeDataTypeLogPage,
+            ProtocolDataRequestValue = NVME_LOG_PAGE_HEALTH_INFO,
+            ProtocolDataRequestSubValue = 0,
+            ProtocolDataOffset = 40,
+            ProtocolDataLength = 512,
+            FixedProtocolReturnData = 0,
+            FixedProtocolReturnDataSubValue = 0,
+            AdditionalDataLength = 0,
+            Reserved = 0
+        };
+
+        int outSize = 4096;
+        IntPtr inPtr = Marshal.AllocHGlobal(inSize);
+        IntPtr outPtr = Marshal.AllocHGlobal(outSize);
+        try
+        {
+            Marshal.StructureToPtr(query, inPtr, false);
+            ZeroBuffer(outPtr, outSize);
+
+            bool ok = DeviceIoControl(hDevice, IOCTL_STORAGE_QUERY_PROPERTY,
+                inPtr, (uint)inSize, outPtr, (uint)outSize, out uint bytesReturned, IntPtr.Zero);
+
+            if (!ok || bytesReturned < 48)
+            {
+                win32Error = Marshal.GetLastWin32Error();
+                return null;
+            }
+
+            // Читаем смещение полезных данных из дескриптора
+            uint protocolDataOffset = (uint)Marshal.ReadInt32(outPtr, 24);
+            int dataStart = (int)protocolDataOffset;
+            if (dataStart < 40 || dataStart + 512 > bytesReturned)
+            {
+                dataStart = 48; // Размер стандартного заголовка
+            }
+
+            if (dataStart + 512 <= bytesReturned)
+            {
+                byte[] data = new byte[512];
+                Marshal.Copy(outPtr + dataStart, data, 0, 512);
+                return data;
+            }
+
+            return null;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(inPtr);
+            Marshal.FreeHGlobal(outPtr);
+        }
+    }
+
+    public static bool HasPlausibleNvmeData(byte[] log)
+    {
+        if (log == null || log.Length < 512) return false;
+
+        ushort kelvin = (ushort)(log[1] | (log[2] << 8));
+        double tempC = kelvin > 0 ? (kelvin - 273.15) : 0;
+        bool plausibleTemp = tempC is >= 5 and <= 120;
+
+        byte spare = log[3];
+        byte wear = log[5];
+
+        bool hasNonZero = false;
+        for (int i = 0; i < 64; i++)
+        {
+            if (log[i] != 0) { hasNonZero = true; break; }
+        }
+
+        return hasNonZero && (plausibleTemp || (spare <= 100 && wear <= 200));
+    }
+
     // ===================== Публичный вход =====================
 
     /// <summary>
-    /// Читает S.M.A.R.T. с указанного накопителя.
+    /// Читает S.M.A.R.T. с указанного накопителя (NVMe либо ATA).
     /// Возвращает null, если данных нет, и заполняет failure причиной.
     /// </summary>
     public static RawSmartData? Read(int diskNumber, out SmartUnavailable? failure)
-        => ReadAtaSmart(diskNumber, out failure);
+    {
+        failure = null;
+
+        // 1. Сначала пробуем протокол NVMe (быстро и нативно для SSD PCIe)
+        var nvme = ReadNvmeSmart(diskNumber, out var nvmeFail);
+        if (nvme != null && nvme.IsPlausible)
+            return nvme;
+
+        // 2. Если не NVMe — пробуем ATA S.M.A.R.T. команду
+        var ata = ReadAtaSmart(diskNumber, out var ataFail);
+        if (ata != null && ata.IsPlausible)
+            return ata;
+
+        // 3. Если отказ в правах администратора — фиксируем его явно
+        if (nvmeFail?.NeedsAdministrator == true || ataFail?.NeedsAdministrator == true)
+        {
+            failure = new SmartUnavailable
+            {
+                Reason = $"Накопитель #{diskNumber} требует прав администратора для прямого чтения S.M.A.R.T.",
+                NeedsAdministrator = true,
+                Win32ErrorCode = 5,
+                MethodAttempted = "DirectIOCTL(NVMe/ATA)"
+            };
+            return null;
+        }
+
+        failure = ataFail ?? nvmeFail ?? new SmartUnavailable
+        {
+            Reason = $"Накопитель #{diskNumber} не предоставил данные S.M.A.R.T. (не поддерживается контроллером или виртуальный диск)."
+        };
+        return null;
+    }
 }
 
 /// <summary>

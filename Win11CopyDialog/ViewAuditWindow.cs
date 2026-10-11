@@ -164,6 +164,19 @@ public sealed class ViewAuditWindow : Window
             Audit(outp, listener, "AdvancedToolsWindow", () => new Views.Dialogs.AdvancedToolsWindow(@"C:\Windows\System32\notepad.exe"));
             Audit(outp, listener, "CyberFolderPickerDialog", () => new Views.Dialogs.CyberFolderPickerDialog(
                 "test", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), 1000L));
+            Audit(outp, listener, "OperationsQueueDialog", () => new Modules.OperationsQueue.Views.OperationsQueueDialog());
+            Audit(outp, listener, "GlobalSearchDialog", () => new Modules.Navigation.Views.GlobalSearchDialog());
+            Audit(outp, listener, "ImpactPreviewDialog", () => new Modules.SafetyEngine.Views.ImpactPreviewDialog(new Modules.SafetyEngine.Services.ImpactAssessment
+            {
+                Title = "Тестовая операция",
+                TargetSummary = @"C:\test",
+                RiskLevel = "Безопасно",
+                RiskBadgeColorHex = "#10B981",
+                ReversibilityExplanation = "Действие обратимо",
+                IsReversible = true,
+                ImpactDetails = new List<string> { "Файл 1" },
+                EmergencyPlan = "Резервная копия не требуется"
+            }));
 
             // Экраны-модули (UserControl)
             Audit(outp, listener, "DownloadManagerView", () => new Modules.Utilities.DownloadManager.Views.DownloadManagerView());

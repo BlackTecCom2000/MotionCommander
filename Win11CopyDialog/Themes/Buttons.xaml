@@ -555,6 +555,71 @@
         </Setter>
     </Style>
 
+    <!-- ================================================================= -->
+    <!--       5.1 HEADER ACTION BUTTON (TITLEBAR & TOOLBAR ACTIONS)       -->
+    <!-- ================================================================= -->
+
+    <Style x:Key="HeaderActionButton" TargetType="Button">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="MinWidth" Value="28"/>
+        <Setter Property="Padding" Value="7,3"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontFamily" Value="{DynamicResource FontFamilySystem}"/>
+        <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+        <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+        <Setter Property="RenderTransform">
+            <Setter.Value>
+                <ScaleTransform ScaleX="1" ScaleY="1"/>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid WindowChrome.IsHitTestVisibleInChrome="True" SnapsToDevicePixels="True">
+                        <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                SnapsToDevicePixels="True"
+                                WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Border x:Name="InnerBevel" Margin="1" CornerRadius="5" BorderThickness="0,1,0,0"
+                                BorderBrush="{StaticResource GlassSpecularHighlight}" Opacity="0"
+                                IsHitTestVisible="False" WindowChrome.IsHitTestVisibleInChrome="False"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"
+                                          WindowChrome.IsHitTestVisibleInChrome="True"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource LiquidGlassSurfaceFloating}"/>
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource LiquidGlassBorder}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.8"/>
+                            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource LiquidGlassActiveHighlight}"/>
+                            <Setter TargetName="InnerBevel" Property="Opacity" Value="0.2"/>
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.96" ScaleY="0.96"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                            <Setter Property="Cursor" Value="Arrow"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Стиль функциональных клавиш Commander (F3-F8) -->
     <Style x:Key="CommanderFnButton" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>

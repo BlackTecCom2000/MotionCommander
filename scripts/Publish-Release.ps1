@@ -127,6 +127,16 @@ Get-ChildItem -Path $publishDir -Recurse -File | ForEach-Object {
     Copy-Item $_.FullName -Destination $target -Force
 }
 
+# Добавляем манифест патча с требованиями к совместимости
+$patchManifest = [ordered]@{
+    targetVersion = $cleanVer
+    minCompatibleVersion = "3.8.0"
+    createdAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
+    packageType = "incremental_patch"
+}
+$patchManifestJson = $patchManifest | ConvertTo-Json -Depth 3
+[System.IO.File]::WriteAllText("$patchStagingDir\patch_manifest.json", $patchManifestJson, [System.Text.Encoding]::UTF8)
+
 $patchFile = "$distDir\MotionCommander-v$cleanVer-Patch.zip"
 $latestPatch = "$distDir\MotionCommander-Latest-Patch.zip"
 if (Test-Path $patchFile) { Remove-Item $patchFile -Force }
@@ -194,6 +204,8 @@ $versionManifest = [ordered]@{
     changelog = $Notes
     patchUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Patch.zip"
     patchSizeMb = $patchMb
+    patchMinVersion = "3.8.0"
+    fullSizeMb = $zipMb
     downloadUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
     installerUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v$cleanVer-Portable.zip"
 }

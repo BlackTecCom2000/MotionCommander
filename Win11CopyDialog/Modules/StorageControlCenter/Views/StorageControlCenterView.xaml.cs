@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -680,10 +681,9 @@ public partial class StorageControlCenterView : UserControl
                 if (disk.SmartNeedsAdministrator)
                 {
                     SmartEmptyText.Text =
-                        "Не удалось прочитать S.M.A.R.T.: нужны права администратора.\n\n" +
-                        "S.M.A.R.T. читается напрямую с накопителя командой ATA, а Windows " +
-                        "запрещает открывать накопитель обычному пользователю.\n\n" +
-                        "Запустите Motion Commander от имени администратора — данные появятся.";
+                        "Для прямого чтения S.M.A.R.T. с физического контроллера требуются права администратора.\n\n" +
+                        "S.M.A.R.T. опрашивается напрямую через низкоуровневые команды ATA/NVMe, доступ к которым Windows ограничивает для непривилегированных процессов.\n\n" +
+                        "Нажмите «🛡 Запросить данные S.M.A.R.T. (UAC)» ниже для разового опроса без перезапуска всей программы.";
                 }
                 else if (disk.TelemetryNote.Length > 0)
                 {
@@ -698,6 +698,17 @@ public partial class StorageControlCenterView : UserControl
             }
 
             if (SmartVerdictBorder != null) SmartVerdictBorder.Visibility = Visibility.Collapsed;
+        }
+
+        if (RequestElevatedSmartBtn != null)
+        {
+            RequestElevatedSmartBtn.Content = SuperAdminPrivilegeHelper.IsAdministrator()
+                ? "🔄 Перечитать S.M.A.R.T."
+                : "🛡 Запросить данные S.M.A.R.T. (UAC)";
+        }
+        if (SmartElevationStatusText != null)
+        {
+            SmartElevationStatusText.Visibility = Visibility.Collapsed;
         }
 
         // Рекомендации Storage AI Advisor
@@ -2109,4 +2120,183 @@ public partial class StorageControlCenterView : UserControl
         }
     }
 
+    private string? _lastAuditReportText;
+
+    private async void RequestElevatedSmartBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (SuperAdminPrivilegeHelper.IsAdministrator())
+        {
+            if (SmartElevationStatusText != null)
+            {
+                SmartElevationStatusText.Visibility = Visibility.Visible;
+                SmartElevationStatusText.Text = "Права администратора уже активны. Опрашиваем накопители напрямую...";
+            }
+            await RefreshDisksAsync();
+            if (SmartElevationStatusText != null)
+            {
+                SmartElevationStatusText.Text = "Данные накопителей обновлены.";
+            }
+            return;
+        }
+
+        var result = MessageBox.Show(
+            "Для прямого чтения регистров S.M.A.R.T. физического контроллера Windows требует кратковременное повышение привилегий (UAC).\n\n" +
+            "Motion Commander выполнит разовый защищённый опрос оборудования без необходимости постоянного запуска всей программы от имени администратора.\n\n" +
+            "Запустить разовый опрос через запрос UAC?",
+            "Запрос доступа к контроллеру S.M.A.R.T.",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            if (SmartElevationStatusText != null)
+            {
+                SmartElevationStatusText.Visibility = Visibility.Visible;
+                SmartElevationStatusText.Text = "Запрос UAC отклонён пользователем. Программа продолжает работу в обычном безопасном режиме.";
+            }
+            return;
+        }
+
+        if (RequestElevatedSmartBtn != null) RequestElevatedSmartBtn.IsEnabled = false;
+        if (SmartElevationStatusText != null)
+        {
+            SmartElevationStatusText.Visibility = Visibility.Visible;
+            SmartElevationStatusText.Text = "Ожидание подтверждения диалога UAC...";
+        }
+
+        try
+        {
+            string diagExe = Path.Combine(AppContext.BaseDirectory, "MotionCommanderDiagnostics.exe");
+            if (!File.Exists(diagExe))
+            {
+                diagExe = Process.GetCurrentProcess().MainModule?.FileName ?? "Win11CopyDialog.exe";
+            }
+
+            string tempReportPath = Path.Combine(Path.GetTempPath(), $"mc-smart-report-{DateTime.Now:yyyyMMddHHmmss}.txt");
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = diagExe,
+                Arguments = $"--smart-elevated \"{tempReportPath}\"",
+                UseShellExecute = true,
+                Verb = "runas"
+            };
+
+            var proc = Process.Start(psi);
+            if (proc != null)
+            {
+                if (SmartElevationStatusText != null)
+                {
+                    SmartElevationStatusText.Text = "Выполняется опрос оборудования с повышенными правами...";
+                }
+                await Task.Run(() => proc.WaitForExit(60000));
+
+                if (File.Exists(tempReportPath))
+                {
+                    _lastAuditReportText = File.ReadAllText(tempReportPath);
+                }
+
+                await RefreshDisksAsync();
+                if (SmartElevationStatusText != null)
+                {
+                    SmartElevationStatusText.Text = "Опрос контроллера успешно завершён. Данные накопителей обновлены.";
+                }
+            }
+        }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            if (SmartElevationStatusText != null)
+            {
+                SmartElevationStatusText.Text = "Запрос UAC отклонён в диалоге Windows. Программа продолжает работу без прямого доступа к регистрам.";
+            }
+        }
+        catch (Exception ex)
+        {
+            if (SmartElevationStatusText != null)
+            {
+                SmartElevationStatusText.Text = $"Ошибка разового опроса: {ex.Message}";
+            }
+        }
+        finally
+        {
+            if (RequestElevatedSmartBtn != null) RequestElevatedSmartBtn.IsEnabled = true;
+        }
+    }
+
+    private void ExportSmartReportBtn_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("=== MOTION COMMANDER: ОТЧЁТ АУДИТА НАКОПИТЕЛЕЙ ===");
+            sb.AppendLine($"Дата формирования : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"ОС                 : {Environment.OSVersion}");
+            sb.AppendLine($"Режим процесса     : {(SuperAdminPrivilegeHelper.IsAdministrator() ? "Администратор (Elevated)" : "Обычный пользователь (asInvoker)")}");
+            sb.AppendLine($"Всего накопителей  : {_disks?.Count ?? 0}");
+            sb.AppendLine(new string('=', 64));
+            sb.AppendLine();
+
+            if (_disks != null)
+            {
+                foreach (var d in _disks)
+                {
+                    sb.AppendLine($"[Накопитель #{d.DiskNumber}] {d.Model}");
+                    sb.AppendLine($"  Серийный номер   : {(string.IsNullOrEmpty(d.SerialNumber) ? "н/д (драйвер не предоставил)" : d.SerialNumber)}");
+                    sb.AppendLine($"  Интерфейс / Тип  : {d.BusTypeString} / {d.MediaTypeString}");
+                    sb.AppendLine($"  Ёмкость          : {d.TotalSizeFormatted} (Свободно: {d.FreeSpaceFormatted})");
+                    sb.AppendLine($"  Разделы и тома   : {d.DriveLettersFormatted} ({d.Partitions.Count} разд.)");
+                    sb.AppendLine($"  Здоровье         : {d.Score.Grade} ({d.Score.TotalScore:F0}/100) — {d.Score.StatusText}");
+                    sb.AppendLine($"  Основа оценки    : {d.Score.BasisDescription} [уверенность {d.Score.MeasuredComponentCount}/4]");
+                    sb.AppendLine($"  Температура      : {(d.HasTemperature ? $"{d.TemperatureFormatted} [{d.TemperatureSource}]" : "н/д")}");
+                    sb.AppendLine($"  Износ / Ресурс   : {(d.HasWear ? $"{d.WearFormatted} [{d.WearSource}]" : "н/д")} | TBW: {d.TotalWrittenFormatted}");
+                    sb.AppendLine($"  Наработка        : {(d.HasPowerOnHours ? $"{d.PowerOnHoursFormatted}" : "н/д")} | Пусков: {(d.HasPowerCycles ? $"{d.PowerCyclesFormatted}" : "н/д")}");
+                    sb.AppendLine($"  Ошибки           : чтение={d.ReadErrorsTotal}, запись={d.WriteErrorsTotal}");
+                    sb.AppendLine($"  Источник данных  : {d.Source}");
+                    if (!string.IsNullOrEmpty(d.TelemetryNote))
+                        sb.AppendLine($"  Примечание       : {d.TelemetryNote}");
+
+                    if (d.SmartAttributes.Count > 0)
+                    {
+                        sb.AppendLine("  Таблица S.M.A.R.T. атрибутов:");
+                        sb.AppendLine($"    {"ID",-5} {"Наименование",-34} {"Текущ",6} {"Худш",6} {"Порог",6} {"Raw"}");
+                        foreach (var a in d.SmartAttributes)
+                        {
+                            sb.AppendLine($"    0x{a.Id:X2}  {a.Name,-34} {a.Current,6} {a.Worst,6} {a.Threshold,6} {a.RawValueFormatted}");
+                        }
+                    }
+                    else
+                    {
+                        sb.AppendLine("  Таблица S.M.A.R.T.: Атрибуты контроллера не прочитаны.");
+                    }
+                    sb.AppendLine();
+                }
+            }
+
+            if (!string.IsNullOrEmpty(_lastAuditReportText))
+            {
+                sb.AppendLine("=== НИЗКОУРОВНЕВЫЙ ОТЧЁТ КОНТРОЛЛЕРА ===");
+                sb.AppendLine(_lastAuditReportText);
+            }
+
+            string report = sb.ToString();
+            Clipboard.SetText(report);
+
+            if (SmartElevationStatusText != null)
+            {
+                SmartElevationStatusText.Visibility = Visibility.Visible;
+                SmartElevationStatusText.Text = "Подробный отчёт аудита накопителей скопирован в буфер обмена.";
+            }
+
+            MessageBox.Show(
+                "Подробный отчёт аудита накопителей скопирован в буфер обмена.\n\n" +
+                "Вы можете вставить его в любой текстовый редактор или приложить к диагностике.",
+                "Отчёт скопирован",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Не удалось экспортировать отчёт: {ex.Message}", "Ошибка экспорта", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 }

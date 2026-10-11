@@ -15,6 +15,12 @@ public enum VersionSwitchMode
     Reinstall
 }
 
+public enum UpdatePackageType
+{
+    Patch,
+    FullPackage
+}
+
 public sealed class ReleaseVersionItem
 {
     public string Version { get; set; } = "";
@@ -43,13 +49,66 @@ public sealed class UpdateInfo
     public List<string> Changelog { get; set; } = new();
     public string PatchUrl { get; set; } = "";
     public double PatchSizeMb { get; set; }
+    public string PatchMinVersion { get; set; } = "3.8.0";
+    public double FullSizeMb { get; set; } = 40.5;
     public string DownloadUrl { get; set; } = "";
     public string InstallerUrl { get; set; } = "";
     public string SetupExeUrl { get; set; } = "";
     public string ErrorMessage { get; set; } = "";
     public VersionSwitchMode SwitchMode { get; set; } = VersionSwitchMode.Upgrade;
+    public UpdatePackageType PackageType { get; set; } = UpdatePackageType.Patch;
 
-    public bool HasPatch => !string.IsNullOrWhiteSpace(PatchUrl);
+    public bool HasPatch => !string.IsNullOrWhiteSpace(PatchUrl) && PatchSizeMb > 0;
+
+    /// <summary>
+    /// Проверяет, применим ли быстрый патч к текущей установленной версии.
+    /// </summary>
+    public bool CanApplyPatch(string currentVersion)
+    {
+        if (SwitchMode != VersionSwitchMode.Upgrade) return false;
+        if (!HasPatch) return false;
+        if (string.IsNullOrWhiteSpace(PatchMinVersion)) return true;
+        return UpdateService.CompareVersions(currentVersion, PatchMinVersion) >= 0;
+    }
+
+    /// <summary>
+    /// Фактический размер загрузки в МБ в зависимости от выбранного типа пакета.
+    /// </summary>
+    public double DownloadSizeMb => (PackageType == UpdatePackageType.Patch && HasPatch)
+        ? PatchSizeMb
+        : (FullSizeMb > 0 ? FullSizeMb : 40.5);
+
+    /// <summary>
+    /// Процент экономии трафика при использовании патча по сравнению с полным пакетом.
+    /// </summary>
+    public int TrafficSavingPercent
+    {
+        get
+        {
+            if (PackageType != UpdatePackageType.Patch || PatchSizeMb <= 0) return 0;
+            double full = FullSizeMb > 0 ? FullSizeMb : 40.5;
+            if (full <= PatchSizeMb) return 0;
+            return (int)Math.Round((1.0 - (PatchSizeMb / full)) * 100.0);
+        }
+    }
+
+    /// <summary>
+    /// Честное описание пакета: тип, размер и экономия.
+    /// </summary>
+    public string FormattedPackageDescription
+    {
+        get
+        {
+            if (PackageType == UpdatePackageType.Patch && HasPatch)
+            {
+                int saving = TrafficSavingPercent;
+                return saving > 0
+                    ? $"Быстрый патч: ~{PatchSizeMb:F1} МБ (экономия {saving}% трафика вместо ~{FullSizeMb:F1} МБ)"
+                    : $"Быстрый патч: ~{PatchSizeMb:F1} МБ";
+            }
+            return $"Полный пакет: ~{DownloadSizeMb:F1} МБ";
+        }
+    }
 }
 
 public static class UpdateService
@@ -107,6 +166,16 @@ public static class UpdateService
                 info.PatchSizeMb = pMb;
             }
 
+            if (root.TryGetProperty("patchMinVersion", out var minVerProp))
+            {
+                info.PatchMinVersion = minVerProp.GetString() ?? "3.8.0";
+            }
+
+            if (root.TryGetProperty("fullSizeMb", out var fullMbProp) && fullMbProp.TryGetDouble(out var fMb))
+            {
+                info.FullSizeMb = fMb;
+            }
+
             if (root.TryGetProperty("downloadUrl", out var dlProp))
             {
                 info.DownloadUrl = dlProp.GetString() ?? "";
@@ -140,6 +209,10 @@ public static class UpdateService
             }
 
             info.IsUpdateAvailable = IsNewerVersion(currentVerStr, info.LatestVersion);
+            info.PackageType = (info.IsUpdateAvailable && info.CanApplyPatch(currentVerStr))
+                ? UpdatePackageType.Patch
+                : UpdatePackageType.FullPackage;
+
             return info;
         }
         catch (Exception ex)
@@ -543,6 +616,41 @@ public static class UpdateService
         if (staged == 0)
             throw new IOException("Архив обновления распакован, но не содержит ни одного файла.");
 
+        // Проверка совместимости патча с установленной версией программы.
+        // Если внутри архива присутствует манифест патча (patch_manifest.json),
+        // проверяем минимальную совместимую версию.
+        string manifestFile = Path.Combine(stagingDir, "patch_manifest.json");
+        if (File.Exists(manifestFile))
+        {
+            try
+            {
+                string manifestJson = File.ReadAllText(manifestFile);
+                using var mDoc = JsonDocument.Parse(manifestJson);
+                var mRoot = mDoc.RootElement;
+                string minVer = mRoot.TryGetProperty("minCompatibleVersion", out var mv) ? (mv.GetString() ?? "") : "";
+                string targetVer = mRoot.TryGetProperty("targetVersion", out var tv) ? (tv.GetString() ?? "") : "";
+
+                string currentVer = GetCurrentVersion();
+                if (!string.IsNullOrWhiteSpace(minVer) && CompareVersions(currentVer, minVer) < 0)
+                {
+                    throw new PatchIncompatibleException(
+                        $"Данный патч предназначен для версий не ниже v{minVer}, а установлена v{currentVer}. " +
+                        "Патч не подходит к текущей версии; требуется загрузка полного установочного пакета.",
+                        currentVer, targetVer, minVer);
+                }
+            }
+            catch (PatchIncompatibleException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new PatchIncompatibleException(
+                    $"Манифест совместимости патча повреждён: {ex.Message}. Рекомендуется загрузить полный установочный пакет.",
+                    inner: ex);
+            }
+        }
+
         return stagingDir;
     }
 
@@ -563,7 +671,32 @@ public static class UpdateService
     }
 
     /// <summary>
-    /// Готовит и запускает применение обновления после выхода программы.
+    /// Удаляет старые резервные копии, оставляя только указанное количество свежих.
+    /// </summary>
+    private static void PruneOldBackups(string backupRoot, int maxToKeep = 3)
+    {
+        try
+        {
+            if (!Directory.Exists(backupRoot)) return;
+            var dirInfo = new DirectoryInfo(backupRoot);
+            var subdirs = dirInfo.GetDirectories("backup_v*")
+                .OrderByDescending(d => d.CreationTimeUtc)
+                .ToList();
+
+            if (subdirs.Count > maxToKeep)
+            {
+                foreach (var oldDir in subdirs.Skip(maxToKeep))
+                {
+                    try { oldDir.Delete(true); } catch { }
+                }
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Готовит и запускает применение обновления после выхода программы с сохранением
+    /// резервной копии и гарантией автоматического отката (rollback) в случае ошибок.
     /// </summary>
     /// <exception cref="UACDeclinedException">Пользователь отказал в повышении прав.</exception>
     public static void ApplySeamlessUpdate(string stagingFolder, AppState currentState)
@@ -598,6 +731,14 @@ public static class UpdateService
         if (files.Length == 0)
             throw new IOException("В подготовленном обновлении нет ни одного файла — применяться нечего.");
 
+        // Подготовка каталога резервной копии перед заменой файлов
+        string backupRoot = AppPaths.BackupDirectory;
+        PruneOldBackups(backupRoot, maxToKeep: 3);
+
+        string currentVer = GetCurrentVersion();
+        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        string backupFolder = Path.Combine(backupRoot, $"backup_v{currentVer}_{timestamp}");
+
         // Скрипт запускается ПОСЛЕ выхода процесса: так снимаются все
         // блокировки на собственные исполняемые файлы.
         string batPath = Path.Combine(AppPaths.StagingDirectory, "mc_update.bat");
@@ -606,17 +747,37 @@ public static class UpdateService
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("@echo off");
         sb.AppendLine("chcp 65001 >nul");
+        sb.AppendLine("echo ========================================================");
+        sb.AppendLine("echo   Motion Commander — Seamless Update Engine");
+        sb.AppendLine("echo ========================================================");
         sb.AppendLine("echo Waiting for Motion Commander to close...");
 
         // Проверка живого процесса по CSV-выводу tasklist.
-        // Прежняя строка искала подстроку PID где угодно в строке, поэтому
-        // ожидание могло закончиться при живом процессе с другим PID,
-        // содержащим те же цифры (например, ожидая 56 при работающем 456).
         sb.AppendLine(":waitloop");
         sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" /NH /FO CSV 2>NUL | findstr /C:\"\"{currentPid}\"\" >NUL");
         sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (timeout /t 1 /nobreak >nul & goto waitloop)");
-        sb.AppendLine("echo Copying update files...");
+        sb.AppendLine("echo Application closed. Initializing update...");
 
+        // Шаг 1: Создание резервной копии файлов перед заменой (для отката)
+        sb.AppendLine("echo [1/3] Creating rollback backup of existing files...");
+        sb.AppendLine($"if not exist \"{backupFolder}\" mkdir \"{backupFolder}\"");
+        sb.AppendLine($"echo Backup v{currentVer} created on %DATE% %TIME% > \"{Path.Combine(backupFolder, "backup_info.txt")}\"");
+
+        foreach (var file in files)
+        {
+            string relative = file[(stagingFolder.Length + 1)..];
+            string dest = Path.Combine(currentDir, relative);
+            string backupDest = Path.Combine(backupFolder, relative);
+            string backupDestDir = Path.GetDirectoryName(backupDest) ?? backupFolder;
+
+            sb.AppendLine($"if exist \"{dest}\" (");
+            sb.AppendLine($"    if not exist \"{backupDestDir}\" mkdir \"{backupDestDir}\"");
+            sb.AppendLine($"    copy /Y \"{dest}\" \"{backupDest}\" >nul");
+            sb.AppendLine(")");
+        }
+
+        // Шаг 2: Копирование обновлённых файлов
+        sb.AppendLine("echo [2/3] Copying update files...");
         foreach (var file in files)
         {
             string relative = file[(stagingFolder.Length + 1)..];
@@ -624,17 +785,40 @@ public static class UpdateService
             string destDir = Path.GetDirectoryName(dest) ?? currentDir;
             sb.AppendLine($"if not exist \"{destDir}\" mkdir \"{destDir}\"");
             sb.AppendLine($"copy /Y \"{file}\" \"{dest}\" >nul");
-
-            // Ошибка копирования фиксируется, а не теряется: иначе
-            // пользователь получал «обновление установлено», хотя часть
-            // файлов осталась прежней.
-            sb.AppendLine($"if errorlevel 1 echo WARNING: failed to copy {relative}");
+            sb.AppendLine("if errorlevel 1 (");
+            sb.AppendLine($"    echo ERROR: Failed to replace {relative}. Triggering rollback!");
+            sb.AppendLine("    goto rollback");
+            sb.AppendLine(")");
         }
 
-        sb.AppendLine($"echo Starting updated application...");
+        // Шаг 3: Успешный запуск и очистка
+        sb.AppendLine("echo [3/3] Update applied successfully. Starting updated application...");
         sb.AppendLine($"start \"\" \"{exePath}\" --seamless-update \"{stateFilePath}\"");
         sb.AppendLine($"rd /s /q \"{stagingFolder}\" 2>nul");
         sb.AppendLine("exit /b 0");
+
+        // Обработка сбоя: атомарный откат к резервной копии
+        sb.AppendLine(":rollback");
+        sb.AppendLine("echo ========================================================");
+        sb.AppendLine("echo CRITICAL: Update failed! Rolling back to previous version...");
+        sb.AppendLine("echo ========================================================");
+
+        foreach (var file in files)
+        {
+            string relative = file[(stagingFolder.Length + 1)..];
+            string dest = Path.Combine(currentDir, relative);
+            string backupDest = Path.Combine(backupFolder, relative);
+
+            sb.AppendLine($"if exist \"{backupDest}\" (");
+            sb.AppendLine($"    copy /Y \"{backupDest}\" \"{dest}\" >nul");
+            sb.AppendLine(") else (");
+            sb.AppendLine($"    if exist \"{dest}\" del /f /q \"{dest}\" 2>nul");
+            sb.AppendLine(")");
+        }
+
+        sb.AppendLine("echo Rollback completed. Starting previous version...");
+        sb.AppendLine($"start \"\" \"{exePath}\"");
+        sb.AppendLine("exit /b 1");
 
         File.WriteAllText(batPath, sb.ToString(), System.Text.Encoding.ASCII);
 

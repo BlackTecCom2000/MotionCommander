@@ -227,6 +227,9 @@ public static class AppPaths
     /// <summary>Staging автообновления. Раньше был рядом с exe — в Program Files это давало Access denied.</summary>
     public static string StagingDirectory => Path.Combine(WritableDataDirectory, "staging");
 
+    /// <summary>Каталог резервных копий заменяемых файлов для безопасного отката (rollback) обновлений.</summary>
+    public static string BackupDirectory => Path.Combine(WritableDataDirectory, "backups");
+
     public static string BenchmarkDirectory => Path.Combine(WritableDataDirectory, "benchmarks");
     public static string DownloadsDatabase => Path.Combine(WritableDataDirectory, "downloads.db");
     public static string ReportsDirectory => Path.Combine(WritableDataDirectory, "reports");
@@ -259,7 +262,7 @@ public static class AppPaths
         // заранее создать и положить туда, например, переносную базу.
         EnsureDir(ConfiguredDataDirectory);
         EnsureDir(WritableDataDirectory);
-        foreach (var d in new[] { StagingDirectory, BenchmarkDirectory, ReportsDirectory, LogsDirectory, CacheDirectory })
+        foreach (var d in new[] { StagingDirectory, BackupDirectory, BenchmarkDirectory, ReportsDirectory, LogsDirectory, CacheDirectory })
             EnsureDir(d);
     }
 

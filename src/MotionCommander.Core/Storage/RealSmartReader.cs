@@ -30,7 +30,7 @@ public static class RealSmartReader
                    long? powerOnHours, long? powerCycles, long? readErrors, long? writeErrors,
                    string? source, string note) Read(int diskNumber)
     {
-        string note;
+        string note = "";
 
         try
         {
@@ -120,15 +120,27 @@ public static class RealSmartReader
             {
                 counterClassMissing = true;
             }
+            catch (UnauthorizedAccessException)
+            {
+                counterClassMissing = false;
+                note = "Для чтения счётчиков надёжности MSFT_StorageReliabilityCounter требуются права администратора.";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[RealSmartReader] MSFT_StorageReliabilityCounter query failed: {ex.Message}");
+            }
 
             bool any = tempC.HasValue || wear.HasValue || poh.HasValue
                        || readErr.HasValue || writeErr.HasValue;
 
-            note = any
-                ? "Показатели прочитаны из счётчиков надёжности Windows."
-                : counterClassMissing
-                    ? "Класс MSFT_StorageReliabilityCounter отсутствует в системе (типично для серверов, виртуальных сред и части RAID-контроллеров)."
-                    : "Контроллер не публикует счётчики надёжности (типично для RAID, виртуальных дисков и USB-хабов без прозрачного S.M.A.R.T.).";
+            if (string.IsNullOrEmpty(note))
+            {
+                note = any
+                    ? "Показатели прочитаны из счётчиков надёжности Windows."
+                    : counterClassMissing
+                        ? "Класс MSFT_StorageReliabilityCounter отсутствует в системе (типично для серверов, виртуальных сред и части RAID-контроллеров)."
+                        : "Контроллер не публикует счётчики надёжности (типично для RAID, виртуальных дисков и USB-хабов без прозрачного S.M.A.R.T.).";
+            }
 
             return (true, model, health, tempC, wear, poh, cycles, readErr, writeErr, source, note);
         }

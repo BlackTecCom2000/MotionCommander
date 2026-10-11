@@ -55,9 +55,14 @@ public static class SmartHealthService
         //    потому что программа обычно запускается с повышенными правами.
         if (!SuperAdminPrivilegeHelper.IsAdministrator())
         {
-            disk.SmartNeedsAdministrator = true;
-            notes.Add("Чтение S.M.A.R.T. напрямую с накопителя требует прав администратора. " +
-                      "Запустите Motion Commander от имени администратора.");
+            // Пробуем прямое чтение (некоторые IOCTL/дескрипторы работают без полного админа),
+            // а если диск требует прав — фиксируем признак для разового запроса UAC
+            gotRaw = TryReadDirectSmart(disk, notes);
+            if (!gotRaw)
+            {
+                disk.SmartNeedsAdministrator = true;
+                notes.Add("Прямой опрос S.M.A.R.T. с накопителя требует прав администратора. Доступен разовый запрос по кнопке в интерфейсе.");
+            }
         }
         else
         {
@@ -108,8 +113,7 @@ public static class SmartHealthService
                     if (failure.NeedsAdministrator)
                     {
                         disk.SmartNeedsAdministrator = true;
-                        notes.Add("S.M.A.R.T. читается напрямую с диска и требует прав администратора. " +
-                                  "Запустите Motion Commander от имени администратора.");
+                        notes.Add("S.M.A.R.T. читается напрямую с накопителя и требует прав администратора (код ошибки 5: Access Denied).");
                     }
                     else
                     {
@@ -127,13 +131,13 @@ public static class SmartHealthService
                 return false;
             }
 
-            ApplyParsedSmartBlock(disk, raw.Data512);
+            ApplyParsedSmartBlock(disk, raw.Data512, raw.IsNvme);
             disk.SmartOverallPass = raw.OverallPass;
             return disk.SmartAttributes.Count > 0;
         }
         catch (Exception ex)
         {
-            notes.Add($"Прямое чтение S.M.A.R.T. не удалось: {ex.Message}");
+            notes.Add($"Прямое чтение S.M.A.R.T. накопителя #{disk.DiskNumber} не удалось ({ex.GetType().Name}: {ex.Message})");
             return false;
         }
     }
@@ -141,19 +145,20 @@ public static class SmartHealthService
     /// <summary>
     /// Разбирает блок 512 байт S.M.A.R.T. и заполняет накопитель.
     /// </summary>
-    /// <remarks>
-    /// <para>Вынесено отдельно, чтобы разбор можно было проверить на
-    /// эталонных данных без физического доступа к диску. Раньше проверка
-    /// требовала настоящего накопителя с правами администратора, то есть
-    /// на практике не выполнялась — и ошибка в разборе жила незамеченной.</para>
-    ///
-    /// <para>Если блок оказывается пустышкой (RAID, виртуальный диск),
-    /// накопитель остаётся без данных: подставлять правдоподобные
-    /// значения вместо неизмеренных нельзя.</para>
-    /// </remarks>
-    public static void ApplyParsedSmartBlock(StorageDisk disk, byte[] block)
+    public static void ApplyParsedSmartBlock(StorageDisk disk, byte[] block, bool isNvme = false)
     {
         disk.SmartAttributes.Clear();
+
+        if (isNvme)
+        {
+            if (!SmartRawReader.HasPlausibleNvmeData(block))
+                return;
+
+            var nvmeAttrs = ParseNvmeHealthAttributes(disk, block);
+            disk.SmartAttributes = nvmeAttrs;
+            disk.HasSmartAttributes = nvmeAttrs.Count > 0;
+            return;
+        }
 
         if (!SmartRawParser.HasPlausibleAttributes(block))
             return;
@@ -220,6 +225,211 @@ public static class SmartHealthService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Разбирает лог NVMe S.M.A.R.T./Health Information в атрибуты и свойства накопителя.
+    /// </summary>
+    private static List<SmartAttribute> ParseNvmeHealthAttributes(StorageDisk disk, byte[] block)
+    {
+        var attrs = new List<SmartAttribute>();
+
+        // 1. Critical Warning (байт 0)
+        byte critWarn = block[0];
+        attrs.Add(new SmartAttribute
+        {
+            Id = 0x01,
+            Name = "Critical Warning",
+            Description = "Критическое предупреждение контроллера NVMe (перегрев, резерв, сбой)",
+            Current = critWarn == 0 ? 100 : 0,
+            Worst = critWarn == 0 ? 100 : 0,
+            Threshold = 0,
+            HasThreshold = false,
+            RawValue = critWarn,
+            RawValueFormatted = $"0x{critWarn:X2} ({(critWarn == 0 ? "В норме" : "Предупреждение")})",
+            Status = critWarn == 0 ? "Good" : "Critical",
+            IsCritical = critWarn != 0
+        });
+
+        // 2. Composite Temperature (байты 1..2 в Кельвинах)
+        ushort kelvin = (ushort)(block[1] | (block[2] << 8));
+        double tempC = kelvin > 0 ? (kelvin - 273.15) : 0;
+        if (tempC is >= 5 and <= 120)
+        {
+            disk.TemperatureC = tempC;
+            disk.HasTemperature = true;
+            disk.TemperatureSource = "NVMe S.M.A.R.T. Health Info Log (IOCTL)";
+
+            attrs.Add(new SmartAttribute
+            {
+                Id = 0x02,
+                Name = "Composite Temperature",
+                Description = "Температура контроллера и чипов памяти NVMe",
+                Current = (int)tempC,
+                Worst = (int)tempC,
+                Threshold = 75,
+                HasThreshold = true,
+                RawValue = (long)tempC,
+                RawValueFormatted = $"{tempC:F0} °C",
+                Status = tempC < 70 ? "Good" : (tempC < 80 ? "Warning" : "Critical")
+            });
+        }
+
+        // 3. Available Spare (байт 3)
+        byte spare = block[3];
+        byte spareThreshold = block[4];
+        attrs.Add(new SmartAttribute
+        {
+            Id = 0x03,
+            Name = "Available Spare",
+            Description = "Оставшийся резерв блоков ячеек памяти",
+            Current = spare,
+            Worst = spare,
+            Threshold = spareThreshold,
+            HasThreshold = true,
+            RawValue = spare,
+            RawValueFormatted = $"{spare}%",
+            Status = spare > spareThreshold ? "Good" : "Critical"
+        });
+
+        // 4. Percentage Used (байт 5) - Износ SSD
+        byte wear = block[5];
+        disk.WearLevelPercent = wear;
+        disk.HasWear = true;
+        disk.WearSource = "NVMe Percentage Used (IOCTL)";
+
+        attrs.Add(new SmartAttribute
+        {
+            Id = 0x05,
+            Name = "Percentage Used (Wear)",
+            Description = "Процент израсходованного ресурса SSD (износ)",
+            Current = Math.Max(0, 100 - wear),
+            Worst = Math.Max(0, 100 - wear),
+            Threshold = 10,
+            HasThreshold = true,
+            RawValue = wear,
+            RawValueFormatted = $"{wear}% износа (остаток {Math.Max(0, 100 - wear)}%)",
+            Status = wear < 90 ? "Good" : (wear < 100 ? "Warning" : "Critical")
+        });
+
+        // 5. Data Units Read & Written (TBW)
+        long readUnits = BitConverter.ToInt64(block, 32);
+        long writeUnits = BitConverter.ToInt64(block, 48);
+        double tbw = (writeUnits * 512_000.0) / (1024.0 * 1024.0 * 1024.0 * 1024.0);
+        double tbr = (readUnits * 512_000.0) / (1024.0 * 1024.0 * 1024.0 * 1024.0);
+
+        if (writeUnits > 0)
+        {
+            disk.TotalBytesWritten = (long)(writeUnits * 512_000.0);
+            disk.HasLifetimeWrites = true;
+        }
+
+        attrs.Add(new SmartAttribute
+        {
+            Id = 0x07,
+            Name = "Data Units Written (TBW)",
+            Description = "Суммарно записано данных на накопитель за всё время",
+            Current = 100,
+            Worst = 100,
+            Threshold = 0,
+            HasThreshold = false,
+            RawValue = writeUnits,
+            RawValueFormatted = $"{tbw:F2} TB",
+            Status = "Good"
+        });
+
+        attrs.Add(new SmartAttribute
+        {
+            Id = 0x06,
+            Name = "Data Units Read (TBR)",
+            Description = "Суммарно прочитано данных с накопителя за всё время",
+            Current = 100,
+            Worst = 100,
+            Threshold = 0,
+            HasThreshold = false,
+            RawValue = readUnits,
+            RawValueFormatted = $"{tbr:F2} TB",
+            Status = "Good"
+        });
+
+        // 6. Power Cycles (байт 112)
+        long powerCycles = BitConverter.ToInt64(block, 112);
+        if (powerCycles > 0)
+        {
+            disk.PowerCycles = powerCycles;
+            disk.HasPowerCycles = true;
+            attrs.Add(new SmartAttribute
+            {
+                Id = 0x0B,
+                Name = "Power Cycles",
+                Description = "Количество циклов включения и выключения накопителя",
+                Current = 100,
+                Worst = 100,
+                Threshold = 0,
+                HasThreshold = false,
+                RawValue = powerCycles,
+                RawValueFormatted = $"{powerCycles:N0} циклов",
+                Status = "Good"
+            });
+        }
+
+        // 7. Power On Hours (байт 128)
+        long poh = BitConverter.ToInt64(block, 128);
+        if (poh > 0)
+        {
+            disk.PowerOnHours = poh;
+            disk.HasPowerOnHours = true;
+            attrs.Add(new SmartAttribute
+            {
+                Id = 0x0C,
+                Name = "Power On Hours",
+                Description = "Общее время работы накопителя во включённом состоянии",
+                Current = 100,
+                Worst = 100,
+                Threshold = 0,
+                HasThreshold = false,
+                RawValue = poh,
+                RawValueFormatted = $"{poh:N0} ч",
+                Status = "Good"
+            });
+        }
+
+        // 8. Unsafe Shutdowns (байт 144)
+        long unsafeShutdowns = BitConverter.ToInt64(block, 144);
+        attrs.Add(new SmartAttribute
+        {
+            Id = 0x0D,
+            Name = "Unsafe Shutdowns",
+            Description = "Нештатные отключения питания без команды Flush",
+            Current = 100,
+            Worst = 100,
+            Threshold = 0,
+            HasThreshold = false,
+            RawValue = unsafeShutdowns,
+            RawValueFormatted = $"{unsafeShutdowns:N0}",
+            Status = "Good"
+        });
+
+        // 9. Media and Data Integrity Errors (байт 160)
+        long mediaErrors = BitConverter.ToInt64(block, 160);
+        disk.ReadErrorsTotal = mediaErrors;
+        disk.HasErrorCounts = true;
+        attrs.Add(new SmartAttribute
+        {
+            Id = 0x0E,
+            Name = "Media & Integrity Errors",
+            Description = "Ошибки целостности данных и некорректируемые сбои ячеек",
+            Current = mediaErrors == 0 ? 100 : 0,
+            Worst = mediaErrors == 0 ? 100 : 0,
+            Threshold = 0,
+            HasThreshold = false,
+            RawValue = mediaErrors,
+            RawValueFormatted = $"{mediaErrors:N0}",
+            Status = mediaErrors == 0 ? "Good" : "Critical",
+            IsCritical = mediaErrors > 0
+        });
+
+        return attrs;
     }
 
     /// <summary>
@@ -413,19 +623,19 @@ public static class SmartHealthService
 
             return disk.HasTemperature || disk.HasWear || disk.HasPowerOnHours || disk.HasErrorCounts;
         }
-        catch (ManagementException)
+        catch (ManagementException ex)
         {
-            notes.Add("WMI-хранилище накопителей недоступно (нет прав или служба не запущена).");
+            notes.Add($"WMI-хранилище накопителей недоступно (ManagementException: {ex.Message}, HResult: 0x{ex.ErrorCode:X8}).");
             return false;
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            notes.Add("Нет прав доступа к WMI для чтения счётчиков надёжности.");
+            notes.Add($"Нет прав доступа к WMI MSFT_StorageReliabilityCounter (Access Denied: {ex.Message}).");
             return false;
         }
-        catch
+        catch (Exception ex)
         {
-            notes.Add("Не удалось прочитать счётчики надёжности накопителя.");
+            notes.Add($"Не удалось прочитать счётчики надёжности накопителя ({ex.GetType().Name}: {ex.Message}).");
             return false;
         }
     }
@@ -579,13 +789,19 @@ public static class SmartHealthService
 
             return true;
         }
-        catch (ManagementException)
+        catch (ManagementException ex)
         {
-            notes.Add("S.M.A.R.T. недоступен через WMI.");
+            notes.Add($"S.M.A.R.T. недоступен через WMI root\\wmi (ManagementException: {ex.Message}, HResult: 0x{ex.ErrorCode:X8}).");
             return false;
         }
-        catch
+        catch (UnauthorizedAccessException ex)
         {
+            notes.Add($"Отказано в доступе к WMI root\\wmi (Access Denied: {ex.Message}).");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            notes.Add($"WMI S.M.A.R.T. вернул ошибку ({ex.GetType().Name}: {ex.Message}).");
             return false;
         }
     }

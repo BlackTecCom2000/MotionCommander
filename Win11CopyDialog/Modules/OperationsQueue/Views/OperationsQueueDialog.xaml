@@ -39,8 +39,8 @@
             <!-- Переключатель вкладок -->
             <Border Grid.Row="1" Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="10" Padding="4" Margin="0,0,0,14" HorizontalAlignment="Left">
                 <StackPanel Orientation="Horizontal">
-                    <RadioButton x:Name="TabActiveRadio" Content="⚡ Активные и в очереди" Style="{StaticResource StorageSubTab}" IsChecked="True" Checked="Tab_Checked"/>
-                    <RadioButton x:Name="TabHistoryRadio" Content="📜 История операций" Style="{StaticResource StorageSubTab}" Margin="6,0,0,0" Checked="Tab_Checked"/>
+                    <RadioButton x:Name="TabActiveRadio" Content="⚡ Активные и в очереди" Style="{DynamicResource StorageSubTab}" IsChecked="True" Checked="Tab_Checked"/>
+                    <RadioButton x:Name="TabHistoryRadio" Content="📜 История операций" Style="{DynamicResource StorageSubTab}" Margin="6,0,0,0" Checked="Tab_Checked"/>
                 </StackPanel>
             </Border>
 

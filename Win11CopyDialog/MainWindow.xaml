@@ -276,7 +276,7 @@
             <Canvas Grid.RowSpan="4" IsHitTestVisible="False" ClipToBounds="True">
                 <!-- Top-Left Cyan Luminous Aura -->
 
-                <Ellipse Width="460" Height="460" Canvas.Left="-100" Canvas.Top="-100" Opacity="0.14">
+                <Ellipse Width="460" Height="460" Canvas.Left="-100" Canvas.Top="-100" Opacity="0.05">
                     <Ellipse.Fill>
                         <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
                             <GradientStop Color="#00E5FF" Offset="0.0"/>
@@ -286,7 +286,7 @@
                     </Ellipse.Fill>
                 </Ellipse>
                 <!-- Center-Right Violet / Magenta Chromatic Glow -->
-                <Ellipse Width="550" Height="550" Canvas.Right="-150" Canvas.Top="100" Opacity="0.10">
+                <Ellipse Width="550" Height="550" Canvas.Right="-150" Canvas.Top="100" Opacity="0.04">
                     <Ellipse.Fill>
                         <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
                             <GradientStop Color="#B366FF" Offset="0.0"/>
@@ -296,7 +296,7 @@
                     </Ellipse.Fill>
                 </Ellipse>
                 <!-- Bottom-Left Deep Sapphire Glow -->
-                <Ellipse Width="480" Height="480" Canvas.Left="120" Canvas.Bottom="-140" Opacity="0.08">
+                <Ellipse Width="480" Height="480" Canvas.Left="120" Canvas.Bottom="-140" Opacity="0.03">
                     <Ellipse.Fill>
                         <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
                             <GradientStop Color="#3B82F6" Offset="0.0"/>
@@ -330,13 +330,13 @@
                         <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
                             <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.13 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
                         </Border>
-                        <Button x:Name="SelectVersionBtn" Style="{StaticResource CaptionButton}" ToolTip="Выбор версии и откат назад (Time Machine)" Click="SelectVersionBtn_Click" Margin="6,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button x:Name="SelectVersionBtn" Style="{StaticResource HeaderActionButton}" ToolTip="Выбор версии и откат назад (Time Machine)" Click="SelectVersionBtn_Click" Margin="6,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="Версии" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-                        <Button x:Name="CheckUpdatesBtn" Style="{StaticResource CaptionButton}" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="4,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button x:Name="CheckUpdatesBtn" Style="{StaticResource HeaderActionButton}" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="4,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                             <Path Data="{StaticResource Icon_Refresh}" Fill="{DynamicResource TitleForegroundBrush}" Width="11" Height="11" Stretch="Uniform"/>
                         </Button>
                     </StackPanel>
@@ -396,21 +396,21 @@
 
                     <!-- Быстрые переключатели: Поиск, Очередь, Масштаб, Окно настроек и тема -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
-                        <Button x:Name="GlobalSearchHeaderBtn" Style="{StaticResource CaptionButton}"
+                        <Button x:Name="GlobalSearchHeaderBtn" Style="{StaticResource HeaderActionButton}"
                                 ToolTip="Глобальный поиск и палитра команд (Ctrl+K)" Click="GlobalSearchHeaderBtn_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="🔍" FontSize="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="Поиск" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-                        <Button x:Name="OperationsQueueHeaderBtn" Style="{StaticResource CaptionButton}"
-                                ToolTip="Очередь операций: Копирование, Загрузки, Архивы (Ctrl+Q)" Click="OperationsQueueHeaderBtn_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button x:Name="OperationsQueueHeaderBtn" Style="{StaticResource HeaderActionButton}"
+                                ToolTip="Очередь операций: Копирование, Загрузки, Архивы (Ctrl+Q)" Click="OperationsQueueHeaderBtn_Click" Margin="0,0,6,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="QueueCountBadgeText" Text="Очередь (0)" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-                        <ComboBox x:Name="UiScaleCombo" Width="68" Height="24" Margin="0,0,6,0" VerticalAlignment="Center"
+                        <ComboBox x:Name="UiScaleCombo" Width="68" Height="28" Margin="0,0,6,0" VerticalAlignment="Center"
                                   ToolTip="Масштаб интерфейса (доступность)"
                                   SelectionChanged="UiScaleCombo_SelectionChanged"
                                   Background="{DynamicResource LiquidGlassInputBackgroundBrush}"
@@ -421,21 +421,21 @@
                             <ComboBoxItem Content="125%" Tag="1.25"/>
                             <ComboBoxItem Content="150%" Tag="1.5"/>
                         </ComboBox>
-                        <Button x:Name="OpenSettingsWindowBtn" Style="{StaticResource CaptionButton}"
+                        <Button x:Name="OpenSettingsWindowBtn" Style="{StaticResource HeaderActionButton}"
                                 ToolTip="Настройки и Опции" Click="OpenSettingsWindow_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
-                            <Path Data="{StaticResource Icon_NavSettings}" Fill="{DynamicResource TitleForegroundBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                            <Path Data="{StaticResource Icon_NavSettings}" Fill="{DynamicResource TitleForegroundBrush}" Width="12" Height="12" Stretch="Uniform"/>
                         </Button>
-                        <Button x:Name="QuickThemeBtn" Style="{StaticResource CaptionButton}"
+                        <Button x:Name="QuickThemeBtn" Style="{StaticResource HeaderActionButton}"
                                 ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
-                            <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="13" Foreground="{DynamicResource TitleForegroundBrush}"/>
+                            <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="12" Foreground="{DynamicResource TitleForegroundBrush}"/>
                         </Button>
                     </StackPanel>
 
                     <!-- Кнопки управления окном -->
-                    <StackPanel Grid.Column="3" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
-                        <Button x:Name="AvailableUpdateBtn" Style="{StaticResource CaptionButton}" ToolTip="Доступно обновление!" Click="AvailableUpdateBtn_Click" Visibility="Collapsed" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True" VerticalAlignment="Center" Margin="0,0,4,0">
+                        <Button x:Name="AvailableUpdateBtn" Style="{StaticResource HeaderActionButton}" ToolTip="Доступно обновление!" Click="AvailableUpdateBtn_Click" Visibility="Collapsed" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="🚀" FontSize="11" Margin="0,0,2,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="🚀" FontSize="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="Обновить" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" FontSize="11" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
@@ -458,10 +458,17 @@
             <StackPanel x:Name="FileBrowserToolbarPanel" Grid.Row="1">
                 <!-- Панель команд (Floating Glass Ribbon Dock) -->
                 <Border Background="{DynamicResource LiquidGlassMaterialLevel2Brush}"
-                        BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
+                        BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="0,0,0,1" Padding="8,4">
                     <DockPanel LastChildFill="True">
-                        <!-- Правая часть: Скрытые файлы и Обновить (всегда прижаты вправо и гарантированно видимы) -->
+                        <!-- Правая часть: Переключатель инспектора свойств, Скрытые файлы и Обновить -->
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <Button x:Name="ToggleInspectorBtn" Style="{StaticResource RibbonActionButton}"
+                                    Click="ToggleInspector_Click" ToolTip="Показать или скрыть панель свойств (Ctrl+I)" Margin="0,0,6,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Icon_Properties}" Fill="{DynamicResource PrimaryTextBrush}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Свойства" VerticalAlignment="Center" FontSize="11.5"/>
+                                </StackPanel>
+                            </Button>
                             <CheckBox x:Name="ShowHiddenCheck" Content="Скрытые" Foreground="{DynamicResource PrimaryTextBrush}"
                                       FontSize="11" FontWeight="Medium" Cursor="Hand" VerticalAlignment="Center" Margin="0,0,8,0" Click="ShowHidden_Click"
                                       ToolTip="Показывать скрытые файлы и папки"/>
@@ -470,15 +477,58 @@
                             </Button>
                         </StackPanel>
 
-                        <!-- Основные действия с файлами и архивами (горизонтальный скроллинг без наложения) -->
+                        <!-- Основные действия с файлами и архивами (чистая эргономичная лента с группировкой) -->
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                       Focusable="False" PanningMode="HorizontalOnly">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Button x:Name="CreateArchiveBtn" Style="{StaticResource RibbonPrimaryActionButton}"
-                                        Click="CreateArchive_Click" ToolTip="Создать новый архив из выбранных файлов">
+                                <Button x:Name="NewFolderBtn" Style="{StaticResource RibbonPrimaryActionButton}"
+                                        Click="NewFolder_Click" ToolTip="Создать новую папку (Ctrl+Shift+N / F7)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_NewFolder}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Папка" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Separator Style="{StaticResource LiquidGlassDividerVertical}" Height="18" Margin="6,0"/>
+
+                                <Button x:Name="CopyItemBtn" Style="{StaticResource RibbonActionButton}" Click="CopyItem_Click" ToolTip="Копировать в буфер обмена (Ctrl+C)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Копия" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="CutItemBtn" Style="{StaticResource RibbonActionButton}" Click="CutItem_Click" ToolTip="Вырезать в буфер обмена (Ctrl+X)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Вырезать" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="PasteItemBtn" Style="{StaticResource RibbonActionButton}" Click="PasteItem_Click" ToolTip="Вставить из буфера обмена (Ctrl+V)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Вставить" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="RenameItemBtn" Style="{StaticResource RibbonActionButton}" Click="ContextRename_Click" ToolTip="Переименовать выбранный элемент (F2)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Rename}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Имя" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="DeleteItemBtn" Style="{StaticResource RibbonActionButton}" Click="DeleteItem_Click" ToolTip="Удалить выбранные элементы (Del / F8)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Path Data="{StaticResource Icon_Delete}" Fill="#EF4444" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Удалить" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <Separator Style="{StaticResource LiquidGlassDividerVertical}" Height="18" Margin="6,0"/>
+
+                                <Button x:Name="CreateArchiveBtn" Style="{StaticResource RibbonActionButton}"
+                                        Click="CreateArchive_Click" ToolTip="Создать новый архив из выбранных файлов (Ctrl+Shift+A)">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <Path Data="{StaticResource Icon_Archive}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                        <TextBlock Text="Архив" VerticalAlignment="Center"/>
+                                        <TextBlock Text="В архив" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                                 <Button x:Name="ExtractArchiveBtn" Style="{StaticResource RibbonActionButton}"
@@ -496,91 +546,52 @@
                                     </StackPanel>
                                 </Button>
 
-                                <Separator Style="{StaticResource LiquidGlassDividerVertical}" Height="18" Margin="8,0"/>
+                                <Separator Style="{StaticResource LiquidGlassDividerVertical}" Height="18" Margin="6,0"/>
 
-                                <Button Style="{StaticResource RibbonActionButton}" Click="CopyItem_Click" ToolTip="Копировать в буфер обмена (Ctrl+C)">
+                                <!-- Меню «Ещё»: вторичные и специализированные действия без перегрузки ленты -->
+                                <Button x:Name="MoreActionsBtn" Style="{StaticResource RibbonActionButton}"
+                                        Click="MoreActionsBtn_Click" ToolTip="Дополнительные операции с файлами">
+                                    <Button.ContextMenu>
+                                        <ContextMenu x:Name="MoreActionsMenu">
+                                            <MenuItem Header="Вычисление хэшей (MD5, SHA-256)…" Click="ShowHashes_Click">
+                                                <MenuItem.Icon>
+                                                    <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Переместить в папку… (F6)" Click="MoveToFolder_Click">
+                                                <MenuItem.Icon>
+                                                    <Path Data="{StaticResource Icon_Move}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Копировать в папку… (F5)" Click="CopyToFolder_Click">
+                                                <MenuItem.Icon>
+                                                    <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="Выделить всё (Ctrl+A)" Click="SelectAll_Click">
+                                                <MenuItem.Icon>
+                                                    <Path Data="{StaticResource Icon_SelectAll}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <Separator/>
+                                            <MenuItem Header="🧹 Освободить место (Экспресс-очистка)…" Click="QuickScenarioCleanupBtn_Click"/>
+                                            <MenuItem Header="🚀 Подготовить диск к копированию…" Click="QuickScenarioPrepareCopyBtn_Click"/>
+                                            <Separator/>
+                                            <MenuItem Header="📂 Автономный файловый менеджер Motion UI" Click="OpenFileManager_Click">
+                                                <MenuItem.Icon>
+                                                    <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <MenuItem Header="ℹ Свойства элемента (Alt+Enter)" Click="ContextProperties_Click">
+                                                <MenuItem.Icon>
+                                                    <Path Data="{StaticResource Icon_Properties}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform"/>
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Copy}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Копия" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="CutItem_Click" ToolTip="Вырезать в буфер обмена (Ctrl+X)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Cut}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Вырезать" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="PasteItem_Click" ToolTip="Вставить из буфера обмена (Ctrl+V)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Paste}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Вставить" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="DeleteItem_Click" ToolTip="Удалить выбранные элементы (Del)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Delete}" Fill="#EF4444" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Удалить" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="NewFolder_Click" ToolTip="Создать новую папку (Ctrl+Shift+N)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_NewFolder}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Папка" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="ShowHashes_Click" ToolTip="Вычисление контрольных сумм MD5, SHA-256">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Hashes}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Хэши" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="ContextRename_Click" ToolTip="Переименовать выбранный элемент (F2)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Rename}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Имя" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="MoveToFolder_Click" ToolTip="Переместить в другую папку (F6)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Move}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Перенос" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="ContextProperties_Click" ToolTip="Свойства выбранного элемента (Alt+Enter)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Properties}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Свойства" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource RibbonActionButton}" Click="SelectAll_Click" ToolTip="Выделить все элементы (Ctrl+A)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_SelectAll}" Fill="{DynamicResource PrimaryTextBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,4,0"/>
-                                        <TextBlock Text="Выделить всё" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Rectangle Width="1" Height="18" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="5,0,6,0"/>
-
-                                <Button x:Name="QuickScenarioCleanupBtn" Style="{StaticResource RibbonActionButton}" Click="QuickScenarioCleanupBtn_Click" ToolTip="Сценарий: Экспресс-очистка временных файлов и кэша">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="🧹" FontSize="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Освободить место" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Button x:Name="QuickScenarioPrepareCopyBtn" Style="{StaticResource RibbonActionButton}" Click="QuickScenarioPrepareCopyBtn_Click" ToolTip="Сценарий: Проверка диска, TRIM и оптимизация перед большим копированием">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="🚀" FontSize="12" Margin="0,0,4,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Подготовить диск" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <Rectangle Width="1" Height="18" Fill="{DynamicResource LiquidGlassSubtleBorderBrush}" Margin="5,0,6,0"/>
-
-                                <Button x:Name="OpenFileManagerBtn" Style="{StaticResource RibbonPrimaryActionButton}" Click="OpenFileManager_Click" ToolTip="Открыть автономный файловый менеджер (Motion UI)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource AccentBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,5,0"/>
-                                        <TextBlock Text="Файловый менеджер" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Ещё" VerticalAlignment="Center"/>
+                                        <Path Data="{StaticResource Icon_ChevronDown}" Fill="{DynamicResource SecondaryTextBrush}" Width="8" Height="8" Stretch="Uniform" Margin="4,1,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -621,7 +632,8 @@
                                             <Path Data="{StaticResource Icon_Folder}" Fill="{DynamicResource MediaNVMeBrush}" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <TextBox x:Name="PathBox" Grid.Column="1" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center"
-                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" KeyDown="PathBox_KeyDown"/>
+                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" KeyDown="PathBox_KeyDown"
+                                                 ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                                         <Button x:Name="FavoriteBtn" Grid.Column="2" Style="{StaticResource CaptionButton}" Width="26" Height="24" ToolTip="Добавить / Удалить из Избранного" Click="FavoriteBtn_Click" Margin="2,0,0,0">
                                             <TextBlock x:Name="FavoriteIcon" Text="☆" FontSize="13" Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Button>
@@ -657,11 +669,11 @@
             <!-- MAIN AREA -->
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="260" MinWidth="200"/>
+                    <ColumnDefinition x:Name="SidebarColumn" Width="220" MinWidth="170" MaxWidth="320"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*" MinWidth="350"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="220" MinWidth="160" MaxWidth="320"/>
+                    <ColumnDefinition x:Name="InspectorColumn" Width="230" MinWidth="0" MaxWidth="340"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- SIDEBAR -->
@@ -831,7 +843,7 @@
                                             </Border>
                                             <StackPanel VerticalAlignment="Center">
                                                 <TextBlock Text="Все накопители системы" FontSize="9" Style="{StaticResource MutedText}"/>
-                                                <TextBlock x:Name="SidebarStorageSummaryText" Text="Загрузка хранилищ…" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock x:Name="SidebarStorageSummaryText" Text="Загрузка хранилищ…" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                                             </StackPanel>
                                         </DockPanel>
                                     </Border>
@@ -847,9 +859,14 @@
                 <GridSplitter x:Name="LeftSplitter" Grid.Column="1" Style="{StaticResource LiquidGlassSplitter}"/>
 
                 <!-- WORKSPACE -->
-                <Grid x:Name="FilesViewContainer" Grid.Column="2" Margin="10">
+                <Grid x:Name="FilesViewContainer" Grid.Column="2" Margin="8,6,6,8">
                     <Grid x:Name="FilesView" Visibility="Visible">
-<!-- Правая панель: Файловый браузер -->
+                        <!-- Чистый контрастный фон карточки для защиты читаемости текста от визуального шума подложки -->
+                        <Border Background="{DynamicResource CardBackgroundBrush}"
+                                BorderBrush="{DynamicResource GlassBorderSubtle}"
+                                BorderThickness="1"
+                                CornerRadius="{DynamicResource RadiusMedium}"
+                                ClipToBounds="True">
                             <ListView x:Name="FileBrowserList" BorderThickness="0" Background="Transparent"
                                       AllowDrop="True" Drop="FileBrowserList_Drop" MouseDoubleClick="FileBrowserList_DoubleClick"
                                       SelectionChanged="FileBrowserList_SelectionChanged" KeyDown="FileBrowserList_KeyDown"
@@ -858,13 +875,14 @@
 
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="Имя" Width="240">
+                                        <GridViewColumn Header="Имя" Width="260">
                                             <GridViewColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal">
+                                                    <DockPanel LastChildFill="True" ToolTip="{Binding FullPath}">
                                                         <TextBlock Text="{Binding IconGlyph}" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                    </StackPanel>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </DockPanel>
                                                 </DataTemplate>
                                             </GridViewColumn.CellTemplate>
                                         </GridViewColumn>
@@ -877,7 +895,7 @@
                                     </GridView>
                                 </ListView.View>
                             </ListView>
-                        
+                        </Border>
                     </Grid>
                 </Grid>
 
@@ -887,16 +905,24 @@
                 <!-- INSPECTOR -->
                 <Border x:Name="InspectorBorder" Grid.Column="4" Background="{DynamicResource LiquidGlassMaterialLevel1Brush}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="14">
-                            <TextBlock Text="СВОЙСТВА" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,8"/>
+                        <StackPanel Margin="12,10">
+                            <!-- Заголовок со сворачиванием -->
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource CaptionButton}" Width="22" Height="22"
+                                        ToolTip="Скрыть панель свойств (Ctrl+I)" Click="CloseInspector_Click">
+                                    <Path Data="{StaticResource Icon_Close}" Fill="{DynamicResource SecondaryTextBrush}" Width="9" Height="9" Stretch="Uniform"/>
+                                </Button>
+                                <TextBlock Text="СВОЙСТВА" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                            </DockPanel>
+
                             <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,10">
                                 <StackPanel>
-                                    <TextBlock x:Name="InspectorItemName" Text="Выберите элемент" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="InspectorItemName" Text="Выберите элемент" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
                                     <TextBlock x:Name="InspectorItemType" Text="Файлы и папки" FontSize="10.5" Style="{StaticResource MutedText}" Margin="0,2,0,6"/>
                                     <Separator Margin="0,4,0,6" Background="{DynamicResource LiquidGlassSubtleBorderBrush}"/>
                                     <TextBlock x:Name="InspectorItemSize" Text="Размер: —" FontSize="10.5" Style="{StaticResource MutedText}"/>
                                     <TextBlock x:Name="InspectorItemDate" Text="Изменён: —" FontSize="10.5" Style="{StaticResource MutedText}" Margin="0,2,0,0"/>
-                                    <TextBlock x:Name="InspectorItemPath" Text="Путь: —" FontSize="9.5" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                    <TextBlock x:Name="InspectorItemPath" Text="Путь: —" FontSize="9.5" Style="{StaticResource MutedText}" TextWrapping="Wrap" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Border>
                             <TextBlock Text="MOTION AI" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}" Margin="0,0,0,8" Visibility="{Binding Path=AiVisibility, Source={x:Static models:ThemeManager.Instance}}"/>
@@ -915,110 +941,167 @@
                             <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,14">
                                 <StackPanel>
                                     <DockPanel Margin="0,0,0,12">
-                                        <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <Border Width="38" Height="38" CornerRadius="12" Background="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Center">
                                             <TextBlock Text="⚡" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
+                                        <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                                            <Border x:Name="TransferIoModeBadge" CornerRadius="6" Padding="8,4" Background="{DynamicResource ChipBackgroundBrush}">
+                                                <TextBlock x:Name="TransferIoModeBadgeText" Text="Буферизованный I/O (кэш Windows)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            </Border>
+                                        </StackPanel>
                                         <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="Аппаратный движок прямой передачи данных (Direct I/O Streamer)" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                            <TextBlock Text="Прямой конвейер потокового ввода-вывода с нулевым оверхедом и аппаратным насыщением шины" FontSize="11" Style="{StaticResource MutedText}"/>
+                                            <TextBlock Text="Потоковый конвейер передачи данных (Streaming I/O Engine)" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock x:Name="TransferHeaderSubtitle" Text="Асинхронный двухбуферный конвейер ввода-вывода с контролем целостности" FontSize="11" Style="{StaticResource MutedText}"/>
                                         </StackPanel>
                                     </DockPanel>
 
-                                    <!-- Пути источник / назначение -->
+                                    <!-- Пути источник / назначение (единая выровненная сетка) -->
                                     <Grid Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="86"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Источник:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
-                                        <TextBox x:Name="TransferSourceBox" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="8"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Строка источника -->
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Источник:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                                        <TextBox x:Name="TransferSourceBox" Grid.Row="0" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
                                                  Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Padding="8,6" VerticalAlignment="Center"
-                                                 AllowDrop="True" PreviewDragOver="TransferPath_DragOver" Drop="TransferSource_Drop"/>
-                                        <Button Grid.Column="2" Style="{StaticResource CyberToolButton}" Content="📄 Файл..." Margin="8,0,0,0" Padding="10,6" Click="BrowseSourceFile_Click"/>
-                                        <Button Grid.Column="3" Style="{StaticResource CyberToolButton}" Content="📁 Папка..." Margin="6,0,0,0" Padding="10,6" Click="BrowseSourceFolder_Click"/>
+                                                 AllowDrop="True" PreviewDragOver="TransferPath_DragOver" Drop="TransferSource_Drop" TextChanged="TransferPath_TextChanged"
+                                                 ToolTip="Укажите исходный файл или папку для передачи"/>
+                                        <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource CyberToolButton}" Content="📄 Файл…" Padding="12,6" Click="BrowseSourceFile_Click"/>
+                                            <Button Style="{StaticResource CyberToolButton}" Content="📁 Папка…" Margin="6,0,0,0" Padding="12,6" Click="BrowseSourceFolder_Click"/>
+                                        </StackPanel>
+
+                                        <!-- Строка приёмника -->
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Приёмник:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
+                                        <TextBox x:Name="TransferDestBox" Grid.Row="2" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
+                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Padding="8,6" VerticalAlignment="Center"
+                                                 AllowDrop="True" PreviewDragOver="TransferPath_DragOver" Drop="TransferDest_Drop" TextChanged="TransferPath_TextChanged"
+                                                 ToolTip="Укажите целевую папку (куда передавать данные)"/>
+                                        <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource CyberToolButton}" Content="📁 Выбрать папку…" Padding="14,6" Click="BrowseDestFolder_Click"/>
+                                        </StackPanel>
                                     </Grid>
 
-                                    <Grid Margin="0,0,0,14">
+                                    <!-- Конфликты имён и CRC-32 -->
+                                    <Grid Margin="0,0,0,12">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="86"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Приёмник:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"/>
-                                        <TextBox x:Name="TransferDestBox" Grid.Column="1" Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource SubtleBorderBrush}"
-                                                 Foreground="{DynamicResource PrimaryTextBrush}" FontSize="12" Padding="8,6" VerticalAlignment="Center"
-                                                 AllowDrop="True" PreviewDragOver="TransferPath_DragOver" Drop="TransferDest_Drop"/>
-                                        <Button Grid.Column="2" Style="{StaticResource CyberToolButton}" Content="📁 Папка..." Margin="8,0,0,0" Padding="12,6" Click="BrowseDestFolder_Click"/>
+                                        <TextBlock Text="Конфликты:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="11.5" Style="{StaticResource MutedText}"/>
+                                        <ComboBox x:Name="ConflictPolicyCombo" Grid.Column="1" VerticalAlignment="Center" Padding="8,5" FontSize="11.5" SelectionChanged="ConflictPolicyCombo_SelectionChanged">
+                                            <ComboBoxItem Content="⚡ Сохранить обе версии (автопереименование с суффиксом)" IsSelected="True"/>
+                                            <ComboBoxItem Content="🕒 Заменять, только если исходный файл новее"/>
+                                            <ComboBoxItem Content="⏩ Пропускать уже существующие файлы"/>
+                                            <ComboBoxItem Content="⚠️ Перезаписывать существующие файлы"/>
+                                        </ComboBox>
+                                        <CheckBox x:Name="VerifyCrc32TransferCheck" Grid.Column="2" Content="Проверка CRC-32" VerticalAlignment="Center" Margin="14,0,0,0"
+                                                  FontSize="11" FontWeight="SemiBold" Checked="VerifyCrc32TransferCheck_Changed" Unchecked="VerifyCrc32TransferCheck_Changed"
+                                                  ToolTip="Автоматическая побайтовая проверка целостности контрольной суммой CRC-32 после копирования"/>
                                     </Grid>
+
+                                    <!-- Карточка предварительной оценки объёма и места (Pre-flight Assessment) -->
+                                    <Border x:Name="PreflightAssessmentCard" Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,12" Visibility="Collapsed">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <DockPanel Margin="0,0,0,4">
+                                                    <TextBlock x:Name="PreflightVolumeText" Text="Объём: 0 байт (0 файлов)" FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                    <TextBlock x:Name="PreflightDriveInfoText" Text=" • Приёмник: D:\ (свободно 0 ГБ)" FontSize="11" Style="{StaticResource MutedText}"/>
+                                                </DockPanel>
+                                                <TextBlock x:Name="PreflightSpaceStatusText" Text="Проверка доступного пространства..." FontSize="10.5" Style="{StaticResource MutedText}"/>
+                                            </StackPanel>
+                                            <Border x:Name="PreflightStatusBadge" Grid.Column="1" VerticalAlignment="Center" CornerRadius="6" Padding="8,4" Background="#2010B981">
+                                                <TextBlock x:Name="PreflightStatusBadgeText" Text="✓ Места достаточно" FontSize="10.5" FontWeight="Bold" Foreground="#10B981"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Сообщение об ошибке (при сбое) -->
+                                    <Border x:Name="TransferErrorBanner" Background="#20EF4444" BorderBrush="#EF4444" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,12" Visibility="Collapsed">
+                                        <DockPanel>
+                                            <TextBlock Text="⚠️" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="TransferErrorText" Text="Ошибка операции" FontSize="11" FontWeight="SemiBold" Foreground="#EF4444" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        </DockPanel>
+                                    </Border>
 
                                     <!-- Панель запуска -->
                                     <DockPanel>
-                                        <StackPanel Orientation="Horizontal">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button x:Name="StartTransferBtn" Style="{StaticResource CyberButton}" Content="⚡ Старт передачи" Padding="18,8" Click="StartLiveTransfer_Click"/>
                                             <Button x:Name="PauseTransferBtn" Style="{StaticResource CyberToolButton}" Content="⏸ Пауза" Margin="8,0,0,0" Padding="14,8" IsEnabled="False" Click="PauseLiveTransfer_Click"/>
-                                            <Button x:Name="CancelTransferBtn" Style="{StaticResource CyberToolButton}" Content="⏹ Стоп" Margin="8,0,0,0" Padding="14,8" IsEnabled="False" Click="CancelLiveTransfer_Click"/>
+                                            <Button x:Name="CancelTransferBtn" Style="{StaticResource CyberDangerButton}" Content="⏹ Стоп" Margin="8,0,0,0" Padding="14,8" IsEnabled="False" Click="CancelLiveTransfer_Click"/>
                                         </StackPanel>
-                                        <Button Style="{StaticResource CyberToolButton}" Content="🚀 3D Окно Motion Copy" HorizontalAlignment="Right" Padding="14,8" Click="OpenMotionWindow_Click"/>
+                                        <Button Style="{StaticResource CyberToolButton}" Content="🚀 3D Окно Motion Copy" HorizontalAlignment="Right" VerticalAlignment="Center" Padding="14,8" Click="OpenMotionWindow_Click"/>
                                     </DockPanel>
                                 </StackPanel>
                             </Border>
 
-                            <!-- Неоновый телеметрический HUD (4 плашки) -->
-                            <Grid Margin="0,0,0,14">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-
+                            <!-- Телеметрический HUD (4 плашки в единой сетке) -->
+                            <UniformGrid Columns="4" Margin="0,0,0,14">
                                 <!-- Скорость сейчас -->
-                                <Border Grid.Column="0" Style="{StaticResource Card}" Padding="12" Margin="0,0,6,0">
-                                    <StackPanel>
+                                <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,6,0" MinHeight="84">
+                                    <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="ТЕКУЩАЯ СКОРОСТЬ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
                                         <TextBlock x:Name="HudCurrentSpeedText" Text="0.0 МБ/с" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"/>
-                                        <TextBlock x:Name="HudBusType" Text="I/O Stream Ready" FontSize="10" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HudBusType" Text="Буферизованный I/O (кэш ОС)" FontSize="10" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Пиковая скорость -->
-                                <Border Grid.Column="1" Style="{StaticResource Card}" Padding="12" Margin="3,0,3,0">
-                                    <StackPanel>
+                                <Border Style="{StaticResource Card}" Padding="12" Margin="3,0,3,0" MinHeight="84">
+                                    <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="ПИКОВАЯ СКОРОСТЬ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
                                         <TextBlock x:Name="HudPeakSpeedText" Text="0.0 МБ/с" FontSize="18" FontWeight="Bold" Foreground="#00FF66" Margin="0,4,0,0"/>
-                                        <TextBlock Text="Hardware Max Bus" FontSize="10" Style="{StaticResource MutedText}"/>
+                                        <TextBlock Text="Пик текущей сессии" FontSize="10" Style="{StaticResource MutedText}"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- ETA -->
-                                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="12" Margin="3,0,3,0">
-                                    <StackPanel>
+                                <Border Style="{StaticResource Card}" Padding="12" Margin="3,0,3,0" MinHeight="84">
+                                    <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="ОСТАВШЕЕСЯ ВРЕМЯ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
                                         <TextBlock x:Name="HudEtaText" Text="--:--:--" FontSize="18" FontWeight="Bold" Foreground="#FFD600" Margin="0,4,0,0"/>
-                                        <TextBlock x:Name="HudAvgSpeedText" Text="Средняя: 0 МБ/с" FontSize="10" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HudAvgSpeedText" Text="Средняя: 0.0 МБ/с" FontSize="10" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Прогресс и объем -->
-                                <Border Grid.Column="3" Style="{StaticResource Card}" Padding="12" Margin="6,0,0,0">
-                                    <StackPanel>
+                                <Border Style="{StaticResource Card}" Padding="12" Margin="6,0,0,0" MinHeight="84">
+                                    <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="ПЕРЕДАНО ДАННЫХ" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}"/>
                                         <TextBlock x:Name="HudProgressText" Text="0% (0 / 0)" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,4,0,0"/>
-                                        <TextBlock x:Name="HudBytesText" Text="0 МБ из 0 МБ" FontSize="10" Style="{StaticResource MutedText}"/>
+                                        <TextBlock x:Name="HudBytesText" Text="0 байт из 0 байт" FontSize="10" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                 </Border>
-                            </Grid>
+                            </UniformGrid>
 
                             <!-- Индикатор узких мест (Bottleneck Detector) -->
-                            <Border x:Name="BottleneckBorder" Style="{StaticResource Card}" Background="{DynamicResource ChipBackgroundBrush}" Padding="12,8" Margin="0,0,0,14">
+                            <Border x:Name="BottleneckBorder" Style="{StaticResource Card}" Background="{DynamicResource ChipBackgroundBrush}" Padding="12,8" Margin="0,0,0,10">
                                 <DockPanel>
-                                    <TextBlock Text="ДЕТЕКТОР ШИНЫ:" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <TextBlock x:Name="BottleneckStatusText" Text="🚀 Прямой доступ к накопителям. Конвейер оптимизирован для максимальной пропускной способности шины PCIe/SATA."
-                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="АНАЛИЗАТОР ШИНЫ:" FontSize="10" FontWeight="Bold" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBlock x:Name="BottleneckStatusText" Text="💤 Конвейер ожидает запуска передачи данных."
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                                 </DockPanel>
                             </Border>
+
+                            <!-- Текущий этап и имя файла -->
+                            <DockPanel Margin="0,0,0,6">
+                                <TextBlock x:Name="TransferStageText" Text="Готов к передаче • Нажмите «Старт передачи»" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TransferCurrentFileText" Text="" FontSize="10.5" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" MaxWidth="440" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </DockPanel>
 
                             <!-- Прогресс-бар передачи -->
                             <ProgressBar x:Name="LiveTransferProgressBar" Height="8" Minimum="0" Maximum="100" Value="0"
@@ -1028,8 +1111,18 @@
                             <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,14">
                                 <StackPanel>
                                     <DockPanel Margin="0,0,0,8">
-                                        <TextBlock Text="График скорости в реальном времени (30 FPS)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                        <TextBlock x:Name="GraphMaxScaleText" Text="Шкала: 1000 МБ/с" FontSize="11" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
+                                        <TextBlock Text="График скорости в реальном времени (30 FPS)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="Масштаб:" FontSize="10.5" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <ComboBox x:Name="GraphScaleCombo" Width="105" FontSize="10.5" Padding="6,2" VerticalAlignment="Center" SelectionChanged="GraphScaleCombo_SelectionChanged">
+                                                <ComboBoxItem Content="Авто" IsSelected="True"/>
+                                                <ComboBoxItem Content="100 МБ/с"/>
+                                                <ComboBoxItem Content="500 МБ/с"/>
+                                                <ComboBoxItem Content="1000 МБ/с"/>
+                                                <ComboBoxItem Content="3000 МБ/с"/>
+                                            </ComboBox>
+                                            <TextBlock x:Name="GraphMaxScaleText" Text="Шкала: Авто" FontSize="10.5" Style="{StaticResource MutedText}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
                                     </DockPanel>
                                     <Border Background="#0D111A" CornerRadius="6" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" ClipToBounds="True">
                                         <Canvas x:Name="LiveSpeedCanvas" Height="140" SizeChanged="LiveSpeedCanvas_SizeChanged"/>
@@ -1234,6 +1327,27 @@
                                 </Setter.Value>
                             </Setter>
                         </Style>
+                        <Style x:Key="DiagTileCard" TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="CornerRadius" Value="10"/>
+                            <Setter Property="Padding" Value="14,12"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Focusable" Value="True"/>
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <Setter Property="SnapsToDevicePixels" Value="True"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsFocused" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
                     </Grid.Resources>
 
                     <Grid.RowDefinitions>
@@ -1244,24 +1358,286 @@
                     <!-- НАВИГАЦИОННАЯ ПАНЕЛЬ ПОДРАЗДЕЛОВ ДИАГНОСТИКИ -->
                     <Border Grid.Row="0" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,10">
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly">
-                            <StackPanel Orientation="Horizontal">
-                                <RadioButton x:Name="DiagTabMonitoringRadio" GroupName="DiagSubGroup" Content="📈 Мониторинг &amp; Графики" Style="{StaticResource DiagSubTab}" IsChecked="True" Checked="DiagSubTab_Checked"/>
-                                <RadioButton x:Name="DiagTabBottleneckRadio" GroupName="DiagSubGroup" Content="🔍 Поиск узких мест" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
-                                <RadioButton x:Name="DiagTabRecommendationsRadio" GroupName="DiagSubGroup" Content="💡 Умные рекомендации" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
-                                <RadioButton x:Name="DiagTabCompareRadio" GroupName="DiagSubGroup" Content="🖴 Сравнение накопителей" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
-                                <RadioButton x:Name="DiagTabProfilesRadio" GroupName="DiagSubGroup" Content="🎛 Профили &amp; Безопасность" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
-                                <RadioButton x:Name="DiagTabProcessesRadio" GroupName="DiagSubGroup" Content="⚡ Нагрузка &amp; Автозагрузка" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
-                                <RadioButton x:Name="DiagTabBenchmarkRadio" GroupName="DiagSubGroup" Content="🏎 Бенчмарк-комплекс" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked"/>
-                            </StackPanel>
-                        </ScrollViewer>
+                        <DockPanel LastChildFill="True">
+                            <!-- Меню «Ещё ▾» справа для быстрого доступа ко всем разделам и для узких окон -->
+                            <Button x:Name="DiagMoreMenuBtn" DockPanel.Dock="Right" Style="{StaticResource CyberToolButton}" 
+                                    Content="Ещё ▾" Padding="10,5" Margin="4,0,2,0" VerticalAlignment="Center"
+                                    Click="DiagMoreMenu_Click" ToolTip="Все разделы диагностики и быстрые переходы"/>
+
+                            <!-- Прокручиваемый список подвкладок с клавиатурной навигацией -->
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly" Focusable="False">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="DiagTabOverviewRadio" GroupName="DiagSubGroup" Content="📊 Сводка" Style="{StaticResource DiagSubTab}" IsChecked="True" Checked="DiagSubTab_Checked" ToolTip="Общая сводка состояния системы, оборудования и рекомендаций"/>
+                                    <RadioButton x:Name="DiagTabMonitoringRadio" GroupName="DiagSubGroup" Content="📈 Графики" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Мониторинг в реальном времени, спарклайны и контрольные точки"/>
+                                    <RadioButton x:Name="DiagTabBottleneckRadio" GroupName="DiagSubGroup" Content="🔍 Узкие места" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Контекстный анализатор узких мест и лимитов производительности"/>
+                                    <RadioButton x:Name="DiagTabRecommendationsRadio" GroupName="DiagSubGroup" Content="💡 Рекомендации" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Экспертные рекомендации по оптимизации и накопителям"/>
+                                    <RadioButton x:Name="DiagTabCompareRadio" GroupName="DiagSubGroup" Content="🖴 Накопители" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Точное сравнение накопителей бок-о-бок и аппаратная идентификация"/>
+                                    <RadioButton x:Name="DiagTabProfilesRadio" GroupName="DiagSubGroup" Content="🎛 Профили" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Профили производительности Windows, журнал аудита и 1-клик откат"/>
+                                    <RadioButton x:Name="DiagTabProcessesRadio" GroupName="DiagSubGroup" Content="⚡ Нагрузка" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Ресурсоёмкие процессы, автозагрузка и системные утилиты"/>
+                                    <RadioButton x:Name="DiagTabBenchmarkRadio" GroupName="DiagSubGroup" Content="🏎 Бенчмарк" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Аппаратный комплекс тестирования пропускной способности и IOPS"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </DockPanel>
                     </Border>
 
                     <!-- РАБОЧАЯ ОБЛАСТЬ ПОДРАЗДЕЛОВ -->
                     <Grid Grid.Row="1">
 
+                        <!-- 0. ОБЩАЯ СВОДКА И ЕДИНОЕ РАБОЧЕЕ ПРОСТРАНСТВО (OVERVIEW DASHBOARD) -->
+                        <ScrollViewer x:Name="ViewDiagOverview" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="0,0,4,0">
+
+                                <!-- 1. ГЛАВНАЯ СВОДКА СИСТЕМЫ (HERO CARD) -->
+                                <Border Style="{StaticResource Card}" Padding="16,14" Margin="0,0,0,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Статусная иконка -->
+                                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="12"
+                                                Background="{DynamicResource LiquidGlassActiveHighlight}"
+                                                BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1"
+                                                Margin="0,0,14,0" VerticalAlignment="Center">
+                                            <TextBlock Text="🩺" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+
+                                        <!-- Информационный блок -->
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <DockPanel Margin="0,0,0,2">
+                                                <TextBlock Text="Единый диагностический центр Motion Commander" FontSize="13.5" FontWeight="Bold" 
+                                                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagOverviewHeroCpuText" Text="Сбор телеметрии оборудования..." 
+                                                       FontSize="11" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,1,0,3"/>
+                                            <TextBlock Text="Интерактивная сводка: кликните на любую карточку для быстрого перехода к инструменту." 
+                                                       FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+
+                                        <!-- Индикаторы справа -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                            <!-- Bottleneck бейдж -->
+                                            <Border Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" 
+                                                    BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="Узкие места: " FontSize="10" Style="{StaticResource MutedText}"/>
+                                                    <TextBlock x:Name="DiagOverviewBottleneckStatus" Text="Оптимально" FontSize="10" FontWeight="Bold" Foreground="#10B981"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Профиль бейдж -->
+                                            <Border Background="{DynamicResource ChipBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" 
+                                                    BorderThickness="1" CornerRadius="6" Padding="8,4">
+                                                <TextBlock x:Name="DiagOverviewProfileBadge" Text="⚖ Сбалансированный" FontSize="10" FontWeight="SemiBold" 
+                                                           Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- 2. СЕТКА ИНТЕРАКТИВНЫХ ПЛИТОК (TILES GRID) 4x2 -->
+                                <UniformGrid Columns="4" Rows="2" Margin="0,0,0,10">
+
+                                    <!-- Плитка 1: ЦП & ОЗУ -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="0,0,5,6" 
+                                            MouseLeftButtonDown="DiagTileMonitoring_Click" KeyDown="DiagTile_KeyDown" Tag="1"
+                                            ToolTip="Перейти к графикам процессора и памяти">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="📈 ЦП &amp; ОЗУ" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,2,0,2">
+                                                <TextBlock Text="ЦП:" FontSize="10.5" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagTileCpuVal" Text="0%" FontSize="13" FontWeight="Bold" 
+                                                           Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagTileRamVal" Text="0 ГБ из 0 ГБ (0%)" FontSize="10" Style="{StaticResource MutedText}" 
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="Живой мониторинг" FontSize="9" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Плитка 2: Дисковый I/O -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="3,0,3,6" 
+                                            MouseLeftButtonDown="DiagTileMonitoring_Click" KeyDown="DiagTile_KeyDown" Tag="1"
+                                            ToolTip="Перейти к мониторингу дискового потока">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="🖴 Дисковый поток" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="#F59E0B" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,2,0,2">
+                                                <TextBlock Text="Поток:" FontSize="10.5" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagTileDiskSpeedVal" Text="0.0 МБ/с" FontSize="13" FontWeight="Bold" 
+                                                           Foreground="#F59E0B" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagTileDiskActiveVal" Text="Активность: 0% • Очередь: 0" FontSize="10" Style="{StaticResource MutedText}" 
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <DockPanel>
+                                                <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                    <TextBlock Text="I/O Throughput" FontSize="9" Foreground="#F59E0B" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <TextBlock x:Name="DiagTileDiskTempVal" Text="34 °C" FontSize="9.5" Style="{StaticResource MutedText}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Плитка 3: Узкие места -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="3,0,3,6" 
+                                            MouseLeftButtonDown="DiagTileBottleneck_Click" KeyDown="DiagTile_KeyDown" Tag="2"
+                                            ToolTip="Перейти к контекстному детектору узких мест">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="🔍 Узкие места" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="#10B981" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagOverviewBottleneckTitle" Text="Максимальный сбалансированный поток" 
+                                                       FontSize="11.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}" 
+                                                       TextTrimming="CharacterEllipsis" Margin="0,2,0,2"/>
+                                            <TextBlock x:Name="DiagTileBottleneckDesc" Text="Шина, память и процессор согласованы." FontSize="10" 
+                                                       Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="Bottleneck Detector" FontSize="9" Foreground="#10B981" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Плитка 4: Рекомендации -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="5,0,0,6" 
+                                            MouseLeftButtonDown="DiagTileRecommendations_Click" KeyDown="DiagTile_KeyDown" Tag="3"
+                                            ToolTip="Перейти к умным рекомендациям эксперта">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="💡 Рекомендации" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,2,0,2">
+                                                <TextBlock Text="Аудит:" FontSize="10.5" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagTileRecsCountText" Text="0 советов" FontSize="12.5" FontWeight="Bold" 
+                                                           Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagTileRecsTopText" Text="Все подсистемы настроены оптимально" FontSize="10" 
+                                                       Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="Экспертный аудит" FontSize="9" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Плитка 5: Накопители системы -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="0,2,5,0" 
+                                            MouseLeftButtonDown="DiagTileDrives_Click" KeyDown="DiagTile_KeyDown" Tag="4"
+                                            ToolTip="Перейти к сравнению накопителей и разделам">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="🖴 Накопители" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,2,0,2">
+                                                <TextBlock Text="Физических:" FontSize="10.5" Style="{StaticResource MutedText}"/>
+                                                <TextBlock x:Name="DiagTileDrivesCountText" Text="0 дисков" FontSize="12.5" FontWeight="Bold" 
+                                                           Foreground="{DynamicResource PrimaryTextBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagTileDrivesLettersText" Text="Тома: C:, D:, H:" FontSize="10" 
+                                                       Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="Бок-о-бок сравнение" FontSize="9" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Плитка 6: Профили оптимизации -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="3,2,3,0" 
+                                            MouseLeftButtonDown="DiagTileProfiles_Click" KeyDown="DiagTile_KeyDown" Tag="5"
+                                            ToolTip="Перейти к профилям оптимизации Windows и безопасности">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="🎛 Профили" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="#10B981" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock Text="Игры, Тишина, Скорость" FontSize="11.5" FontWeight="Bold" 
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,2"/>
+                                            <TextBlock Text="1-клик откат и аудит изменений." FontSize="10" Style="{StaticResource MutedText}" 
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="Безопасные твики" FontSize="9" Foreground="#10B981" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Плитка 7: Процессы и автозагрузка -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="3,2,3,0" 
+                                            MouseLeftButtonDown="DiagTileProcesses_Click" KeyDown="DiagTile_KeyDown" Tag="6"
+                                            ToolTip="Перейти к контролю ресурсоёмких процессов и автозагрузки">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="⚡ Нагрузка" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock x:Name="DiagTileTopProcText" Text="Анализ процессов..." FontSize="11" FontWeight="Bold" 
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" TextTrimming="CharacterEllipsis" Margin="0,2,0,2"/>
+                                            <TextBlock x:Name="DiagTileStartupCountText" Text="Автозапуск: 0 программ" FontSize="10" 
+                                                       Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="Топ процессов" FontSize="9" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Плитка 8: Бенчмарк-комплекс -->
+                                    <Border Style="{StaticResource DiagTileCard}" Margin="5,2,0,0" 
+                                            MouseLeftButtonDown="DiagTileBenchmark_Click" KeyDown="DiagTile_KeyDown" Tag="7"
+                                            ToolTip="Перейти к аппаратному комплексу бенчмарков">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock Text="🏎 Бенчмарк" FontSize="11" FontWeight="Bold" Style="{StaticResource MutedText}"/>
+                                                <TextBlock Text="➔" FontSize="11" Foreground="#EF4444" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <TextBlock Text="Комплексный замер" FontSize="11.5" FontWeight="Bold" 
+                                                       Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,2,0,2"/>
+                                            <TextBlock Text="IOPS, чтение, запись и задержки." FontSize="10" Style="{StaticResource MutedText}" 
+                                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,4"/>
+                                            <Border Background="{DynamicResource WindowBackgroundBrush}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="Benchmark Ready" FontSize="9" Foreground="#EF4444" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                </UniformGrid>
+
+                                <!-- 3. ПАНЕЛЬ БЫСТРЫХ ДЕЙСТВИЙ И УТИЛИТ (QUICK ACTIONS TOOLBAR) -->
+                                <Border Style="{StaticResource Card}" Padding="14,10">
+                                    <DockPanel>
+                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                            <Button Style="{StaticResource CyberButton}" Content="📌 Зафиксировать «Снимок ДО»" 
+                                                    Padding="12,6" Margin="0,0,8,0" Click="DiagSetBaseline_Click" 
+                                                    ToolTip="Сохранить текущие метрики системы для последующего сравнения"/>
+                                            <Button Style="{StaticResource CyberButton}" Content="🏎 Запустить бенчмарк" 
+                                                    Padding="12,6" Margin="0,0,8,0" Click="DiagOverviewQuickBench_Click" 
+                                                    ToolTip="Быстрый переход к аппаратному тестированию накопителя"/>
+                                            <Button Style="{StaticResource CyberToolButton}" Content="📊 Диспетчер задач" 
+                                                    Padding="10,6" Click="DiagOpenTaskMgr_Click" 
+                                                    ToolTip="Открыть Диспетчер задач Windows"/>
+                                        </StackPanel>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Быстрые действия оптимизации" FontSize="12" FontWeight="Bold" 
+                                                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="Мгновенный доступ к фиксации контрольных точек, замерам и системным инструментам." 
+                                                       FontSize="10" Style="{StaticResource MutedText}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                            </StackPanel>
+                        </ScrollViewer>
+
                         <!-- 1. МОНИТОРИНГ В ДИНАМИКЕ И ГРАФИКИ -->
-                        <ScrollViewer x:Name="ViewDiagMonitoring" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer x:Name="ViewDiagMonitoring" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="0,0,4,0">
                                 <!-- Живые карточки метрик с историей -->
                                 <UniformGrid Columns="3" Margin="0,0,0,10">

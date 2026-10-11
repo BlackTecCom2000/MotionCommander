@@ -33,6 +33,8 @@ public partial class MainWindow : Window
     private string _currentArchivePath = "";
     private bool _showHidden;
     private string _searchFilter = "";
+    private bool _isInspectorVisible = true;
+    private GridLength _lastInspectorWidth = new GridLength(230);
 
     private readonly Stack<string> _backStack = new();
     private readonly Stack<string> _forwardStack = new();
@@ -50,6 +52,9 @@ public partial class MainWindow : Window
     private double _peakSpeedMb;
     private CancellationTokenSource? _transferCts;
     private UserActivityContext _currentDiagContext = UserActivityContext.Auto;
+    private CopyEngine? _liveTransferEngine;
+    private CancellationTokenSource? _preflightCts;
+    private double _selectedGraphScale = 0; // 0 = Авто
 
     public MainWindow(string? initialPath = null, int initialTab = 0)
     {
@@ -288,11 +293,12 @@ public partial class MainWindow : Window
             var updateInfo = await UpdateService.CheckForUpdatesAsync();
             if (updateInfo.IsUpdateAvailable)
             {
-                string patchNote = updateInfo.PatchSizeMb > 0 
-                    ? $"Быстрый инкрементальный патч (~{updateInfo.PatchSizeMb:F1} МБ вместо ~40 МБ)" 
-                    : "Быстрый инкрементальный патч";
+                string packageDesc = updateInfo.FormattedPackageDescription;
                 var res = MessageBox.Show(
-                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая версия: v{updateInfo.CurrentVersion}\n\nТип обновления: {patchNote}.\n\nПрименить обновление?", 
+                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\n" +
+                    $"Текущая установленная: v{updateInfo.CurrentVersion}\n\n" +
+                    $"Пакет загрузки: {packageDesc}\n\n" +
+                    "Применить обновление?", 
                     "Доступно обновление", 
                     MessageBoxButton.YesNo, 
                     MessageBoxImage.Information);
@@ -331,11 +337,12 @@ public partial class MainWindow : Window
             {
                 AvailableUpdateBtn.Visibility = Visibility.Visible;
                 AvailableUpdateBtn.ToolTip = $"Доступна новая версия: v{updateInfo.LatestVersion}";
-                string patchNote = updateInfo.PatchSizeMb > 0 
-                    ? $"Быстрый инкрементальный патч (~{updateInfo.PatchSizeMb:F1} МБ вместо ~40 МБ)" 
-                    : "Быстрый инкрементальный патч";
+                string packageDesc = updateInfo.FormattedPackageDescription;
                 var res = MessageBox.Show(
-                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\nТекущая: v{updateInfo.CurrentVersion}\n\nТип обновления: {patchNote}.\n\nПрименить обновление?",
+                    $"Доступна новая версия: v{updateInfo.LatestVersion}!\n" +
+                    $"Текущая установленная: v{updateInfo.CurrentVersion}\n\n" +
+                    $"Пакет загрузки: {packageDesc}\n\n" +
+                    "Применить обновление?",
                     "Доступно обновление", MessageBoxButton.YesNo, MessageBoxImage.Information);
 
                 if (res == MessageBoxResult.Yes)
@@ -446,6 +453,7 @@ public partial class MainWindow : Window
         UpdateNavButtons();
         UpdateStatusBar(items);
         UpdateFavoriteButtonState();
+        UpdateFileToolbarState();
     }
 
     private void OpenArchiveVirtual(string archivePath, bool recordHistory = true)
@@ -466,6 +474,7 @@ public partial class MainWindow : Window
 
             UpdateNavButtons();
             UpdateFavoriteButtonState();
+            UpdateFileToolbarState();
             StatusFilesText.Text = $"Архив: {Path.GetFileName(archivePath)} • {entries.Count} файлов";
             StatusDiskText.Text = "Виртуальный просмотр (без распаковки)";
         }
@@ -770,6 +779,105 @@ public partial class MainWindow : Window
             if (InspectorItemDate != null) InspectorItemDate.Text = "Изменён: —";
             if (InspectorItemPath != null) InspectorItemPath.Text = "Путь: —";
         }
+        UpdateFileToolbarState();
+    }
+
+    // ---------- ПАНЕЛЬ ДЕЙСТВИЙ И ИНСПЕКТОР (ФАЙЛЫ) ----------
+
+    private void ToggleInspector_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SetInspectorVisibility(!_isInspectorVisible);
+    }
+
+    private void CloseInspector_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SetInspectorVisibility(false);
+    }
+
+    private void SetInspectorVisibility(bool visible)
+    {
+        _isInspectorVisible = visible;
+        if (InspectorColumn != null)
+        {
+            if (visible)
+            {
+                InspectorColumn.Width = _lastInspectorWidth.Value > 100 ? _lastInspectorWidth : new GridLength(230);
+                InspectorColumn.MinWidth = 160;
+                InspectorColumn.MaxWidth = 340;
+            }
+            else
+            {
+                if (InspectorColumn.Width.Value > 50)
+                {
+                    _lastInspectorWidth = InspectorColumn.Width;
+                }
+                InspectorColumn.MinWidth = 0;
+                InspectorColumn.MaxWidth = 0;
+                InspectorColumn.Width = new GridLength(0);
+            }
+        }
+
+        if (InspectorBorder != null)
+        {
+            InspectorBorder.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+        if (RightSplitter != null)
+        {
+            RightSplitter.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+        if (ToggleInspectorBtn != null)
+        {
+            ToggleInspectorBtn.ToolTip = visible
+                ? "Скрыть панель свойств (Ctrl+I)"
+                : "Показать панель свойств (Ctrl+I)";
+        }
+    }
+
+    private void MoreActionsBtn_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (sender is Button btn && btn.ContextMenu != null)
+        {
+            btn.ContextMenu.PlacementTarget = btn;
+            btn.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            btn.ContextMenu.IsOpen = true;
+        }
+    }
+
+    private void UpdateFileToolbarState()
+    {
+        if (FileBrowserList == null) return;
+
+        var selected = FileBrowserList.SelectedItems.Cast<FileSystemItem>().ToList();
+        int count = selected.Count;
+        bool hasSelection = count > 0;
+        bool singleSelection = count == 1;
+        bool insideArchive = _isInsideArchive;
+        bool hasClipboard = _clipboardPaths != null && _clipboardPaths.Count > 0;
+
+        bool isArchiveSelected = false;
+        if (insideArchive)
+        {
+            isArchiveSelected = true;
+        }
+        else if (singleSelection)
+        {
+            var first = selected[0];
+            isArchiveSelected = first.IsArchive || ArchiveService.IsArchive(first.FullPath);
+        }
+
+        if (NewFolderBtn != null) NewFolderBtn.IsEnabled = !insideArchive;
+        if (CopyItemBtn != null) CopyItemBtn.IsEnabled = hasSelection;
+        if (CutItemBtn != null) CutItemBtn.IsEnabled = hasSelection && !insideArchive;
+        if (PasteItemBtn != null) PasteItemBtn.IsEnabled = hasClipboard && !insideArchive;
+        if (RenameItemBtn != null) RenameItemBtn.IsEnabled = singleSelection && !insideArchive;
+        if (DeleteItemBtn != null) DeleteItemBtn.IsEnabled = hasSelection && !insideArchive;
+
+        if (CreateArchiveBtn != null) CreateArchiveBtn.IsEnabled = !insideArchive;
+        if (ExtractArchiveBtn != null) ExtractArchiveBtn.IsEnabled = isArchiveSelected;
+        if (TestArchiveBtn != null) TestArchiveBtn.IsEnabled = isArchiveSelected;
     }
 
     // ---------- КОМАНДЫ АРХИВАТОРА ----------
@@ -898,6 +1006,7 @@ public partial class MainWindow : Window
         _clipboardPaths.Clear();
         _clipboardPaths.AddRange(items.Select(i => i.FullPath));
         _clipboardIsCut = false;
+        UpdateFileToolbarState();
     }
 
     private void CutItem_Click(object sender, RoutedEventArgs e)
@@ -908,6 +1017,7 @@ public partial class MainWindow : Window
         _clipboardPaths.Clear();
         _clipboardPaths.AddRange(items.Select(i => i.FullPath));
         _clipboardIsCut = true;
+        UpdateFileToolbarState();
     }
 
     private async void PasteItem_Click(object sender, RoutedEventArgs e)
@@ -953,6 +1063,7 @@ public partial class MainWindow : Window
         }
 
         NavigateTo(_currentPath, false);
+        UpdateFileToolbarState();
     }
 
     private async void CopyToFolder_Click(object sender, RoutedEventArgs e)
@@ -1063,6 +1174,14 @@ public partial class MainWindow : Window
 
     private void FileBrowserList_KeyDown(object sender, KeyEventArgs e)
     {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
+            (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift && e.Key == Key.N)
+        {
+            NewFolder_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+            return;
+        }
+
         if (Keyboard.Modifiers == ModifierKeys.Control)
         {
             if (e.Key == Key.C)
@@ -1085,6 +1204,26 @@ public partial class MainWindow : Window
                 FileBrowserList.SelectAll();
                 e.Handled = true;
             }
+            else if (e.Key == Key.I)
+            {
+                ToggleInspector_Click(sender, new RoutedEventArgs());
+                e.Handled = true;
+            }
+        }
+        else if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt && e.Key == Key.Enter)
+        {
+            ContextProperties_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Enter)
+        {
+            FileBrowserList_DoubleClick(sender, null!);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Back)
+        {
+            Up_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
         }
         else if (e.Key == Key.Delete || e.Key == Key.F8)
         {
@@ -1503,12 +1642,27 @@ public partial class MainWindow : Window
         else if (TabToolsRadio.IsChecked == true) activeView = ToolsView;
 
         bool isFiles = (activeView == FilesView);
-        UpdateSpeedGraphTimer(activeView == DiagnosticsView);
+        UpdateSpeedGraphTimer(activeView == DiagnosticsView || activeView == TransferView);
         if (FileBrowserToolbarPanel != null) FileBrowserToolbarPanel.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
         if (SidebarBorder != null) SidebarBorder.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
         if (LeftSplitter != null) LeftSplitter.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
-        if (RightSplitter != null) RightSplitter.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
-        if (InspectorBorder != null) InspectorBorder.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
+        if (RightSplitter != null) RightSplitter.Visibility = (isFiles && _isInspectorVisible) ? Visibility.Visible : Visibility.Collapsed;
+        if (InspectorBorder != null) InspectorBorder.Visibility = (isFiles && _isInspectorVisible) ? Visibility.Visible : Visibility.Collapsed;
+        if (InspectorColumn != null)
+        {
+            if (isFiles && _isInspectorVisible)
+            {
+                InspectorColumn.Width = _lastInspectorWidth.Value > 100 ? _lastInspectorWidth : new GridLength(230);
+                InspectorColumn.MinWidth = 160;
+                InspectorColumn.MaxWidth = 340;
+            }
+            else
+            {
+                InspectorColumn.MinWidth = 0;
+                InspectorColumn.MaxWidth = 0;
+                InspectorColumn.Width = new GridLength(0);
+            }
+        }
         if (FilesViewContainer != null) FilesViewContainer.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
 
         FilesView.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
@@ -1524,6 +1678,10 @@ public partial class MainWindow : Window
         if (DiagnosticsView.Visibility == Visibility.Visible)
         {
             RefreshDiagnosticsUI();
+        }
+        else if (TransferView.Visibility == Visibility.Visible)
+        {
+            RefreshTransferUI();
         }
     }
 
@@ -1569,8 +1727,9 @@ public partial class MainWindow : Window
 
     private void DiagSubTab_Checked(object sender, RoutedEventArgs e)
     {
-        if (ViewDiagMonitoring == null) return;
+        if (ViewDiagMonitoring == null || ViewDiagOverview == null) return;
 
+        ViewDiagOverview.Visibility = Visibility.Collapsed;
         ViewDiagMonitoring.Visibility = Visibility.Collapsed;
         ViewDiagBottleneck.Visibility = Visibility.Collapsed;
         ViewDiagRecommendations.Visibility = Visibility.Collapsed;
@@ -1579,7 +1738,12 @@ public partial class MainWindow : Window
         ViewDiagProcesses.Visibility = Visibility.Collapsed;
         ViewDiagBenchmark.Visibility = Visibility.Collapsed;
 
-        if (DiagTabMonitoringRadio?.IsChecked == true)
+        if (DiagTabOverviewRadio?.IsChecked == true)
+        {
+            ViewDiagOverview.Visibility = Visibility.Visible;
+            UpdateDiagnosticsOverview();
+        }
+        else if (DiagTabMonitoringRadio?.IsChecked == true)
         {
             ViewDiagMonitoring.Visibility = Visibility.Visible;
             TickDiagnosticsMonitoring();
@@ -1616,8 +1780,196 @@ public partial class MainWindow : Window
         }
     }
 
+    public void SelectDiagSubTab(int index)
+    {
+        switch (index)
+        {
+            case 0: if (DiagTabOverviewRadio != null) DiagTabOverviewRadio.IsChecked = true; break;
+            case 1: if (DiagTabMonitoringRadio != null) DiagTabMonitoringRadio.IsChecked = true; break;
+            case 2: if (DiagTabBottleneckRadio != null) DiagTabBottleneckRadio.IsChecked = true; break;
+            case 3: if (DiagTabRecommendationsRadio != null) DiagTabRecommendationsRadio.IsChecked = true; break;
+            case 4: if (DiagTabCompareRadio != null) DiagTabCompareRadio.IsChecked = true; break;
+            case 5: if (DiagTabProfilesRadio != null) DiagTabProfilesRadio.IsChecked = true; break;
+            case 6: if (DiagTabProcessesRadio != null) DiagTabProcessesRadio.IsChecked = true; break;
+            case 7: if (DiagTabBenchmarkRadio != null) DiagTabBenchmarkRadio.IsChecked = true; break;
+        }
+    }
+
+    private void DiagMoreMenu_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (sender is FrameworkElement btn)
+        {
+            var menu = new ContextMenu();
+            void AddItem(string title, string desc, int idx, bool isChecked)
+            {
+                var mi = new MenuItem
+                {
+                    Header = title,
+                    ToolTip = desc,
+                    IsChecked = isChecked
+                };
+                mi.Click += (s, ev) => SelectDiagSubTab(idx);
+                menu.Items.Add(mi);
+            }
+
+            AddItem("📊 Общая сводка и здоровье системы", "Главная панель ключевых показателей и быстрых действий", 0, DiagTabOverviewRadio?.IsChecked == true);
+            AddItem("📈 Мониторинг & Живые графики", "Динамика загрузки CPU, RAM, дисков и замер контрольных точек ДО/ПОСЛЕ", 1, DiagTabMonitoringRadio?.IsChecked == true);
+            AddItem("🔍 Контекстный поиск узких мест", "Детектор узких мест с учетом реального профиля нагрузки", 2, DiagTabBottleneckRadio?.IsChecked == true);
+            AddItem("💡 Умные рекомендации по накопителям", "Экспертные рекомендации, очистка, ReTrim и оценка безопасности", 3, DiagTabRecommendationsRadio?.IsChecked == true);
+            AddItem("🖴 Точное сравнение накопителей бок-о-бок", "Сравнение характеристик дисков, томов, разметки и SMART", 4, DiagTabCompareRadio?.IsChecked == true);
+            AddItem("🎛 Профили производительности & Откат", "Игры, энергосбережение, I/O поток и безопасный 1-клик откат", 5, DiagTabProfilesRadio?.IsChecked == true);
+            AddItem("⚡ Фоновая нагрузка & Автозагрузка", "Топ ресурсоёмких процессов и управление автозапуском Windows", 6, DiagTabProcessesRadio?.IsChecked == true);
+            AddItem("🏎 Аппаратный бенчмарк-комплекс", "Замер линейной скорости, IOPS, латентности и пропускной способности", 7, DiagTabBenchmarkRadio?.IsChecked == true);
+
+            menu.PlacementTarget = btn;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void DiagTileMonitoring_Click(object sender, MouseButtonEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(1);
+    }
+
+    private void DiagTileBottleneck_Click(object sender, MouseButtonEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(2);
+    }
+
+    private void DiagTileRecommendations_Click(object sender, MouseButtonEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(3);
+    }
+
+    private void DiagTileDrives_Click(object sender, MouseButtonEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(4);
+    }
+
+    private void DiagTileProfiles_Click(object sender, MouseButtonEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(5);
+    }
+
+    private void DiagTileProcesses_Click(object sender, MouseButtonEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(6);
+    }
+
+    private void DiagTileBenchmark_Click(object sender, MouseButtonEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(7);
+    }
+
+    private void DiagOverviewQuickBench_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        SelectDiagSubTab(7);
+    }
+
+    private void DiagTile_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter || e.Key == Key.Space)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is string tagStr && int.TryParse(tagStr, out int idx))
+            {
+                HapticAudio.PlayClick();
+                SelectDiagSubTab(idx);
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void UpdateDiagnosticsOverview()
+    {
+        if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+        if (ViewDiagOverview == null || ViewDiagOverview.Visibility != Visibility.Visible) return;
+
+        var sample = DynamicSystemMonitorService.CaptureCurrentSample();
+
+        // 1. Статус в верхнем баннере
+        if (DiagOverviewHeroCpuText != null)
+            DiagOverviewHeroCpuText.Text = $"{GetProcessorName()} • {HardwareAnalyzer.LogicalCoreCount} потоков";
+
+        // Профиль
+        var profile = SystemProfileOptimizerService.CurrentProfile;
+        string profName = profile switch
+        {
+            OptimizationProfileId.Gaming => "🎮 Игры (низкая задержка)",
+            OptimizationProfileId.Quiet => "🍃 Тихий режим (энергосбережение)",
+            OptimizationProfileId.FileTransfer => "🚀 Копирование (Direct I/O)",
+            _ => "⚖ Сбалансированный"
+        };
+        if (DiagOverviewProfileBadge != null)
+            DiagOverviewProfileBadge.Text = profName;
+
+        // Bottleneck статус
+        var bn = BottleneckAnalyzerService.Analyze(_currentDiagContext, sample);
+        if (DiagOverviewBottleneckTitle != null) DiagOverviewBottleneckTitle.Text = bn.Title;
+        if (DiagOverviewBottleneckStatus != null)
+        {
+            DiagOverviewBottleneckStatus.Text = bn.StatusBadge;
+            try { DiagOverviewBottleneckStatus.Foreground = new BrushConverter().ConvertFromString(bn.StatusColor) as Brush; } catch { }
+        }
+
+        // Плитка 1: ЦП & ОЗУ
+        if (DiagTileCpuVal != null) DiagTileCpuVal.Text = $"{sample.CpuPercent:F0}%";
+        if (DiagTileRamVal != null) DiagTileRamVal.Text = $"{sample.RamUsedGb:F1} из {sample.RamTotalGb:F1} ГБ ({sample.RamPercent:F0}%)";
+
+        // Плитка 2: Диск
+        if (DiagTileDiskSpeedVal != null) DiagTileDiskSpeedVal.Text = $"{sample.DiskTotalMBps:F1} МБ/с";
+        if (DiagTileDiskActiveVal != null) DiagTileDiskActiveVal.Text = $"Активность: {sample.DiskActivePercent:F0}% • Очередь: {sample.DiskQueueDepth:F1}";
+        if (DiagTileDiskTempVal != null) DiagTileDiskTempVal.Text = sample.HasDiskTemp ? $"{sample.DiskTempC:F0} °C" : "н/д";
+
+        // Плитка 3: Узкие места
+        if (DiagTileBottleneckDesc != null) DiagTileBottleneckDesc.Text = bn.Description;
+
+        // Плитка 4 и 5: Рекомендации и Накопители
+        try
+        {
+            var disks = StorageDiscoveryService.GetAllDisks();
+            var recs = StorageAdvisorService.GenerateRecommendations(disks);
+            if (DiagTileRecsCountText != null) DiagTileRecsCountText.Text = $"{recs.Count} советов";
+            if (DiagTileRecsTopText != null) DiagTileRecsTopText.Text = recs.Count > 0 ? recs[0].Title : "Все подсистемы настроены оптимально";
+
+            if (DiagTileDrivesCountText != null) DiagTileDrivesCountText.Text = $"{disks.Count} дисков";
+            if (DiagTileDrivesLettersText != null)
+            {
+                var letters = disks.Select(d => d.DriveLettersFormatted).Where(l => !string.IsNullOrEmpty(l)).ToList();
+                DiagTileDrivesLettersText.Text = letters.Count > 0 ? $"Тома: {string.Join(", ", letters)}" : "Физические диски";
+            }
+        }
+        catch { }
+
+        // Плитка 7: Процессы
+        try
+        {
+            var heavy = ProcessAndStartupService.GetTopHeavyProcesses(1);
+            if (heavy.Count > 0 && DiagTileTopProcText != null)
+            {
+                DiagTileTopProcText.Text = $"{heavy[0].Name}.exe ({heavy[0].MemoryFormatted})";
+            }
+            var startup = ProcessAndStartupService.GetStartupItems();
+            if (DiagTileStartupCountText != null)
+            {
+                DiagTileStartupCountText.Text = $"Автозапуск: {startup.Count} программ";
+            }
+        }
+        catch { }
+    }
+
     private void RefreshDiagnosticsUI()
     {
+        UpdateDiagnosticsOverview();
         TickDiagnosticsMonitoring();
         DiagRefreshCompareDisks();
         DiagRefreshRecommendations();
@@ -1629,6 +1981,11 @@ public partial class MainWindow : Window
     private void TickDiagnosticsMonitoring()
     {
         if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+
+        if (ViewDiagOverview != null && ViewDiagOverview.Visibility == Visibility.Visible)
+        {
+            UpdateDiagnosticsOverview();
+        }
 
         var sample = DynamicSystemMonitorService.CaptureCurrentSample();
         var history = DynamicSystemMonitorService.GetHistory();
@@ -2137,6 +2494,15 @@ public partial class MainWindow : Window
             _speedGraphTimer = null;
         }
 
+        _preflightCts?.Cancel();
+        _preflightCts?.Dispose();
+        _preflightCts = null;
+
+        _liveTransferEngine?.Cancel();
+        _transferCts?.Cancel();
+        _transferCts?.Dispose();
+        _transferCts = null;
+
         // Без отписки ThemeManager удерживал бы MainWindow живым после закрытия.
         ThemeManager.Instance.PropertyChanged -= OnThemePropertyChanged;
 
@@ -2186,17 +2552,26 @@ public partial class MainWindow : Window
         double w = LiveSpeedCanvas.ActualWidth;
         double h = LiveSpeedCanvas.ActualHeight;
 
-        double maxVal = Math.Max(500.0, _speedSamples.Max() * 1.25);
+        double highestSample = _speedSamples.Count == 0 ? 0 : _speedSamples.Max();
+        double maxVal = _selectedGraphScale > 0
+            ? _selectedGraphScale
+            : Math.Max(100.0, highestSample * 1.25);
+
         if (GraphMaxScaleText != null)
         {
-            GraphMaxScaleText.Text = maxVal >= 1000 ? $"Шкала: {maxVal / 1000:F1} ГБ/с" : $"Шкала: {maxVal:F0} МБ/с";
+            string prefix = _selectedGraphScale > 0 ? "Фикс: " : "Авто: ";
+            GraphMaxScaleText.Text = maxVal >= 1000
+                ? $"{prefix}{maxVal / 1000.0:F1} ГБ/с"
+                : $"{prefix}{maxVal:F0} МБ/с";
         }
 
-        // Горизонтальная сетка (3 деления)
-        var gridBrush = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255));
+        // Горизонтальная сетка (3 деления: 25%, 50%, 75%) с подписями значений
+        var gridBrush = new SolidColorBrush(Color.FromArgb(25, 255, 255, 255));
+        var labelBrush = new SolidColorBrush(Color.FromArgb(110, 200, 215, 235));
         for (int i = 1; i <= 3; i++)
         {
-            double y = h * (1.0 - (i / 4.0));
+            double ratio = i / 4.0;
+            double y = h * (1.0 - ratio);
             var line = new System.Windows.Shapes.Line
             {
                 X1 = 0, Y1 = y, X2 = w, Y2 = y,
@@ -2204,6 +2579,44 @@ public partial class MainWindow : Window
                 StrokeDashArray = new DoubleCollection { 4, 4 }
             };
             LiveSpeedCanvas.Children.Add(line);
+
+            double levelVal = maxVal * ratio;
+            var lbl = new TextBlock
+            {
+                Text = levelVal >= 1000 ? $"{levelVal / 1000.0:F1} ГБ/с" : $"{levelVal:F0} МБ/с",
+                FontSize = 9,
+                Foreground = labelBrush,
+                Opacity = 0.75
+            };
+            Canvas.SetLeft(lbl, 6);
+            Canvas.SetTop(lbl, Math.Max(2, y - 13));
+            LiveSpeedCanvas.Children.Add(lbl);
+        }
+
+        // Нулевая базовая линия снизу
+        var baseLine = new System.Windows.Shapes.Line
+        {
+            X1 = 0, Y1 = h - 1, X2 = w, Y2 = h - 1,
+            Stroke = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
+            StrokeThickness = 1
+        };
+        LiveSpeedCanvas.Children.Add(baseLine);
+
+        // Индикатор простоя, если скорость 0
+        bool isIdle = _currentSpeedMb <= 0.05 && _speedSamples.All(s => s <= 0.05);
+        if (isIdle)
+        {
+            var idleText = new TextBlock
+            {
+                Text = "В простое (0.0 МБ/с)",
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromArgb(120, 160, 175, 195)),
+                FontWeight = FontWeights.SemiBold
+            };
+            Canvas.SetLeft(idleText, Math.Max(10, w / 2 - 60));
+            Canvas.SetTop(idleText, Math.Max(10, h / 2 - 8));
+            LiveSpeedCanvas.Children.Add(idleText);
+            return;
         }
 
         var samples = _speedSamples.ToArray();
@@ -2216,7 +2629,7 @@ public partial class MainWindow : Window
         {
             double x = i * stepX;
             double norm = Math.Clamp(samples[i] / maxVal, 0.0, 1.0);
-            double y = h - (norm * (h - 14)) - 4;
+            double y = h - (norm * (h - 16)) - 4;
             points.Add(new Point(x, y));
         }
 
@@ -2231,7 +2644,7 @@ public partial class MainWindow : Window
         {
             Points = polyPoints,
             Fill = new LinearGradientBrush(
-                Color.FromArgb(70, 0, 240, 255),
+                Color.FromArgb(65, 0, 240, 255),
                 Color.FromArgb(4, 0, 240, 255),
                 new Point(0, 0),
                 new Point(0, 1))
@@ -2246,6 +2659,328 @@ public partial class MainWindow : Window
             StrokeThickness = 2.5
         };
         LiveSpeedCanvas.Children.Add(speedLine);
+
+        // Светящаяся точка текущего значения
+        if (points.Count > 0)
+        {
+            var lastPt = points[^1];
+            var dot = new System.Windows.Shapes.Ellipse
+            {
+                Width = 6,
+                Height = 6,
+                Fill = (Brush)FindResource("AccentBrush")
+            };
+            Canvas.SetLeft(dot, lastPt.X - 3);
+            Canvas.SetTop(dot, lastPt.Y - 3);
+            LiveSpeedCanvas.Children.Add(dot);
+        }
+    }
+
+    private void RefreshTransferUI()
+    {
+        bool isDirect = IoSettings.DirectIo;
+        if (TransferIoModeBadgeText != null)
+        {
+            TransferIoModeBadgeText.Text = isDirect
+                ? "Direct I/O • Write-Through (без кэша ОЗУ)"
+                : "Буферизованный I/O (кэш Windows)";
+        }
+        if (TransferIoModeBadge != null)
+        {
+            TransferIoModeBadge.Background = isDirect
+                ? new SolidColorBrush(Color.FromArgb(40, 0, 240, 255))
+                : (Brush)FindResource("ChipBackgroundBrush");
+        }
+        if (TransferHeaderSubtitle != null)
+        {
+            TransferHeaderSubtitle.Text = isDirect
+                ? "Прямой ввод-вывод на накопитель с обходом системного кэша Windows (Write-Through)"
+                : "Асинхронный двухбуферный конвейер ввода-вывода со стандартным кэшированием ОС";
+        }
+        if (HudBusType != null)
+        {
+            HudBusType.Text = isDirect ? "Direct I/O (Write-Through)" : "Буферизованный I/O (кэш ОС)";
+        }
+        if (VerifyCrc32TransferCheck != null)
+        {
+            VerifyCrc32TransferCheck.IsChecked = AppConfigData.Instance.AutoVerifyCrc32;
+        }
+        TriggerPreflightEvaluation();
+    }
+
+    private void ConflictPolicyCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_liveTransferEngine != null)
+        {
+            _liveTransferEngine.DestinationPolicy = GetSelectedOverwritePolicy();
+        }
+    }
+
+    private OverwritePolicy GetSelectedOverwritePolicy()
+    {
+        if (ConflictPolicyCombo == null) return OverwritePolicy.AutoRename;
+        return ConflictPolicyCombo.SelectedIndex switch
+        {
+            1 => OverwritePolicy.KeepNewer,
+            2 => OverwritePolicy.SkipExisting,
+            3 => OverwritePolicy.Overwrite,
+            _ => OverwritePolicy.AutoRename
+        };
+    }
+
+    private void VerifyCrc32TransferCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (VerifyCrc32TransferCheck == null) return;
+        AppConfigData.Instance.AutoVerifyCrc32 = VerifyCrc32TransferCheck.IsChecked == true;
+        AppConfigData.Instance.Save();
+    }
+
+    private void GraphScaleCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (GraphScaleCombo?.SelectedItem is ComboBoxItem item)
+        {
+            string s = item.Content?.ToString() ?? "";
+            if (s.Contains("100") && !s.Contains("1000")) _selectedGraphScale = 100.0;
+            else if (s.Contains("500")) _selectedGraphScale = 500.0;
+            else if (s.Contains("1000")) _selectedGraphScale = 1000.0;
+            else if (s.Contains("3000")) _selectedGraphScale = 3000.0;
+            else _selectedGraphScale = 0; // Авто
+
+            RenderSpeedGraph();
+        }
+    }
+
+    private void TransferPath_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        TriggerPreflightEvaluation();
+    }
+
+    private void TriggerPreflightEvaluation()
+    {
+        _preflightCts?.Cancel();
+        _preflightCts = new CancellationTokenSource();
+        var ct = _preflightCts.Token;
+        _ = EvaluateTransferPreflightAsync(ct);
+    }
+
+    private async Task EvaluateTransferPreflightAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(250, ct);
+
+            string src = TransferSourceBox?.Text?.Trim() ?? "";
+            string dst = TransferDestBox?.Text?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(src))
+            {
+                Dispatcher.Post(() =>
+                {
+                    if (PreflightAssessmentCard != null) PreflightAssessmentCard.Visibility = Visibility.Collapsed;
+                    if (TransferErrorBanner != null) TransferErrorBanner.Visibility = Visibility.Collapsed;
+                    if (TransferStageText != null) TransferStageText.Text = "Укажите исходный файл или папку для передачи данных";
+                });
+                return;
+            }
+
+            bool srcExists = File.Exists(src) || Directory.Exists(src);
+            if (!srcExists)
+            {
+                Dispatcher.Post(() =>
+                {
+                    if (PreflightAssessmentCard != null) PreflightAssessmentCard.Visibility = Visibility.Collapsed;
+                    if (TransferErrorBanner != null)
+                    {
+                        TransferErrorBanner.Visibility = Visibility.Visible;
+                        TransferErrorText.Text = $"Исходный путь не существует или недоступен: «{src}»";
+                    }
+                    if (TransferStageText != null) TransferStageText.Text = "⚠️ Исходный файл или папка не найдены";
+                });
+                return;
+            }
+
+            if (string.IsNullOrEmpty(dst))
+            {
+                Dispatcher.Post(() =>
+                {
+                    if (PreflightAssessmentCard != null) PreflightAssessmentCard.Visibility = Visibility.Collapsed;
+                    if (TransferErrorBanner != null) TransferErrorBanner.Visibility = Visibility.Collapsed;
+                    if (TransferStageText != null) TransferStageText.Text = "Укажите целевую папку назначения";
+                });
+                return;
+            }
+
+            // Проверка цикличности: если источник — каталог, а приёмник внутри источника
+            if (Directory.Exists(src))
+            {
+                string fullSrc = Path.GetFullPath(src).TrimEnd('\\', '/');
+                string fullDst = Path.GetFullPath(dst).TrimEnd('\\', '/');
+                if (string.Equals(fullSrc, fullDst, StringComparison.OrdinalIgnoreCase) ||
+                    fullDst.StartsWith(fullSrc + "\\", StringComparison.OrdinalIgnoreCase))
+                {
+                    Dispatcher.Post(() =>
+                    {
+                        if (PreflightAssessmentCard != null) PreflightAssessmentCard.Visibility = Visibility.Collapsed;
+                        if (TransferErrorBanner != null)
+                        {
+                            TransferErrorBanner.Visibility = Visibility.Visible;
+                            TransferErrorText.Text = $"Циклическое копирование заблокировано: целевая папка «{dst}» находится внутри исходной папки «{src}».";
+                        }
+                        if (TransferStageText != null) TransferStageText.Text = "❌ Обнаружено циклическое вложение путей";
+                    });
+                    return;
+                }
+            }
+
+            // Сканирование структуры в фоновом потоке
+            Dispatcher.Post(() =>
+            {
+                if (PreflightAssessmentCard != null) PreflightAssessmentCard.Visibility = Visibility.Visible;
+                if (PreflightVolumeText != null) PreflightVolumeText.Text = "Сканирование структуры источника...";
+                if (PreflightSpaceStatusText != null) PreflightSpaceStatusText.Text = "Подсчёт файлов и доступного дискового пространства...";
+            });
+
+            var (fileCount, dirCount, totalBytes) = await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                long bytes = 0;
+                int files = 0;
+                int dirs = 0;
+
+                if (File.Exists(src))
+                {
+                    try
+                    {
+                        var fi = new FileInfo(src);
+                        bytes = fi.Length;
+                        files = 1;
+                    }
+                    catch { }
+                }
+                else if (Directory.Exists(src))
+                {
+                    var opt = new EnumerationOptions
+                    {
+                        IgnoreInaccessible = true,
+                        RecurseSubdirectories = true,
+                        ReturnSpecialDirectories = false
+                    };
+                    try
+                    {
+                        foreach (var f in Directory.EnumerateFiles(src, "*", opt))
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            try
+                            {
+                                bytes += new FileInfo(f).Length;
+                                files++;
+                            }
+                            catch { }
+                        }
+                        dirs = Directory.GetDirectories(src, "*", opt).Length;
+                    }
+                    catch { }
+                }
+
+                return (files, dirs, bytes);
+            }, ct);
+
+            // Опрос доступного пространства на накопителе приёмника
+            long freeBytes = -1;
+            string driveName = "";
+            try
+            {
+                string root = Path.GetPathRoot(dst) ?? "";
+                if (!string.IsNullOrEmpty(root))
+                {
+                    var drive = new DriveInfo(root);
+                    if (drive.IsReady)
+                    {
+                        freeBytes = drive.AvailableFreeSpace;
+                        driveName = drive.Name;
+                    }
+                }
+            }
+            catch { }
+
+            ct.ThrowIfCancellationRequested();
+
+            Dispatcher.Post(() =>
+            {
+                if (PreflightAssessmentCard != null) PreflightAssessmentCard.Visibility = Visibility.Visible;
+
+                string volInfo = $"Объём: {Formatters.Bytes(totalBytes)} ({fileCount} {(fileCount == 1 ? "файл" : "файлов")}";
+                if (dirCount > 0) volInfo += $", {dirCount} папок";
+                volInfo += ")";
+
+                if (PreflightVolumeText != null) PreflightVolumeText.Text = volInfo;
+
+                if (freeBytes >= 0)
+                {
+                    if (PreflightDriveInfoText != null)
+                        PreflightDriveInfoText.Text = $" • Приёмник {driveName} (свободно {Formatters.Bytes(freeBytes)})";
+
+                    if (freeBytes < totalBytes)
+                    {
+                        long deficit = totalBytes - freeBytes;
+                        if (PreflightSpaceStatusText != null)
+                            PreflightSpaceStatusText.Text = $"Внимание: дефицит {Formatters.Bytes(deficit)}! На целевом накопителе недостаточно места.";
+
+                        if (PreflightStatusBadge != null)
+                            PreflightStatusBadge.Background = new SolidColorBrush(Color.FromArgb(40, 239, 68, 68));
+                        if (PreflightStatusBadgeText != null)
+                        {
+                            PreflightStatusBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                            PreflightStatusBadgeText.Text = "⚠️ Дефицит места";
+                        }
+
+                        if (TransferErrorBanner != null)
+                        {
+                            TransferErrorBanner.Visibility = Visibility.Visible;
+                            TransferErrorText.Text = $"На диске назначения {driveName} недостаточно места: требуется {Formatters.Bytes(totalBytes)}, свободно {Formatters.Bytes(freeBytes)} (дефицит {Formatters.Bytes(deficit)}).";
+                        }
+                        if (TransferStageText != null)
+                            TransferStageText.Text = "⚠️ Предупреждение: недостаточно свободного места";
+                    }
+                    else
+                    {
+                        long remaining = freeBytes - totalBytes;
+                        if (PreflightSpaceStatusText != null)
+                            PreflightSpaceStatusText.Text = $"Останется после передачи: ~{Formatters.Bytes(remaining)} свободного пространства";
+
+                        if (PreflightStatusBadge != null)
+                            PreflightStatusBadge.Background = new SolidColorBrush(Color.FromArgb(40, 16, 185, 129));
+                        if (PreflightStatusBadgeText != null)
+                        {
+                            PreflightStatusBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                            PreflightStatusBadgeText.Text = "✓ Места достаточно";
+                        }
+
+                        if (TransferErrorBanner != null) TransferErrorBanner.Visibility = Visibility.Collapsed;
+                        if (TransferStageText != null && (_liveTransferEngine == null || !_liveTransferEngine.IsRunning))
+                            TransferStageText.Text = "Готов к передаче • Нажмите «Старт передачи»";
+                    }
+                }
+                else
+                {
+                    if (PreflightDriveInfoText != null) PreflightDriveInfoText.Text = " • Накопитель назначения готов";
+                    if (PreflightSpaceStatusText != null) PreflightSpaceStatusText.Text = "Готов к запуску операции.";
+                    if (TransferErrorBanner != null) TransferErrorBanner.Visibility = Visibility.Collapsed;
+                }
+            });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Dispatcher.Post(() =>
+            {
+                if (TransferErrorBanner != null)
+                {
+                    TransferErrorBanner.Visibility = Visibility.Visible;
+                    TransferErrorText.Text = $"Ошибка предварительной проверки: {ex.Message}";
+                }
+            });
+        }
     }
 
     private void BrowseSourceFile_Click(object sender, RoutedEventArgs e)
@@ -2324,14 +3059,15 @@ public partial class MainWindow : Window
         string src = TransferSourceBox?.Text?.Trim() ?? "";
         string dst = TransferDestBox?.Text?.Trim() ?? "";
 
+        var motion = new MotionCopyWindow { Owner = this };
+        _activeMotionWindow = motion;
+        motion.Show();
+        motion.Activate();
+
         if (!string.IsNullOrEmpty(src) && (File.Exists(src) || Directory.Exists(src)) &&
             !string.IsNullOrEmpty(dst) && Directory.Exists(dst))
         {
-            _ = LaunchRealTransferAsync(src, dst);
-        }
-        else
-        {
-            StartLiveTransfer_Click(sender, e);
+            _ = motion.StartRealTransferAsync(src, dst);
         }
     }
 
@@ -2348,7 +3084,6 @@ public partial class MainWindow : Window
             var ofd = new Microsoft.Win32.OpenFileDialog { Title = "Выберите исходный файл (или нажмите Отмена для выбора папки)" };
             if (ofd.ShowDialog() == true)
             {
-                // ShowDialog() == true гарантирует непустой FileName.
                 src = ofd.FileName;
                 TransferSourceBox!.Text = src;
             }
@@ -2389,10 +3124,33 @@ public partial class MainWindow : Window
 
     private async Task LaunchRealTransferAsync(string src, string dst)
     {
+        // Первичная валидация
+        if (!File.Exists(src) && !Directory.Exists(src))
+        {
+            MessageBox.Show($"Исходный файл или папка не существуют:\n{src}", "Ошибка источника", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Проверка цикличности (папка внутри самой себя)
+        if (Directory.Exists(src))
+        {
+            string fullSrc = Path.GetFullPath(src).TrimEnd('\\', '/');
+            string fullDst = Path.GetFullPath(dst).TrimEnd('\\', '/');
+            if (string.Equals(fullSrc, fullDst, StringComparison.OrdinalIgnoreCase) ||
+                fullDst.StartsWith(fullSrc + "\\", StringComparison.OrdinalIgnoreCase))
+            {
+                TransferErrorBanner.Visibility = Visibility.Visible;
+                TransferErrorText.Text = $"Циклическое копирование заблокировано: целевая папка «{dst}» находится внутри исходной папки «{src}».";
+                MessageBox.Show($"Целевая папка находится внутри исходной папки.\nКопирование отменено для предотвращения бесконечного цикла.", "Циклическое копирование", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+        }
+
         StartTransferBtn.IsEnabled = false;
         PauseTransferBtn.IsEnabled = true;
         CancelTransferBtn.IsEnabled = true;
         PauseTransferBtn.Content = "⏸ Пауза";
+        TransferErrorBanner.Visibility = Visibility.Collapsed;
 
         _peakSpeedMb = 0;
         _currentSpeedMb = 0;
@@ -2401,95 +3159,131 @@ public partial class MainWindow : Window
         _transferCts = new CancellationTokenSource();
         var ct = _transferCts.Token;
 
-        var motion = new MotionCopyWindow { Owner = this };
-        _activeMotionWindow = motion;
-        motion.Show();
-        motion.Activate();
+        _liveTransferEngine = new CopyEngine
+        {
+            DestinationPolicy = GetSelectedOverwritePolicy()
+        };
+
+        TransferStageText.Text = "Подготовка конвейера передачи данных...";
+        TransferCurrentFileText.Text = "";
 
         var sw = Stopwatch.StartNew();
 
         void OnProgressTick(object? s, EventArgs e)
         {
-            // НЕБЛОКИРУЮЩИЙ маршалинг: ProgressTick приходит с потока, который
-            // пишет байты на диск. Синхронный Dispatcher.Invoke замедлял копирование
-            // и создавал риск дедлока при UI-сталлах (модальные окна, ShowDialog).
+            // НЕБЛОКИРУЮЩИЙ маршалинг через Dispatcher.Post
             Dispatcher.Post(() =>
             {
-                double speedMb = motion.Engine.CurrentSpeed / (1024.0 * 1024.0);
+                if (_liveTransferEngine == null) return;
+
+                double speedMb = _liveTransferEngine.CurrentSpeed / (1024.0 * 1024.0);
                 _currentSpeedMb = speedMb;
                 if (speedMb > _peakSpeedMb) _peakSpeedMb = speedMb;
 
-                double pct = motion.Engine.OverallProgress;
+                double pct = _liveTransferEngine.OverallProgress;
                 LiveTransferProgressBar.SetSafe(pct);
 
                 HudCurrentSpeedText.Text = $"{speedMb:F1} МБ/с";
                 HudPeakSpeedText.Text = $"{_peakSpeedMb:F1} МБ/с";
-                HudProgressText.Text = $"{pct:F0}% ({motion.Engine.DoneCount} / {motion.Engine.Items.Count})";
-                HudBytesText.Text = $"{Formatters.Bytes(motion.Engine.CopiedBytes)} из {Formatters.Bytes(motion.Engine.TotalBytes)}";
-                HudEtaText.Text = Formatters.Eta(motion.Engine.Eta);
+                HudProgressText.Text = $"{pct:F0}% ({_liveTransferEngine.DoneCount} / {_liveTransferEngine.Items.Count})";
+                HudBytesText.Text = $"{Formatters.Bytes(_liveTransferEngine.CopiedBytes)} из {Formatters.Bytes(_liveTransferEngine.TotalBytes)}";
+                HudEtaText.Text = Formatters.Eta(_liveTransferEngine.Eta);
 
-                double avgSpeed = (motion.Engine.CopiedBytes / (1024.0 * 1024.0)) / Math.Max(0.1, sw.Elapsed.TotalSeconds);
+                double avgSpeed = (_liveTransferEngine.CopiedBytes / (1024.0 * 1024.0)) / Math.Max(0.1, sw.Elapsed.TotalSeconds);
                 HudAvgSpeedText.Text = $"Средняя: {avgSpeed:F1} МБ/с";
+
+                var curItem = _liveTransferEngine.CurrentItem;
+                if (curItem != null)
+                {
+                    TransferStageText.Text = _liveTransferEngine.IsPaused
+                        ? "⏸ Приостановлено пользователем"
+                        : $"Передача: {curItem.FileName}";
+                    TransferCurrentFileText.Text = curItem.SourcePath;
+                }
 
                 UpdateBottleneckIndicator(speedMb);
             });
         }
 
-        motion.Engine.ProgressTick += OnProgressTick;
+        _liveTransferEngine.ProgressTick += OnProgressTick;
 
         try
         {
-            await motion.StartRealTransferAsync(src, dst, ct);
+            await _liveTransferEngine.StartRealCopyAsync(new[] { (src, dst) }, ct);
 
-            if (motion.Engine.IsCompleted)
+            if (_liveTransferEngine.IsCompleted)
             {
                 LiveTransferProgressBar.Value = 100;
                 _currentSpeedMb = 0;
                 HudCurrentSpeedText.Text = "0.0 МБ/с";
                 HudEtaText.Text = "00:00:00";
-                HudProgressText.Text = $"100% ({motion.Engine.DoneCount} / {motion.Engine.Items.Count})";
-                HudBytesText.Text = $"{Formatters.Bytes(motion.Engine.TotalBytes)} из {Formatters.Bytes(motion.Engine.TotalBytes)}";
+                HudProgressText.Text = $"100% ({_liveTransferEngine.DoneCount} / {_liveTransferEngine.Items.Count})";
+                HudBytesText.Text = $"{Formatters.Bytes(_liveTransferEngine.TotalBytes)} из {Formatters.Bytes(_liveTransferEngine.TotalBytes)}";
+                TransferStageText.Text = "✓ Передача успешно завершена! Все файлы и контрольные суммы проверены.";
+                TransferCurrentFileText.Text = "";
+                BottleneckStatusText.Text = "✓ Конвейер завершил передачу всех данных.";
+                BottleneckStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 230, 118));
                 HapticAudio.PlaySuccess();
+            }
+            else if (!string.IsNullOrEmpty(_liveTransferEngine.OperationError))
+            {
+                TransferErrorBanner.Visibility = Visibility.Visible;
+                TransferErrorText.Text = _liveTransferEngine.OperationError;
+                TransferStageText.Text = "⚠️ Передача завершена с предупреждением";
             }
         }
         catch (OperationCanceledException)
         {
             _currentSpeedMb = 0;
-            HudCurrentSpeedText.Text = "Прервано";
+            HudCurrentSpeedText.Text = "0.0 МБ/с";
             HudEtaText.Text = "--:--:--";
+            TransferStageText.Text = "⏹ Передача остановлена пользователем. Исходные файлы сохранены.";
+            TransferCurrentFileText.Text = "";
+            BottleneckStatusText.Text = "⏹ Передача прервана. Временные файлы удалены.";
+            BottleneckStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 214, 0));
         }
         catch (Exception ex)
         {
             _currentSpeedMb = 0;
-            MessageBox.Show($"Ошибка передачи данных: {ex.Message}", "Ошибка ввода-вывода", MessageBoxButton.OK, MessageBoxImage.Error);
+            TransferErrorBanner.Visibility = Visibility.Visible;
+            TransferErrorText.Text = $"Сбой передачи: {ex.Message}";
+            TransferStageText.Text = "❌ Ошибка при передаче данных";
+            BottleneckStatusText.Text = "❌ Ошибка ввода-вывода.";
+            BottleneckStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 82, 82));
         }
         finally
         {
-            motion.Engine.ProgressTick -= OnProgressTick;
+            if (_liveTransferEngine != null)
+            {
+                _liveTransferEngine.ProgressTick -= OnProgressTick;
+            }
             StartTransferBtn.IsEnabled = true;
             PauseTransferBtn.IsEnabled = false;
             CancelTransferBtn.IsEnabled = false;
+            PauseTransferBtn.Content = "⏸ Пауза";
+            _currentSpeedMb = 0;
+            TriggerPreflightEvaluation();
         }
     }
 
     private void PauseLiveTransfer_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        if (_activeMotionWindow?.Engine != null)
+        var engine = _liveTransferEngine ?? _activeMotionWindow?.Engine;
+        if (engine != null)
         {
-            // Состояние паузы берётся из движка (Engine.IsPaused).
-            // Раньше оно ещё и дублировалось в поле _transferIsPaused,
-            // которое нигде не читалось, — источник рассинхронизации (CS0414).
-            if (_activeMotionWindow.Engine.IsPaused)
+            if (engine.IsPaused)
             {
-                _activeMotionWindow.Engine.Resume();
+                engine.Resume();
                 PauseTransferBtn.Content = "⏸ Пауза";
+                TransferStageText.Text = "Возобновление передачи данных...";
             }
             else
             {
-                _activeMotionWindow.Engine.Pause();
+                engine.Pause();
                 PauseTransferBtn.Content = "▶ Продолжить";
                 _currentSpeedMb = 0;
+                TransferStageText.Text = "⏸ Передача приостановлена пользователем";
                 BottleneckStatusText.Text = "⏸ Поток данных временно приостановлен пользователем.";
             }
         }
@@ -2498,6 +3292,8 @@ public partial class MainWindow : Window
     private void CancelLiveTransfer_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
+        TransferStageText.Text = "Остановка передачи данных...";
+        _liveTransferEngine?.Cancel();
         _activeMotionWindow?.Engine?.Cancel();
         _transferCts?.Cancel();
     }
@@ -2506,24 +3302,27 @@ public partial class MainWindow : Window
     {
         if (BottleneckStatusText == null) return;
 
+        bool isDirect = IoSettings.DirectIo;
+        string modeLabel = isDirect ? "Direct I/O" : "Буферизованный I/O";
+
         if (speedMb >= 1000)
         {
-            BottleneckStatusText.Text = "🚀 NVMe Gen4/Gen5 Direct I/O • Узких мест не обнаружено • Аппаратное насыщение шины";
+            BottleneckStatusText.Text = $"🚀 NVMe Gen4/Gen5 ({modeLabel}) • Узких мест не обнаружено • Высокая скорость передачи";
             BottleneckStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 240, 255));
         }
         else if (speedMb >= 350)
         {
-            BottleneckStatusText.Text = "⚡ SATA SSD / NVMe Gen3 • Высокая пропускная способность • Буферизация 100%";
+            BottleneckStatusText.Text = $"⚡ SATA SSD / NVMe Gen3 ({modeLabel}) • Высокая пропускная способность";
             BottleneckStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0, 230, 118));
         }
         else if (speedMb >= 100)
         {
-            BottleneckStatusText.Text = "⚙ Умеренная скорость передачи • Сбалансированный ввод-вывод";
+            BottleneckStatusText.Text = $"⚙ Умеренная скорость передачи ({modeLabel}) • Сбалансированный ввод-вывод";
             BottleneckStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 214, 0));
         }
         else
         {
-            BottleneckStatusText.Text = "🐢 Ограничение скорости накопителя (HDD / USB 2.0) или большое количество мелких файлов";
+            BottleneckStatusText.Text = $"🐢 Ограничение накопителя (HDD / USB) или множество мелких файлов ({modeLabel})";
             BottleneckStatusText.Foreground = new SolidColorBrush(Color.FromRgb(255, 82, 82));
         }
     }

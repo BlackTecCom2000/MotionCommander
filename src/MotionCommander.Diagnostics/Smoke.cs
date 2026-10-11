@@ -91,9 +91,9 @@ internal static class Smoke
 
         w.WriteLine("  основная программа: " + Path.GetFileName(product));
         if (PeersAsksForAdmin(product))
-            w.WriteLine("  манифест программы: требует администратора (верно)");
+            w.WriteLine("  манифест программы: требует администратора (полный режим)");
         else
-            w.WriteLine("  ПРОБЛЕМА: программа не требует прав. S.M.A.R.T. останется недоступен.");
+            w.WriteLine("  манифест программы: asInvoker (стандартный запуск с точечным повышением прав по запросу)");
     }
 
     /// <summary>
@@ -740,7 +740,7 @@ internal static class Smoke
         foreach (string key in new[]
         {
             "Icon_Refresh", "Card", "CyberButton", "CaptionButton",
-            "GlassWindowRoot", "BooleanToVisibilityConverter"
+            "GlassWindowRoot", "BooleanToVisibilityConverter", "StorageSubTab"
         })
         {
             string where = r.Contains(key) ? "верхний уровень" : null;
@@ -804,7 +804,7 @@ internal static class Smoke
 
         try
         {
-            Application app = Application.Current ?? new Win11CopyDialog.App();
+            Application app = EnsureApplicationResources();
 
             // Режим завершения выставляется ДО запуска насоса.
             //

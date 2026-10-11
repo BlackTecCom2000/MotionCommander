@@ -6,42 +6,7 @@
              xmlns:local="clr-namespace:Win11CopyDialog.Modules.StorageControlCenter.Views"
              mc:Ignorable="d" 
              d:DesignHeight="750" d:DesignWidth="1100">
-    <UserControl.Resources>
-        <Style x:Key="StorageSubTab" TargetType="RadioButton">
-            <Setter Property="OverridesDefaultStyle" Value="True"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="10.5"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="6,5"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="TabBorder" Background="{TemplateBinding Background}" CornerRadius="6"
-                                BorderThickness="1" BorderBrush="Transparent" Padding="{TemplateBinding Padding}" Margin="2,0">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
-                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ChipBackgroundBrush}"/>
-                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
-
+    
     <Grid Margin="12,6,12,12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Верхняя панель и выбор накопителя -->
@@ -247,6 +212,31 @@
                                        Foreground="{DynamicResource SecondaryTextBrush}"
                                        HorizontalAlignment="Center"
                                        Margin="0,16,0,0"/>
+
+                            <!-- Панель действий S.M.A.R.T.: разовый запрос UAC и экспорт отчёта -->
+                            <StackPanel x:Name="SmartActionPanel" Margin="0,14,0,4" HorizontalAlignment="Center" Orientation="Horizontal">
+                                <Button x:Name="RequestElevatedSmartBtn"
+                                        Content="🛡 Запросить данные S.M.A.R.T. (UAC)"
+                                        Style="{StaticResource CyberButton}"
+                                        Padding="14,6"
+                                        Margin="0,0,8,0"
+                                        Click="RequestElevatedSmartBtn_Click"
+                                        ToolTip="Выполнить разовый защищённый опрос контроллера с правами администратора без перезапуска всей программы"/>
+                                <Button x:Name="ExportSmartReportBtn"
+                                        Content="📄 Экспорт отчёта накопителей"
+                                        Style="{StaticResource CyberToolButton}"
+                                        Padding="14,6"
+                                        Click="ExportSmartReportBtn_Click"
+                                        ToolTip="Сохранить и скопировать подробный отчёт аудита физических дисков и телеметрии Windows"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="SmartElevationStatusText"
+                                       Visibility="Collapsed"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       TextWrapping="Wrap"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,6,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

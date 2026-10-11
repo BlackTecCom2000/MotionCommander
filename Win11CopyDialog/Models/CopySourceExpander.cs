@@ -102,6 +102,16 @@ public static class CopySourceExpander
                 targetBaseDir = Path.Combine(dst, folderName);
         }
 
+        string fullSrc = SafeFullPath(trimmed);
+        string fullTarget = SafeFullPath(targetBaseDir);
+        if (string.Equals(fullTarget, fullSrc, StringComparison.OrdinalIgnoreCase) ||
+            fullTarget.StartsWith(fullSrc + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            result.FailedSources.Add(src);
+            AppendError(result, $"Циклическое копирование заблокировано: целевая папка «{targetBaseDir}» находится внутри исходной папки «{src}».");
+            return;
+        }
+
         try
         {
             Directory.CreateDirectory(targetBaseDir);

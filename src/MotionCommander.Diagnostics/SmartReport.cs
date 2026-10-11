@@ -347,8 +347,8 @@ internal static class SmartReport
             {
                 using (obj)
                 {
-                    if (obj["Index"] is uint index)
-                        found.Add((int)index);
+                    if (obj["Index"] != null && int.TryParse(obj["Index"].ToString(), out int index))
+                        found.Add(index);
                 }
             }
 

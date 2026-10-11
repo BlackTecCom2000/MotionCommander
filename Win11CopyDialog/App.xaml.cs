@@ -143,24 +143,12 @@ public partial class App : Application
             return;
         }
 
-        if (!isDiagnosticRun && !Helpers.SuperAdminPrivilegeHelper.IsAdministrator())
+        // Активация системных привилегий токена, если процесс запущен с правами администратора.
+        // Обычный просмотр накопителей работает без постоянного запуска всей программы от администратора.
+        if (Helpers.SuperAdminPrivilegeHelper.IsAdministrator())
         {
-            bool ok = TryRelaunchElevated(e.Args);
-
-            if (!ok)
-            {
-                // Отказ в UAC: код 1223 (ERROR_CANCELLED) либо любой
-                // другой. Показываем причину и завершаем работу.
-                Shutdown(2);
-                return;
-            }
-
-            Shutdown(0);
-            return;
+            Helpers.SuperAdminPrivilegeHelper.EnableAllSuperAdminPrivileges();
         }
-
-        // Активация системных привилегий токена: SeManageVolumePrivilege и др.
-        Helpers.SuperAdminPrivilegeHelper.EnableAllSuperAdminPrivileges();
 
         // Загрузка сохранённой конфигурации ДО применения темы.
         // Раньше AppConfigData только записывался на диск и никогда не читался,
