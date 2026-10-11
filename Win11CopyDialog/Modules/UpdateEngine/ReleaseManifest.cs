@@ -35,7 +35,7 @@ public sealed class UpdateIntegrityException : Exception
 /// <see cref="UpdateService"/>. Это закрывает подмену файла обновления,
 /// но не подмену манифеста.</para>
 /// </remarks>
-internal static class ReleaseManifest
+public static class ReleaseManifest
 {
     private const string ManifestName = "checksums.json";
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(30) };
@@ -58,6 +58,21 @@ internal static class ReleaseManifest
     {
         string name = Path.GetFileName(filePath);
         if (string.IsNullOrEmpty(name)) return string.Empty;
+
+        // Если передан временный файл вида [Архив].[guid].part или [Архив].part
+        if (name.EndsWith(".part", StringComparison.OrdinalIgnoreCase))
+        {
+            string withoutPart = Path.GetFileNameWithoutExtension(name);
+            int lastDot = withoutPart.LastIndexOf('.');
+            if (lastDot > 0)
+            {
+                name = withoutPart[..lastDot];
+            }
+            else
+            {
+                name = withoutPart;
+            }
+        }
 
         string json = await FetchManifestAsync(ct);
         if (string.IsNullOrWhiteSpace(json)) return string.Empty;

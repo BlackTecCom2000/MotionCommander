@@ -1,18 +1,18 @@
 ﻿{
-    "version":  "3.8.45",
+    "version":  "3.8.46",
     "releaseDate":  "2026-10-11",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Оптимизация производительности: устранение подвисаний при открытии категорий, фоновый асинхронный сбор телеметрии, разделение таймеров, мгновенное отображение накопителей и отмена фоновых задач при навигации"
+                      "Исправлено применение патчей во встроенном обновляторе: устранена блокировка файлов скачивания собственным процессом"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.45-Patch.zip",
-    "patchSizeMb":  3.44,
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Patch.zip",
+    "patchSizeMb":  3.45,
     "patchMinVersion":  "3.8.0",
     "fullSizeMb":  38.11,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.45-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.45-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.45-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Setup.exe"
 }

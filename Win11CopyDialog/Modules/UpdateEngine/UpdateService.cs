@@ -459,93 +459,111 @@ public static class UpdateService
         string tempFolder = Path.Combine(Path.GetTempPath(), "MotionCommander-Update");
         Directory.CreateDirectory(tempFolder);
 
-        string fileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
-        if (string.IsNullOrEmpty(fileName)) fileName = "MotionCommander-Update.zip";
-        string targetFilePath = Path.Combine(tempFolder, fileName);
+        string originalFileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
+        if (string.IsNullOrEmpty(originalFileName)) originalFileName = "MotionCommander-Update.zip";
+        string targetFilePath = Path.Combine(tempFolder, originalFileName);
+
+        // Уникальный временный файл (.part) изолирует процесс загрузки от внешних блокировок и остаточных файлов
+        string uniquePartPath = Path.Combine(tempFolder, $"{originalFileName}.{Guid.NewGuid():N[..8]}.part");
 
         using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
 
         long totalBytes = response.Content.Headers.ContentLength ?? -1L;
-        await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
-        await using var fileStream = new FileStream(targetFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+        string calculatedSha256;
 
-        byte[] buffer = new byte[81920];
-        long totalBytesRead = 0;
-        int bytesRead;
-        var sw = Stopwatch.StartNew();
-
-        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+        using (var sha = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256))
         {
-            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-            totalBytesRead += bytesRead;
-
-            if (progress != null)
+            await using (var contentStream = await response.Content.ReadAsStreamAsync(ct))
+            await using (var fileStream = new FileStream(uniquePartPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
             {
-                int percent = totalBytes > 0 ? (int)((totalBytesRead * 100) / totalBytes) : 0;
-                double speed = sw.Elapsed.TotalSeconds > 0 ? (totalBytesRead / (1024.0 * 1024.0)) / sw.Elapsed.TotalSeconds : 0;
-                progress.Report((totalBytesRead, totalBytes, percent, speed));
+                byte[] buffer = new byte[81920];
+                long totalBytesRead = 0;
+                int bytesRead;
+                var sw = Stopwatch.StartNew();
+
+                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                    sha.AppendData(buffer, 0, bytesRead);
+                    totalBytesRead += bytesRead;
+
+                    if (progress != null)
+                    {
+                        int percent = totalBytes > 0 ? (int)((totalBytesRead * 100) / totalBytes) : 0;
+                        double speed = sw.Elapsed.TotalSeconds > 0 ? (totalBytesRead / (1024.0 * 1024.0)) / sw.Elapsed.TotalSeconds : 0;
+                        progress.Report((totalBytesRead, totalBytes, percent, speed));
+                    }
+                }
+
+                await fileStream.FlushAsync(ct);
             }
+
+            calculatedSha256 = Convert.ToHexString(sha.GetHashAndReset());
         }
 
-        // ЦЕЛОСТНОСТЬ ПРОВЕРЯЕТСЯ ДО ЛЮБОЙ РАСПАКОВКИ.
-        //
-        // Почему это обязательно здесь. Файл скачивается по адресу из
-        // сети и затем распаковывается в каталог, из которого
-        // запускается. Программа требует прав администратора, значит всё
-        // содержимое архива выполняется с повышенными правами.
-        // Без сверки контрольной суммы подмена файла на любом участке
-        // пути — перехват адреса, подмена ответа сервера, повреждённая
-        // кэш-сборка CDN — приводит к выполнению чужого кода от имени
-        // администратора, и пользователь об этом не узнаёт.
-        //
-        // Проверка сравнивает SHA-256 скачанного файла с объявленным в
-        // манифесте релизов. Расхождение означает отказ: файл удаляется,
-        // обновление прерывается, пользователь получает объяснение.
-        await VerifyIntegrityAsync(targetFilePath, ct);
+        // Потоки записи закрыты и освобождены.
+        // Целостность проверяется ДО распаковки и запуска.
+        await VerifyIntegrityAsync(uniquePartPath, originalFileName, calculatedSha256, ct);
 
-        return targetFilePath;
+        // Безопасное повышение временного файла до целевого пути с повторными попытками.
+        // Если целевой файл заблокирован другим процессом (например, антивирусом или Проводником),
+        // возвращаем проверенный путь .part напрямую, чтобы не прерывать обновление.
+        string finalPath = await SafePromoteDownloadedFileAsync(uniquePartPath, targetFilePath, ct);
+        return finalPath;
+    }
+
+    private static async Task<string> SafePromoteDownloadedFileAsync(string partPath, string targetPath, CancellationToken ct)
+    {
+        const int maxAttempts = 5;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+                File.Move(partPath, targetPath, overwrite: true);
+                return targetPath;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == maxAttempts)
+                {
+                    // Целевой файл заблокирован внешним процессом. Возвращаем проверенный partPath,
+                    // так как ZipFile и UpdateEngine могут читать из любого валидного пути к файлу.
+                    return partPath;
+                }
+                await Task.Delay(250 * attempt, ct);
+            }
+        }
+        return partPath;
     }
 
     /// <summary>
     /// Сверяет контрольную сумму скачанного файла с манифестом релизов.
     /// </summary>
-    /// <remarks>
-    /// <para>Хэш считается потоково, блоками по 1 МиБ, чтобы файл любого
-    /// размера не читался в память целиком: архив обновления может
-    /// занимать десятки мегабайт.</para>
-    ///
-    /// <para>Отказ от проверки трактуется как отказ от обновления, а не
-    /// как «предупреждение, применяем дальше». Обновление исполняет код
-    /// с повышенными правами, и доверять непроверенному файлу там
-    /// недопустимо.</para>
-    ///
-    /// <para><b>Чего это НЕ даёт.</b> Без подписи манифеста злоумышленник,
-    /// способный подменить и архив, и манифест, подменит оба файла
-    /// согласованно, и хэш совпадёт. Здесь закрывается подмена файла
-    /// без доступа к манифесту; для закрытия подмены обоих нужен
-    /// сертификат подписи, и его у проекта нет.</para>
-    /// </remarks>
-    private static async Task VerifyIntegrityAsync(string filePath, CancellationToken ct)
+    private static async Task VerifyIntegrityAsync(
+        string filePath, 
+        string originalFileName, 
+        string? precalculatedHash, 
+        CancellationToken ct)
     {
-        string expected = await ReleaseManifest.GetSha256ForAsync(filePath, ct);
+        string expected = await ReleaseManifest.GetSha256ForAsync(originalFileName, ct);
 
         if (string.IsNullOrEmpty(expected))
         {
             TryDelete(filePath);
             throw new UpdateIntegrityException(
-                "Манифест релизов не содержит контрольной суммы для этого файла. " +
+                $"Манифест релизов не содержит контрольной суммы для файла {originalFileName}. " +
                 "Обновление прервано: неподтверждённое содержимое нельзя " +
                 "запускать с правами администратора.");
         }
 
-        string actual;
-        using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read,
-                                           FileShare.Read, 1 << 20, true))
-        using (var sha = System.Security.Cryptography.SHA256.Create())
-        {
-            actual = Convert.ToHexString(await sha.ComputeHashAsync(stream, ct));
-        }
+        string actual = !string.IsNullOrEmpty(precalculatedHash)
+            ? precalculatedHash
+            : await ComputeFileSha256WithRetryAsync(filePath, ct);
 
         if (string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase)) return;
 
@@ -559,24 +577,57 @@ public static class UpdateService
             "Обновляйтесь с официального адреса проекта.");
     }
 
+    private static async Task<string> ComputeFileSha256WithRetryAsync(string filePath, CancellationToken ct)
+    {
+        const int maxAttempts = 5;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 20, true);
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                return Convert.ToHexString(await sha.ComputeHashAsync(stream, ct));
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                await Task.Delay(200 * attempt, ct);
+            }
+        }
+
+        using var finalStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 1 << 20, true);
+        using var finalSha = System.Security.Cryptography.SHA256.Create();
+        return Convert.ToHexString(await finalSha.ComputeHashAsync(finalStream, ct));
+    }
+
     private static void TryDelete(string path)
     {
         try { if (File.Exists(path)) File.Delete(path); }
         catch { /* файл недоступен для удаления — это не повод пропустить проверку */ }
     }
 
+    private static void SafeDeleteDirectory(string dirPath, int maxAttempts = 5)
+    {
+        for (int i = 1; i <= maxAttempts; i++)
+        {
+            try
+            {
+                if (Directory.Exists(dirPath))
+                {
+                    Directory.Delete(dirPath, true);
+                }
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (i == maxAttempts) throw;
+                Thread.Sleep(200 * i);
+            }
+        }
+    }
+
     /// <summary>
     /// Распаковывает обновление во ВРЕМЕННЫЙ КАТАЛОГ ДАННЫХ, а не рядом с
     /// программой.
-    ///
-    /// <para><b>Что было не так.</b> Каталог вычислялся как
-    /// <c>BaseDirectory/staging</c>, то есть внутри Program Files при обычной
-    /// установке. Записать туда может только процесс с правами
-    /// администратора, а обновление запускается из обычной сессии. Распаковка
-    /// падала с «Отказано в доступе» ДО начала обновления, и пользователь
-    /// не мог обновиться вовсе. Теперь используется
-    /// <see cref="AppPaths.StagingDirectory"/> — он по определению доступен
-    /// для записи.</para>
     /// </summary>
     public static async Task<string> PrepareStagingAsync(string zipPath, CancellationToken ct = default)
     {
@@ -595,12 +646,26 @@ public static class UpdateService
                         $"Каталог подготовки {stagingDir} является ссылкой. " +
                         "Укажите другой каталог данных и повторите обновление.");
                 }
-                Directory.Delete(stagingDir, true);
+                SafeDeleteDirectory(stagingDir);
             }
 
             Directory.CreateDirectory(stagingDir);
-            await Task.Run(() => System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, stagingDir, true), ct)
-                .ConfigureAwait(false);
+            await Task.Run(() =>
+            {
+                const int maxAttempts = 3;
+                for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    try
+                    {
+                        System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, stagingDir, true);
+                        return;
+                    }
+                    catch (IOException) when (attempt < maxAttempts)
+                    {
+                        Thread.Sleep(300 * attempt);
+                    }
+                }
+            }, ct).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -756,6 +821,7 @@ public static class UpdateService
         sb.AppendLine(":waitloop");
         sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" /NH /FO CSV 2>NUL | findstr /C:\"\"{currentPid}\"\" >NUL");
         sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (timeout /t 1 /nobreak >nul & goto waitloop)");
+        sb.AppendLine("timeout /t 1 /nobreak >nul");
         sb.AppendLine("echo Application closed. Initializing update...");
 
         // Шаг 1: Создание резервной копии файлов перед заменой (для отката)
@@ -776,7 +842,7 @@ public static class UpdateService
             sb.AppendLine(")");
         }
 
-        // Шаг 2: Копирование обновлённых файлов
+        // Шаг 2: Копирование обновлённых файлов с защитой от кратковременных блокировок
         sb.AppendLine("echo [2/3] Copying update files...");
         foreach (var file in files)
         {
@@ -784,7 +850,7 @@ public static class UpdateService
             string dest = Path.Combine(currentDir, relative);
             string destDir = Path.GetDirectoryName(dest) ?? currentDir;
             sb.AppendLine($"if not exist \"{destDir}\" mkdir \"{destDir}\"");
-            sb.AppendLine($"copy /Y \"{file}\" \"{dest}\" >nul");
+            sb.AppendLine($"call :safe_copy \"{file}\" \"{dest}\"");
             sb.AppendLine("if errorlevel 1 (");
             sb.AppendLine($"    echo ERROR: Failed to replace {relative}. Triggering rollback!");
             sb.AppendLine("    goto rollback");
@@ -820,7 +886,20 @@ public static class UpdateService
         sb.AppendLine($"start \"\" \"{exePath}\"");
         sb.AppendLine("exit /b 1");
 
-        File.WriteAllText(batPath, sb.ToString(), System.Text.Encoding.ASCII);
+        // Подпрограмма безопасного копирования с повторными попытками
+        sb.AppendLine(":safe_copy");
+        sb.AppendLine("set \"src=%~1\"");
+        sb.AppendLine("set \"dst=%~2\"");
+        sb.AppendLine("set retries=0");
+        sb.AppendLine(":copy_retry");
+        sb.AppendLine("copy /Y \"%src%\" \"%dst%\" >nul 2>&1");
+        sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" exit /b 0");
+        sb.AppendLine("set /a retries+=1");
+        sb.AppendLine("if %retries% geq 5 exit /b 1");
+        sb.AppendLine("timeout /t 1 /nobreak >nul");
+        sb.AppendLine("goto copy_retry");
+
+        File.WriteAllText(batPath, sb.ToString(), new System.Text.UTF8Encoding(false));
 
         // Нужно ли повышение привилегий: проверяется реальной записью
         // рядом с программой, а не предположением о пути установки.
