@@ -12,6 +12,7 @@ public partial class UpdateProgressWindow : Window
 {
     private readonly UpdateInfo _updateInfo;
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _fallbackDelayCts;
 
     public UpdateProgressWindow(UpdateInfo updateInfo)
     {
@@ -20,44 +21,28 @@ public partial class UpdateProgressWindow : Window
 
         VersionTransitionText.Text = $"v{updateInfo.CurrentVersion} ➔ v{updateInfo.LatestVersion}";
 
-        bool isPatch = updateInfo.CanApplyPatch(updateInfo.CurrentVersion);
+        bool isPatch = updateInfo.SwitchMode == VersionSwitchMode.Upgrade;
         if (isPatch)
         {
             PackageBadgeText.Text = "⚡ Быстрый патч";
             int saving = updateInfo.TrafficSavingPercent;
-            TrafficSavingText.Text = saving > 0 ? $"Экономия трафика: ~{saving}%" : "";
-            TrafficSavingText.Visibility = saving > 0 ? Visibility.Visible : Visibility.Collapsed;
+            TrafficSavingText.Text = saving > 0 ? $"Экономия трафика: ~{saving}%" : "Обновление файлов программы";
+            TrafficSavingText.Visibility = Visibility.Visible;
+            TitleText.Text = $"Быстрый патч v{updateInfo.LatestVersion}...";
         }
         else
         {
             PackageBadgeText.Text = "📦 Полный пакет";
-            TrafficSavingText.Visibility = Visibility.Collapsed;
+            TrafficSavingText.Text = "Обновление поверх установленной версии";
+            TrafficSavingText.Visibility = Visibility.Visible;
+            TitleText.Text = $"Обновление программы v{updateInfo.LatestVersion}...";
         }
-
-        string actionPrefix = updateInfo.SwitchMode switch
-        {
-            VersionSwitchMode.Downgrade => "Откат на версию",
-            VersionSwitchMode.Reinstall => "Переустановка версии",
-            _ => "Загрузка обновления"
-        };
-        TitleText.Text = isPatch 
-            ? $"Быстрый патч v{updateInfo.LatestVersion}..." 
-            : $"{actionPrefix} v{updateInfo.LatestVersion}...";
     }
-
-    private enum FallbackUserChoice
-    {
-        RetryPatch,
-        DownloadFull,
-        Cancel
-    }
-
-    private TaskCompletionSource<FallbackUserChoice>? _fallbackChoiceTcs;
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _cts = new CancellationTokenSource();
-        bool isPatch = _updateInfo.CanApplyPatch(_updateInfo.CurrentVersion);
+        bool isPatch = _updateInfo.SwitchMode == VersionSwitchMode.Upgrade;
 
         var progress = new Progress<(long bytesRead, long totalBytes, int percent, double speedMBps)>(p =>
         {
@@ -77,71 +62,54 @@ public partial class UpdateProgressWindow : Window
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(_updateInfo.PatchUrl) && !string.IsNullOrWhiteSpace(_updateInfo.LatestVersion))
+                if (isPatch)
                 {
-                    _updateInfo.PatchUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{_updateInfo.LatestVersion}-Patch.zip";
+                    TitleText.Text = $"Быстрый патч v{_updateInfo.LatestVersion}...";
+                    PackageBadgeText.Text = "⚡ Быстрый патч";
+                    int saving = _updateInfo.TrafficSavingPercent;
+                    TrafficSavingText.Text = saving > 0 ? $"Экономия трафика: ~{saving}%" : "Обновление файлов программы";
+                    TrafficSavingText.Visibility = Visibility.Visible;
+                    StatusText.Text = "Загрузка быстрого патча...";
+                }
+                else
+                {
+                    TitleText.Text = $"Обновление программы v{_updateInfo.LatestVersion}...";
+                    PackageBadgeText.Text = "📦 Полный пакет";
+                    TrafficSavingText.Text = "Обновление поверх установленной версии";
+                    TrafficSavingText.Visibility = Visibility.Visible;
+                    StatusText.Text = "Загрузка полного пакета обновления...";
                 }
 
-                string url = isPatch 
-                    ? _updateInfo.PatchUrl 
-                    : (!string.IsNullOrEmpty(_updateInfo.DownloadUrl) ? _updateInfo.DownloadUrl : _updateInfo.InstallerUrl);
-
-                StatusText.Text = isPatch ? "Загрузка быстрого патча..." : "Загрузка полного пакета...";
                 UpdateProgressBar.IsIndeterminate = false;
                 PercentText.Visibility = Visibility.Visible;
                 CancelBtn.IsEnabled = true;
 
+                string url = isPatch 
+                    ? _updateInfo.GetEffectivePatchUrl() 
+                    : _updateInfo.GetEffectiveFullZipUrl();
+
                 string downloadedFile = await UpdateService.DownloadUpdateAsync(url, progress, _cts.Token);
                 string stagingDir;
 
-                if (isPatch)
-                {
-                    StatusText.Text = "Проверка совместимости и распаковка патча...";
-                    UpdateProgressBar.IsIndeterminate = true;
-                    PercentText.Visibility = Visibility.Collapsed;
-                    CancelBtn.IsEnabled = false;
+                StatusText.Text = isPatch
+                    ? "Проверка целостности и распаковка патча..."
+                    : "Проверка целостности и распаковка полного пакета...";
+                UpdateProgressBar.IsIndeterminate = true;
+                PercentText.Visibility = Visibility.Collapsed;
+                CancelBtn.IsEnabled = false;
 
-                    stagingDir = await UpdateService.PrepareStagingAsync(downloadedFile, _cts.Token);
-                    StatusText.Text = "Подготовка к бесшовному применению патча...";
-                }
-                else
-                {
-                    if (downloadedFile.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                    {
-                        StatusText.Text = "Запуск программы установки...";
-                        UpdateProgressBar.IsIndeterminate = true;
-                        PercentText.Visibility = Visibility.Collapsed;
-                        CancelBtn.IsEnabled = false;
-                        await Task.Delay(500);
+                stagingDir = await UpdateService.PrepareStagingAsync(downloadedFile, _cts.Token);
 
-                        var psi = new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = downloadedFile,
-                            UseShellExecute = true,
-                            Arguments = "/CLOSEAPPLICATIONS"
-                        };
-                        System.Diagnostics.Process.Start(psi);
-                        Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
-                        return;
-                    }
-
-                    StatusText.Text = "Распаковка полного пакета...";
-                    UpdateProgressBar.IsIndeterminate = true;
-                    PercentText.Visibility = Visibility.Collapsed;
-                    CancelBtn.IsEnabled = false;
-
-                    stagingDir = await UpdateService.PrepareStagingAsync(downloadedFile, _cts.Token);
-                }
-
+                // Когда загрузилось и распаковано — программа закрывается и обновляется поверх файлов
                 StatusText.Text = isPatch 
-                    ? "Применение патча и подготовка к перезапуску..." 
-                    : "Применение обновления и подготовка к перезапуску...";
-                await Task.Delay(500);
+                    ? "Патч готов к применению. Закрытие программы для обновления поверх файлов..." 
+                    : "Обновление готово к применению. Закрытие программы для обновления поверх файлов...";
+                await Task.Delay(800, _cts.Token);
 
                 var mainWindow = Application.Current.MainWindow as MainWindow;
                 AppState state = mainWindow?.GetCurrentState() ?? new AppState();
 
-                // Порядок важен: анимация перехода запускается только ПОСЛЕ успешного старта скрипта
+                // Порядок: запускаем бесшовное применение поверх приложения и закрываем текущее окно
                 UpdateService.ApplySeamlessUpdate(stagingDir, state);
                 mainWindow?.StartMorphingAnimation();
                 this.Close();
@@ -162,64 +130,52 @@ public partial class UpdateProgressWindow : Window
             }
             catch (Exception ex) when (isPatch && !_cts.IsCancellationRequested)
             {
-                // Не скачиваем полный пакет молча и без согласия!
-                // Показываем пользователю понятную причину, размер пакета и выбор действий.
+                // Не удалось применить патч: информируем пользователя и автоматически переходим к полной версии поверх приложения
                 string userReason = ex switch
                 {
-                    UpdateIntegrityException uie => $"Контрольная сумма файла не совпала: {uie.Message}",
+                    UpdateIntegrityException uie => $"Контрольная сумма патча не совпала: {uie.Message}",
                     PatchIncompatibleException pie => $"Несовместимость патча: {pie.Message}",
                     IOException ioe when ioe.Message.Contains("занят") || ioe.Message.Contains("used by another process") || ioe.Message.Contains("sharing violation") =>
-                        "Файл обновления был временно занят другой программой или антивирусом.",
+                        "Файл патча был временно заблокирован другой программой или антивирусом.",
                     _ => ex.Message
                 };
 
-                double fullSizeMb = _updateInfo.FullSizeMb > 0 ? _updateInfo.FullSizeMb : 40.5;
-                FallbackNoticeText.Text = $"{userReason} Исходные файлы программы не повреждены и сохранены без изменений.";
-                FallbackPackageSizeText.Text = $"Размер полного установочного пакета: ~{fullSizeMb:F1} МБ (вместо патча {_updateInfo.PatchSizeMb:F1} МБ).";
+                double fullSizeMb = _updateInfo.FullSizeMb > 0 ? _updateInfo.FullSizeMb : 38.0;
+                FallbackNoticeText.Text = $"Быстрый патч не удалось применить ({userReason}). Автоматический переход к загрузке полной версии программы поверх текущей установки.";
+                FallbackPackageSizeText.Text = $"Размер полного архива: ~{fullSizeMb:F1} МБ. Файлы программы сохранены без изменений.";
                 DownloadFullBtn.Content = $"📦 Скачать полный пакет (~{fullSizeMb:F1} МБ)";
 
                 FallbackNoticeCard.Visibility = Visibility.Visible;
-                StatusText.Text = "Ожидание решения пользователя...";
+                StatusText.Text = "Переход к загрузке полной программы...";
                 UpdateProgressBar.IsIndeterminate = false;
                 UpdateProgressBar.Value = 0;
                 PercentText.Visibility = Visibility.Collapsed;
                 DownloadStatsText.Text = "";
                 CancelBtn.IsEnabled = true;
 
-                _fallbackChoiceTcs = new TaskCompletionSource<FallbackUserChoice>();
-                using var reg = _cts.Token.Register(() => _fallbackChoiceTcs.TrySetResult(FallbackUserChoice.Cancel));
+                _fallbackDelayCts = new CancellationTokenSource();
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _fallbackDelayCts.Token);
 
-                var choice = await _fallbackChoiceTcs.Task;
+                try
+                {
+                    // Пауза 2.5 сек, чтобы пользователь успел увидеть причину перехода
+                    await Task.Delay(2500, linkedCts.Token);
+                }
+                catch (OperationCanceledException) when (!_cts.IsCancellationRequested)
+                {
+                    // Пользователь нажал кнопку немедленного перехода
+                }
+
                 FallbackNoticeCard.Visibility = Visibility.Collapsed;
-
-                if (choice == FallbackUserChoice.RetryPatch)
-                {
-                    isPatch = true;
-                    StatusText.Text = "Повторная попытка применения патча...";
-                    PercentText.Visibility = Visibility.Visible;
-                    continue;
-                }
-                else if (choice == FallbackUserChoice.DownloadFull)
-                {
-                    isPatch = false;
-                    _updateInfo.PackageType = UpdatePackageType.FullPackage;
-                    PackageBadgeText.Text = "📦 Полный пакет";
-                    TrafficSavingText.Text = "Полная установка (запасной вариант)";
-                    TrafficSavingText.Visibility = Visibility.Visible;
-                    TitleText.Text = $"Загрузка полного пакета v{_updateInfo.LatestVersion}...";
-                    StatusText.Text = "Загрузка полного пакета...";
-                    PercentText.Visibility = Visibility.Visible;
-                    continue;
-                }
-                else
-                {
-                    this.Close();
-                    return;
-                }
+                isPatch = false;
+                _updateInfo.PackageType = UpdatePackageType.FullPackage;
+                continue;
             }
             catch (Exception ex) when (!_cts.IsCancellationRequested)
             {
-                MessageBox.Show($"Ошибка при выполнении обновления:\n{ex.Message}", "Ошибка обновления", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(
+                    $"Не удалось выполнить обновление программы:\n{ex.Message}\n\nТекущая установленная версия программы не была затронута и продолжает работать.", 
+                    "Ошибка обновления", MessageBoxButton.OK, MessageBoxImage.Error);
                 this.Close();
                 return;
             }
@@ -228,12 +184,14 @@ public partial class UpdateProgressWindow : Window
 
     private void RetryPatchBtn_Click(object sender, RoutedEventArgs e)
     {
-        _fallbackChoiceTcs?.TrySetResult(FallbackUserChoice.RetryPatch);
+        FallbackNoticeCard.Visibility = Visibility.Collapsed;
+        _fallbackDelayCts?.Cancel();
     }
 
     private void DownloadFullBtn_Click(object sender, RoutedEventArgs e)
     {
-        _fallbackChoiceTcs?.TrySetResult(FallbackUserChoice.DownloadFull);
+        FallbackNoticeCard.Visibility = Visibility.Collapsed;
+        _fallbackDelayCts?.Cancel();
     }
 
     private void Min_Click(object sender, RoutedEventArgs e)
@@ -243,13 +201,13 @@ public partial class UpdateProgressWindow : Window
 
     private void CancelBtn_Click(object sender, RoutedEventArgs e)
     {
-        _fallbackChoiceTcs?.TrySetResult(FallbackUserChoice.Cancel);
+        _fallbackDelayCts?.Cancel();
         _cts?.Cancel();
     }
 
     protected override void OnClosed(EventArgs e)
     {
-        _fallbackChoiceTcs?.TrySetResult(FallbackUserChoice.Cancel);
+        _fallbackDelayCts?.Cancel();
         _cts?.Cancel();
         base.OnClosed(e);
     }

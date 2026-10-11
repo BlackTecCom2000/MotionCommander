@@ -58,7 +58,23 @@ public sealed class UpdateInfo
     public VersionSwitchMode SwitchMode { get; set; } = VersionSwitchMode.Upgrade;
     public UpdatePackageType PackageType { get; set; } = UpdatePackageType.Patch;
 
-    public bool HasPatch => !string.IsNullOrWhiteSpace(PatchUrl) && PatchSizeMb > 0;
+    public bool HasPatch => !string.IsNullOrWhiteSpace(PatchUrl);
+
+    public string GetEffectivePatchUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(PatchUrl) && PatchUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            return PatchUrl;
+        return UpdateService.GetPatchZipUrl(LatestVersion);
+    }
+
+    public string GetEffectiveFullZipUrl()
+    {
+        if (!string.IsNullOrWhiteSpace(DownloadUrl) && DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            return DownloadUrl;
+        if (!string.IsNullOrWhiteSpace(InstallerUrl) && InstallerUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            return InstallerUrl;
+        return UpdateService.GetPortableZipUrl(LatestVersion);
+    }
 
     /// <summary>
     /// Проверяет, применим ли быстрый патч к текущей установленной версии.
@@ -66,7 +82,7 @@ public sealed class UpdateInfo
     public bool CanApplyPatch(string currentVersion)
     {
         if (SwitchMode != VersionSwitchMode.Upgrade) return false;
-        if (!HasPatch) return false;
+        if (string.IsNullOrWhiteSpace(LatestVersion)) return false;
         if (string.IsNullOrWhiteSpace(PatchMinVersion)) return true;
         return UpdateService.CompareVersions(currentVersion, PatchMinVersion) >= 0;
     }
@@ -131,6 +147,18 @@ public static class UpdateService
     {
         var ver = Assembly.GetExecutingAssembly().GetName().Version;
         return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "3.0.0";
+    }
+
+    public static string GetPortableZipUrl(string version)
+    {
+        string clean = (version ?? "").TrimStart('v', 'V');
+        return $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{clean}-Portable.zip";
+    }
+
+    public static string GetPatchZipUrl(string version)
+    {
+        string clean = (version ?? "").TrimStart('v', 'V');
+        return $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{clean}-Patch.zip";
     }
 
     public static async Task<UpdateInfo> CheckForUpdatesAsync(CancellationToken ct = default)
@@ -818,11 +846,21 @@ public static class UpdateService
         sb.AppendLine("echo Waiting for Motion Commander to close...");
 
         // Проверка живого процесса по CSV-выводу tasklist.
+        // Ожидаем до 5 секунд, после чего принудительно завершаем зависший процесс,
+        // чтобы блокировка исполняемых файлов не сорвала обновление.
+        sb.AppendLine("set wait_count=0");
         sb.AppendLine(":waitloop");
         sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" /NH /FO CSV 2>NUL | findstr /C:\"\"{currentPid}\"\" >NUL");
-        sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (timeout /t 1 /nobreak >nul & goto waitloop)");
+        sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (");
+        sb.AppendLine("    set /a wait_count+=1");
+        sb.AppendLine($"    if %wait_count% geq 5 (taskkill /F /PID {currentPid} >nul 2>&1)");
+        sb.AppendLine("    timeout /t 1 /nobreak >nul");
+        sb.AppendLine("    goto waitloop");
+        sb.AppendLine(")");
         sb.AppendLine("timeout /t 1 /nobreak >nul");
         sb.AppendLine("echo Application closed. Initializing update...");
+        sb.AppendLine("taskkill /F /IM motion.exe >nul 2>&1");
+        sb.AppendLine("taskkill /F /IM MotionCommanderDiagnostics.exe >nul 2>&1");
 
         // Шаг 1: Создание резервной копии файлов перед заменой (для отката)
         sb.AppendLine("echo [1/3] Creating rollback backup of existing files...");
@@ -842,8 +880,8 @@ public static class UpdateService
             sb.AppendLine(")");
         }
 
-        // Шаг 2: Копирование обновлённых файлов с защитой от кратковременных блокировок
-        sb.AppendLine("echo [2/3] Copying update files...");
+        // Шаг 2: Копирование обновлённых файлов поверх текущих файлов программы
+        sb.AppendLine("echo [2/3] Copying update files in-place...");
         foreach (var file in files)
         {
             string relative = file[(stagingFolder.Length + 1)..];
@@ -895,7 +933,7 @@ public static class UpdateService
         sb.AppendLine("copy /Y \"%src%\" \"%dst%\" >nul 2>&1");
         sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" exit /b 0");
         sb.AppendLine("set /a retries+=1");
-        sb.AppendLine("if %retries% geq 5 exit /b 1");
+        sb.AppendLine("if %retries% geq 10 exit /b 1");
         sb.AppendLine("timeout /t 1 /nobreak >nul");
         sb.AppendLine("goto copy_retry");
 
@@ -935,10 +973,31 @@ public static class UpdateService
             throw new IOException($"Не удалось запустить применение обновления: {ex.Message}", ex);
         }
 
-        // Закрываем приложение только после успешного запуска скрипта:
-        // иначе при отказе в UAC программа закрылась бы, а обновление не
-        // произошло бы — пользователь потерял бы окно с открытыми файлами.
-        Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
+        // Закрываем приложение только после успешного запуска скрипта обновления:
+        // Скрываем все окна немедленно, чтобы интерфейс закрылся для пользователя,
+        // и гарантированно выходим из процесса, освобождая блокировки файлов.
+        Application.Current?.Dispatcher?.Invoke(() =>
+        {
+            try
+            {
+                foreach (Window win in Application.Current.Windows)
+                {
+                    try { win.Hide(); } catch { }
+                }
+            }
+            catch { }
+            try
+            {
+                Application.Current.Shutdown();
+            }
+            catch { }
+        });
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2000);
+            try { Environment.Exit(0); } catch { }
+        });
     }
 
     /// <summary>
