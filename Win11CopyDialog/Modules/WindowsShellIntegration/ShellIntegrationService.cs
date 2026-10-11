@@ -147,6 +147,16 @@ public static class ShellIntegrationService
             NotifyShellAssociationsChanged();
             return true;
         }
+        catch (UnauthorizedAccessException)
+        {
+            error = "Отказано в доступе к системному реестру. Требуются права администратора (UAC) для изменения файловых ассоциаций.";
+            return false;
+        }
+        catch (System.ComponentModel.Win32Exception w32ex) when (w32ex.NativeErrorCode == 1223)
+        {
+            error = "Запрос контроля учётных записей (UAC) был отклонён пользователем. Изменения не применены.";
+            return false;
+        }
         catch (Exception ex)
         {
             error = ex.Message;
@@ -218,6 +228,16 @@ public static class ShellIntegrationService
 
             NotifyShellAssociationsChanged();
             return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            error = "Отказано в доступе к системному реестру. Требуются права администратора (UAC) для изменения контекстного меню.";
+            return false;
+        }
+        catch (System.ComponentModel.Win32Exception w32ex) when (w32ex.NativeErrorCode == 1223)
+        {
+            error = "Запрос контроля учётных записей (UAC) был отклонён пользователем. Изменения не применены.";
+            return false;
         }
         catch (Exception ex)
         {

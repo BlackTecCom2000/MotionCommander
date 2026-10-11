@@ -49,6 +49,12 @@ internal static class Program
             return UpdateEngineTest.Run(Console.Out);
         }
 
+        // Тестирование производительности вкладки «Диагностика»
+        if (Array.IndexOf(args, "--test-diagnostics") >= 0)
+        {
+            return DiagnosticsTabPerfTest.Run(Console.Out);
+        }
+
         // Проба ресурсов: показывает, что реально загрузилось.
         // Нужна, когда экраны падают с «не найден ресурс»: без неё
         // пришлось бы угадывать, чего не хватило.

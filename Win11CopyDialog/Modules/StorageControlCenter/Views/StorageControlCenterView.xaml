@@ -25,22 +25,25 @@
                 <!-- Левый блок: заголовок и горизонтальный список дисков -->
                 <StackPanel Grid.Column="0">
                     <DockPanel Margin="0,0,0,8">
-                        <TextBlock Text="🖴 Storage Control Center" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                        <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="v2.0 NVMe/SSD/HDD Master Engine" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                        </Border>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🖴 Физические накопители" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                            <Border Background="{DynamicResource ChipBackgroundBrush}" CornerRadius="6" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="PhysicalDisksHeaderCount" Text="обнаружено дисков: 0" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Выберите диск в списке для детального анализа, S.M.A.R.T. и управления разделами" FontSize="10" Style="{StaticResource MutedText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     </DockPanel>
 
                     <!-- Горизонтальная карусель карточек накопителей -->
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,2" Margin="0,0,6,0">
+                    <ScrollViewer x:Name="DrivesStripScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Padding="0,2" Margin="0,0,6,0">
                         <StackPanel x:Name="DrivesStripPanel" Orientation="Horizontal"/>
                     </ScrollViewer>
                 </StackPanel>
 
                 <!-- Правый блок: глобальные кнопки в изолированной колонке (Zero-Conflict) -->
                 <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" Margin="10,0,0,0">
-                    <Button x:Name="RefreshDrivesBtn" Style="{StaticResource CyberButton}" Content="🔄 Обновить диски" Padding="12,7" Margin="0,0,0,8" Click="RefreshDrives_Click"/>
-                    <Button x:Name="ExportReportBtn" Style="{StaticResource CyberToolButton}" Content="📊 Отчет S.M.A.R.T." Padding="10,6" Click="ExportReport_Click"/>
+                    <Button x:Name="RefreshDrivesBtn" Style="{StaticResource CyberButton}" Content="🔄 Обновить диски" Padding="12,7" Margin="0,0,0,8" Click="RefreshDrives_Click" ToolTip="Повторно опросить шину, контроллеры и разделы Windows"/>
+                    <Button x:Name="ExportReportBtn" Style="{StaticResource CyberToolButton}" Content="📊 Отчет S.M.A.R.T." Padding="10,6" Click="ExportReport_Click" ToolTip="Сохранить сводный текстовый отчёт о накопителях на Рабочий стол"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -161,7 +164,7 @@
                             <ListView x:Name="SmartAttributesList" BorderThickness="0" Background="Transparent" MaxHeight="280">
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="ID" Width="50" DisplayMemberBinding="{Binding Id, StringFormat='0x{0:X2}'}"/>
+                                        <GridViewColumn Header="ID" Width="50" DisplayMemberBinding="{Binding IdHex}"/>
                                         <GridViewColumn Header="Имя атрибута" Width="280" DisplayMemberBinding="{Binding Name}"/>
                                         <GridViewColumn Header="Текущее" Width="70" DisplayMemberBinding="{Binding Current}"/>
                                         <GridViewColumn Header="Худшее" Width="70" DisplayMemberBinding="{Binding Worst}"/>
@@ -398,7 +401,7 @@
                                         <GridViewColumn Header="Файловая система" Width="120" DisplayMemberBinding="{Binding FileSystem}"/>
                                         <GridViewColumn Header="Общий объем" Width="110" DisplayMemberBinding="{Binding SizeFormatted}"/>
                                         <GridViewColumn Header="Свободно" Width="110" DisplayMemberBinding="{Binding FreeSpaceFormatted}"/>
-                                        <GridViewColumn Header="Занято (%)" Width="90" DisplayMemberBinding="{Binding UsedPercent, StringFormat='{}{0}%'}"/>
+                                        <GridViewColumn Header="Занято (%)" Width="90" DisplayMemberBinding="{Binding UsedPercentFormatted}"/>
                                         <GridViewColumn Header="Тип / Категория" Width="170" DisplayMemberBinding="{Binding DisplayName}"/>
                                         <GridViewColumn Header="Системный" Width="80" DisplayMemberBinding="{Binding IsSystem}"/>
                                     </GridView>
@@ -492,7 +495,7 @@
                                         <GridViewColumn Header="Запись (Write)" Width="120" DisplayMemberBinding="{Binding WriteSpeedFormatted}"/>
                                         <GridViewColumn Header="Read IOPS" Width="95" DisplayMemberBinding="{Binding ReadIopsFormatted}"/>
                                         <GridViewColumn Header="Write IOPS" Width="95" DisplayMemberBinding="{Binding WriteIopsFormatted}"/>
-                                        <GridViewColumn Header="Латентность" Width="90" DisplayMemberBinding="{Binding ReadLatencyUs, StringFormat='{}{0:F1} мкс'}"/>
+                                        <GridViewColumn Header="Латентность" Width="90" DisplayMemberBinding="{Binding ReadLatencyFormatted}"/>
                                         <GridViewColumn Header="Статус" Width="85" DisplayMemberBinding="{Binding Status}"/>
                                     </GridView>
                                 </ListView.View>

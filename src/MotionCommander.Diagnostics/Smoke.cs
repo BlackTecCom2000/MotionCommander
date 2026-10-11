@@ -879,7 +879,7 @@ internal static class Smoke
     /// <c>Application</c> создавать нельзя — WPF допускает его
     /// единственный.</para>
     /// </remarks>
-    private static Application EnsureApplicationResources()
+    internal static Application EnsureApplicationResources()
     {
         // Создаётся СОБСТВЕННЫЙ класс приложения, а не пустой Application.
         //
@@ -1267,6 +1267,40 @@ internal static class Smoke
         w.WriteLine(admin
             ? "  права администратора есть: показатели S.M.A.R.T. должны быть доступны"
             : "  прав администратора нет: S.M.A.R.T. с устройства недоступен, значения не выдумываются");
+
+        // Проверка полного обнаружения физических накопителей и S.M.A.R.T.
+        try
+        {
+            var physicalDisks = StorageDiscoveryService.GetAllDisks(forceRefresh: true);
+            w.WriteLine($"  физических накопителей обнаружено: {physicalDisks.Count}");
+            foreach (var pd in physicalDisks)
+            {
+                w.WriteLine($"    Диск #{pd.DiskNumber}: {pd.Model} ({pd.TotalSizeFormatted}) — {pd.BusTypeString}/{pd.MediaTypeString}");
+                w.WriteLine($"      Температура: {pd.TemperatureFormatted}, Износ: {pd.WearFormatted}, Здоровье: {pd.Score.Grade} ({pd.Score.TotalScore:F0}/100)");
+                if (pd.HasSmartAttributes)
+                {
+                    w.WriteLine($"      S.M.A.R.T. атрибутов: {pd.SmartAttributes.Count}");
+                    foreach (var attr in pd.SmartAttributes.Take(3))
+                    {
+                        w.WriteLine($"        [{attr.IdHex}] {attr.Name}: {attr.RawValueFormatted} ({attr.Status})");
+                    }
+                }
+                else if (!string.IsNullOrEmpty(pd.TelemetryNote))
+                {
+                    w.WriteLine($"      Диагностика: {pd.TelemetryNote}");
+                }
+            }
+        }
+        catch (FormatException fex)
+        {
+            problems++;
+            w.WriteLine($"  КРИТИЧЕСКАЯ ПРОБЛЕМА: FormatException при опросе накопителей: {fex.Message}");
+        }
+        catch (Exception ex)
+        {
+            problems++;
+            w.WriteLine($"  ПРОБЛЕМА при опросе StorageDiscoveryService: {ex.Message}");
+        }
 
         w.WriteLine(problems == 0
             ? "  все доступные сведения о накопителях правдоподобны"

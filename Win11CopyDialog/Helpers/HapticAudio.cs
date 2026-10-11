@@ -10,6 +10,10 @@ namespace Win11CopyDialog.Helpers;
 public static class HapticAudio
 {
     public static bool Enabled { get; set; } = true;
+    public static bool ClickEnabled { get; set; } = true;
+    public static bool HoverEnabled { get; set; } = true;
+    public static bool ScrollTickEnabled { get; set; } = true;
+    public static bool SuccessEnabled { get; set; } = true;
 
     private static SoundPlayer? _clickPlayer;
     private static SoundPlayer? _hoverPlayer;
@@ -44,31 +48,31 @@ public static class HapticAudio
 
     public static void PlayHover()
     {
-        if (!Enabled) return;
+        if (!Enabled || !HoverEnabled) return;
         try { _hoverPlayer?.Play(); } catch { }
     }
 
     public static void PlayScrollTick()
     {
-        if (!Enabled) return;
+        if (!Enabled || !ScrollTickEnabled) return;
         try { _scrollTickPlayer?.Play(); } catch { }
     }
 
     public static void PlayClick()
     {
-        if (!Enabled) return;
+        if (!Enabled || !ClickEnabled) return;
         try { _clickPlayer?.Play(); } catch { }
     }
 
     public static void PlaySelect()
     {
-        if (!Enabled) return;
+        if (!Enabled || !ClickEnabled) return;
         try { _selectPlayer?.Play(); } catch { }
     }
 
     public static void PlaySuccess()
     {
-        if (!Enabled) return;
+        if (!Enabled || !SuccessEnabled) return;
         try { _successPlayer?.Play(); } catch { }
     }
 

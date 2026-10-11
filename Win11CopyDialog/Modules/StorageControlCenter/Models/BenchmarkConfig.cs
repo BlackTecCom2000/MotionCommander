@@ -36,6 +36,7 @@ public sealed class StorageBenchmarkItem
     public string WriteSpeedFormatted => WriteSpeedMBps >= 1000.0 ? $"{WriteSpeedMBps / 1024.0:F2} ГБ/с" : $"{WriteSpeedMBps:F1} МБ/с";
     public string ReadIopsFormatted => $"{ReadIops:N0} IOPS";
     public string WriteIopsFormatted => $"{WriteIops:N0} IOPS";
+    public string ReadLatencyFormatted => $"{ReadLatencyUs:F1} мкс";
 }
 
 public sealed class StorageBenchmarkSessionResult

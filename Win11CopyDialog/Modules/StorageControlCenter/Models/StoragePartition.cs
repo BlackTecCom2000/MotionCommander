@@ -23,6 +23,7 @@ public sealed class StoragePartition
     public long FreeSpaceBytes { get; set; }
     public long UsedSpaceBytes => Math.Max(0, SizeBytes - FreeSpaceBytes);
     public double UsedPercent => SizeBytes > 0 ? Math.Round((double)UsedSpaceBytes / SizeBytes * 100.0, 1) : 0;
+    public string UsedPercentFormatted => $"{UsedPercent:F1}%";
     
     public bool IsSystem { get; set; }
     public bool IsBoot { get; set; }

@@ -310,6 +310,23 @@ public sealed class ThemeManager : INotifyPropertyChanged
         set { if (_liveBackdropEnabled != value) { _liveBackdropEnabled = value; Refresh(); } }
     }
 
+    private double _backdropIntensity = 0.65;
+    /// <summary>Интенсивность фоновых эффектов и аур (0.0 .. 1.0). Снижение убирает отвлекающий фон за текстом.</summary>
+    public double BackdropIntensity
+    {
+        get => _backdropIntensity;
+        set
+        {
+            double clamped = Math.Clamp(value, 0.0, 1.0);
+            if (Math.Abs(_backdropIntensity - clamped) > 0.005)
+            {
+                _backdropIntensity = clamped;
+                Refresh();
+                OnChanged(nameof(BackdropIntensity));
+            }
+        }
+    }
+
     /// <summary>Разрешена ли анимация в принципе (учитывает настройки Windows).</summary>
     public static bool AnimationsAllowed
     {
@@ -427,6 +444,7 @@ public sealed class ThemeManager : INotifyPropertyChanged
         OnChanged(nameof(AiVisibility));
         OnChanged(nameof(AnimationQuality));
         OnChanged(nameof(LiveBackdropEnabled));
+        OnChanged(nameof(BackdropIntensity));
     }
 
     public void Apply()
@@ -442,7 +460,10 @@ public sealed class ThemeManager : INotifyPropertyChanged
         Color accentText = ContrastText(accent);
 
         // Тема-нейтраль: одинаковая структура для всех 16 тем.
-        var d = new Dictionary<string, object?>(140);
+        var d = new Dictionary<string, object?>(145);
+
+        d["BackdropIntensityValue"] = _backdropIntensity;
+        d["LiveBackdropOpacity"] = LiveBackdropEnabled ? _backdropIntensity : 0.0;
 
         // --- Фоны и поверхности ---
         d["WindowBackgroundBrush"] = Br(p.Window);
@@ -883,6 +904,7 @@ public sealed class ThemeManager : INotifyPropertyChanged
         public string? Backdrop { get; set; }
         public int Quality { get; set; } = 1;
         public bool LiveBackdrop { get; set; } = true;
+        public double BackdropIntensity { get; set; } = 0.65;
     }
 
     /// <summary>
@@ -914,6 +936,8 @@ public sealed class ThemeManager : INotifyPropertyChanged
             if (Enum.IsDefined(typeof(AnimationQuality), s.Quality))
                 _animationQuality = (AnimationQuality)s.Quality;
             _liveBackdropEnabled = s.LiveBackdrop;
+            if (s.BackdropIntensity > 0)
+                _backdropIntensity = Math.Clamp(s.BackdropIntensity, 0.0, 1.0);
         }
         catch
         {
@@ -933,7 +957,8 @@ public sealed class ThemeManager : INotifyPropertyChanged
                 Accent = _accent.IsSystem ? null : _accent.Name,
                 Backdrop = _backdropOverride?.ToString(),
                 Quality = (int)_animationQuality,
-                LiveBackdrop = _liveBackdropEnabled
+                LiveBackdrop = _liveBackdropEnabled,
+                BackdropIntensity = _backdropIntensity
             };
             File.WriteAllText(StatePath, JsonSerializer.Serialize(s, new JsonSerializerOptions { WriteIndented = true }));
         }

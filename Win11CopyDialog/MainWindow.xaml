@@ -1366,29 +1366,36 @@
                     </Grid.RowDefinitions>
 
                     <!-- НАВИГАЦИОННАЯ ПАНЕЛЬ ПОДРАЗДЕЛОВ ДИАГНОСТИКИ -->
-                    <Border Grid.Row="0" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
-                            BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,10">
-                        <DockPanel LastChildFill="True">
-                            <!-- Меню «Ещё ▾» справа для быстрого доступа ко всем разделам и для узких окон -->
-                            <Button x:Name="DiagMoreMenuBtn" DockPanel.Dock="Right" Style="{StaticResource CyberToolButton}" 
-                                    Content="Ещё ▾" Padding="10,5" Margin="4,0,2,0" VerticalAlignment="Center"
-                                    Click="DiagMoreMenu_Click" ToolTip="Все разделы диагностики и быстрые переходы"/>
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Border Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="4">
+                            <DockPanel LastChildFill="True">
+                                <!-- Меню «Ещё ▾» справа для быстрого доступа ко всем разделам и для узких окон -->
+                                <Button x:Name="DiagMoreMenuBtn" DockPanel.Dock="Right" Style="{StaticResource CyberToolButton}" 
+                                        Content="Ещё ▾" Padding="10,5" Margin="4,0,2,0" VerticalAlignment="Center"
+                                        Click="DiagMoreMenu_Click" ToolTip="Все разделы диагностики и быстрые переходы"/>
 
-                            <!-- Прокручиваемый список подвкладок с клавиатурной навигацией -->
-                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly" Focusable="False">
-                                <StackPanel Orientation="Horizontal">
-                                    <RadioButton x:Name="DiagTabOverviewRadio" GroupName="DiagSubGroup" Content="📊 Сводка" Style="{StaticResource DiagSubTab}" IsChecked="True" Checked="DiagSubTab_Checked" ToolTip="Общая сводка состояния системы, оборудования и рекомендаций"/>
-                                    <RadioButton x:Name="DiagTabMonitoringRadio" GroupName="DiagSubGroup" Content="📈 Графики" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Мониторинг в реальном времени, спарклайны и контрольные точки"/>
-                                    <RadioButton x:Name="DiagTabBottleneckRadio" GroupName="DiagSubGroup" Content="🔍 Узкие места" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Контекстный анализатор узких мест и лимитов производительности"/>
-                                    <RadioButton x:Name="DiagTabRecommendationsRadio" GroupName="DiagSubGroup" Content="💡 Рекомендации" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Экспертные рекомендации по оптимизации и накопителям"/>
-                                    <RadioButton x:Name="DiagTabCompareRadio" GroupName="DiagSubGroup" Content="🖴 Накопители" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Точное сравнение накопителей бок-о-бок и аппаратная идентификация"/>
-                                    <RadioButton x:Name="DiagTabProfilesRadio" GroupName="DiagSubGroup" Content="🎛 Профили" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Профили производительности Windows, журнал аудита и 1-клик откат"/>
-                                    <RadioButton x:Name="DiagTabProcessesRadio" GroupName="DiagSubGroup" Content="⚡ Нагрузка" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Ресурсоёмкие процессы, автозагрузка и системные утилиты"/>
-                                    <RadioButton x:Name="DiagTabBenchmarkRadio" GroupName="DiagSubGroup" Content="🏎 Бенчмарк" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Аппаратный комплекс тестирования пропускной способности и IOPS"/>
-                                </StackPanel>
-                            </ScrollViewer>
-                        </DockPanel>
-                    </Border>
+                                <!-- Прокручиваемый список подвкладок с клавиатурной навигацией -->
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly" Focusable="False">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton x:Name="DiagTabOverviewRadio" GroupName="DiagSubGroup" Content="📊 Сводка" Style="{StaticResource DiagSubTab}" IsChecked="True" Checked="DiagSubTab_Checked" ToolTip="Общая сводка состояния системы, оборудования и рекомендаций"/>
+                                        <RadioButton x:Name="DiagTabMonitoringRadio" GroupName="DiagSubGroup" Content="📈 Графики" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Мониторинг в реальном времени, спарклайны и контрольные точки"/>
+                                        <RadioButton x:Name="DiagTabBottleneckRadio" GroupName="DiagSubGroup" Content="🔍 Узкие места" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Контекстный анализатор узких мест и лимитов производительности"/>
+                                        <RadioButton x:Name="DiagTabRecommendationsRadio" GroupName="DiagSubGroup" Content="💡 Рекомендации" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Экспертные рекомендации по оптимизации и накопителям"/>
+                                        <RadioButton x:Name="DiagTabCompareRadio" GroupName="DiagSubGroup" Content="🖴 Накопители" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Точное сравнение накопителей бок-о-бок и аппаратная идентификация"/>
+                                        <RadioButton x:Name="DiagTabProfilesRadio" GroupName="DiagSubGroup" Content="🎛 Профили" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Профили производительности Windows, журнал аудита и 1-клик откат"/>
+                                        <RadioButton x:Name="DiagTabProcessesRadio" GroupName="DiagSubGroup" Content="⚡ Нагрузка" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Ресурсоёмкие процессы, автозагрузка и системные утилиты"/>
+                                        <RadioButton x:Name="DiagTabBenchmarkRadio" GroupName="DiagSubGroup" Content="🏎 Бенчмарк" Style="{StaticResource DiagSubTab}" Checked="DiagSubTab_Checked" ToolTip="Аппаратный комплекс тестирования пропускной способности и IOPS"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                        <!-- Индикатор активного фонового обновления телеметрии -->
+                        <ProgressBar x:Name="DiagGlobalLoadingBar" Height="2" VerticalAlignment="Bottom"
+                                     Margin="8,0,8,1" IsIndeterminate="True"
+                                     Foreground="{DynamicResource AccentBrush}" Background="Transparent" BorderThickness="0"
+                                     Visibility="Collapsed"/>
+                    </Grid>
 
                     <!-- РАБОЧАЯ ОБЛАСТЬ ПОДРАЗДЕЛОВ -->
                     <Grid Grid.Row="1">

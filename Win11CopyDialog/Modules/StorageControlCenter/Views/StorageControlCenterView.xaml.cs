@@ -55,6 +55,18 @@ public partial class StorageControlCenterView : UserControl
         Unloaded += StorageControlCenterView_Unloaded;
         IsVisibleChanged += StorageControlCenterView_IsVisibleChanged;
         SizeChanged += StorageControlCenterView_SizeChanged;
+
+        if (DrivesStripScrollViewer != null)
+        {
+            DrivesStripScrollViewer.PreviewMouseWheel += (s, e) =>
+            {
+                if (e.Delta != 0)
+                {
+                    DrivesStripScrollViewer.ScrollToHorizontalOffset(DrivesStripScrollViewer.HorizontalOffset - e.Delta);
+                    e.Handled = true;
+                }
+            };
+        }
     }
 
     public void SelectSubTab(int index)
@@ -320,16 +332,7 @@ public partial class StorageControlCenterView : UserControl
         if (_disks.Count == 0 && StorageDiscoveryService.CachedDisks.Count > 0)
         {
             _disks = StorageDiscoveryService.CachedDisks.ToList();
-            DrivesStripPanel.Children.Clear();
-            foreach (var disk in _disks)
-            {
-                var card = CreateDiskCard(disk);
-                DrivesStripPanel.Children.Add(card);
-            }
-            if (_disks.Count > 0)
-            {
-                SelectDisk(_selectedDisk != null ? _disks.FirstOrDefault(d => d.DiskNumber == _selectedDisk.DiskNumber) ?? _disks[0] : _disks[0]);
-            }
+            RenderDisks();
         }
         else if (_disks.Count == 0)
         {
@@ -346,19 +349,7 @@ public partial class StorageControlCenterView : UserControl
         }
 
         _disks = await StorageDiscoveryService.GetAllDisksAsync(forceRefresh: true);
-
-        DrivesStripPanel.Children.Clear();
-
-        foreach (var disk in _disks)
-        {
-            var card = CreateDiskCard(disk);
-            DrivesStripPanel.Children.Add(card);
-        }
-
-        if (_disks.Count > 0)
-        {
-            SelectDisk(_selectedDisk != null ? _disks.FirstOrDefault(d => d.DiskNumber == _selectedDisk.DiskNumber) ?? _disks[0] : _disks[0]);
-        }
+        RenderDisks();
 
         // Загрузка категорий очистки только если активна соответствующая подвкладка
         if (SubTabCleanupRadio?.IsChecked == true)
@@ -368,18 +359,59 @@ public partial class StorageControlCenterView : UserControl
         MigrationWizardComponent.SetDisks(_disks);
 
         // Фрагментация измеряется ОТДЕЛЬНО и в фоне.
-        // Раньше `defrag /A` запускался синхронно внутри GetAllDisks и
-        // подвешивал вкладку: процесс зависает при запуске из GUI без
-        // консоли, и отмена не помогает. Теперь это фоновая задача с
-        // результатом «Нет данных», если дефрагментатор не ответил.
         _ = MeasureFragmentationInBackgroundAsync();
+    }
+
+    /// <summary>
+    /// Единая отрисовка панели накопителей с сохранением выбора и состояния фокуса.
+    /// </summary>
+    private void RenderDisks()
+    {
+        _liveIcons.Clear();
+        DrivesStripPanel.Children.Clear();
+
+        if (PhysicalDisksHeaderCount != null)
+        {
+            PhysicalDisksHeaderCount.Text = $"обнаружено: {_disks.Count} {(_disks.Count switch { 1 => "накопитель", 2 or 3 or 4 => "накопителя", _ => "накопителей" })}";
+        }
+
+        if (_disks.Count == 0)
+        {
+            var emptyNotice = new TextBlock
+            {
+                Text = "Физические накопители не обнаружены или шина недоступна. Нажмите «🔄 Обновить диски».",
+                FontSize = 11,
+                Style = (Style)FindResource("MutedText"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 10, 12, 10)
+            };
+            DrivesStripPanel.Children.Add(emptyNotice);
+            return;
+        }
+
+        foreach (var disk in _disks)
+        {
+            var card = CreateDiskCard(disk);
+            DrivesStripPanel.Children.Add(card);
+        }
+
+        if (IsVisible)
+        {
+            Stagger.AnimateEntrance(DrivesStripPanel, stepMs: 30, durationMs: 240);
+        }
+
+        var target = (_selectedDisk != null)
+            ? _disks.FirstOrDefault(d => d.DiskNumber == _selectedDisk.DiskNumber) ?? _disks[0]
+            : _disks[0];
+
+        SelectDisk(target);
     }
 
     private CancellationTokenSource? _fragmentationCts;
 
     /// <summary>
     /// Фоновое измерение фрагментации. Диски обновляются на месте,
-    /// поэтому перерисовываем панель только по завершении.
+    /// поэтому обновляем UI без уничтожения карточек.
     /// </summary>
     private async Task MeasureFragmentationInBackgroundAsync()
     {
@@ -389,12 +421,6 @@ public partial class StorageControlCenterView : UserControl
         var cts = new CancellationTokenSource();
         var previous = Interlocked.Exchange(ref _fragmentationCts, cts);
 
-        // Гонка (была): previous?.Dispose() здесь освобождал источник, который
-        // ПРЕДЫДУЩИЙ замер всё ещё использовал внутри вызова процесса defrag —
-        // тот получал ObjectDisposedException на своём токене. Освобождать
-        // источник имеет право только тот поток, который его создал,
-        // поэтому ниже previous лишь отменяется, а Dispose делает его владелец
-        // в собственном finally.
         SafeCancel(previous);
 
         var token = cts.Token;
@@ -412,15 +438,11 @@ public partial class StorageControlCenterView : UserControl
         }
         catch
         {
-            // Фрагментация — справочные данные; её отсутствие не должно
-            // ломать интерфейс. HasFragmentation остаётся снятым.
             wasCanceled = true;
             return;
         }
         finally
         {
-            // Поле обнуляется только если в нём всё ещё наш источник:
-            // иначе можно было бы стереть токен уже НОВОГО замера.
             SafeCancel(cts);
             Interlocked.CompareExchange(ref _fragmentationCts, null, cts);
             cts.Dispose();
@@ -429,31 +451,14 @@ public partial class StorageControlCenterView : UserControl
         if (wasCanceled) return;
         if (!IsLoaded) return;
 
-        // Результат применяем на UI-потоке.
+        // Результат применяем на UI-потоке без пересоздания DOM карточек
         await Dispatcher.InvokeAsync(() =>
         {
             if (_disks == null) return;
             foreach (var d in _disks)
             {
-                // Оценка пересчитывается, потому что фрагментация влияет
-                // на рекомендации, даже если не влияет на сам балл.
                 StorageAdvisorService.EvaluateScore(d);
             }
-
-            // Словарь иконок очищается вместе с карточками: иначе он
-            // удерживал бы удалённые элементы и накапливал мусор при
-            // каждом обновлении списка накопителей.
-            _liveIcons.Clear();
-            DrivesStripPanel.Children.Clear();
-            foreach (var d in _disks)
-                DrivesStripPanel.Children.Add(CreateDiskCard(d));
-
-            // Каскад появления карточек. Без него все накопители
-            // возникают одновременно, и это читается как мигание.
-            // Проверка на видимость обязательна: иначе анимация
-            // запускается на скрытой панели и зря будит систему рендеринга.
-            if (IsVisible)
-                Stagger.AnimateEntrance(DrivesStripPanel, stepMs: 30, durationMs: 240);
 
             if (_selectedDisk != null)
             {
@@ -467,8 +472,8 @@ public partial class StorageControlCenterView : UserControl
     {
         var border = new Border
         {
-            Width = 225,
-            Height = 96,
+            Width = 270,
+            Height = 106,
             CornerRadius = new CornerRadius(9),
             Background = (Brush)FindResource("CardBackgroundBrush"),
             BorderBrush = (Brush)FindResource("CardBorderBrush"),
@@ -477,8 +482,10 @@ public partial class StorageControlCenterView : UserControl
             Margin = new Thickness(0, 0, 8, 0),
             Cursor = Cursors.Hand,
             Tag = disk,
-            SnapsToDevicePixels = true
+            SnapsToDevicePixels = true,
+            Focusable = true
         };
+        KeyboardNavigation.SetIsTabStop(border, true);
 
         var mainGrid = new Grid();
         mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -488,10 +495,6 @@ public partial class StorageControlCenterView : UserControl
         // --- ROW 0: Аппаратный бейдж шины + Здоровье S.M.A.R.T. + Температура ---
         var row0 = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
 
-        // «Живая» иконка накопителя. Кольцо занятости, скорость вращения
-        // и стрелки чтения/записи питаются РЕАЛЬНЫМИ значениями из
-        // Win32_PerfFormattedData_PerfDisk_PhysicalDisk, а не декоративной
-        // анимацией: у простаивающего диска иконка неподвижна.
         var liveIcon = new LiveDiskIcon
         {
             IconSize = 26,
@@ -507,11 +510,11 @@ public partial class StorageControlCenterView : UserControl
 
         (string typeLabel, Brush typeBrush, Brush typeBg) = disk.MediaType switch
         {
-            StoragePhysicalMedia.NVMeSSD => ($"#{disk.DiskNumber} NVMe PCIe", (Brush)FindResource("MediaNVMeBrush"), (Brush)FindResource("MediaNVMeBackground")),
-            StoragePhysicalMedia.SataSSD => ($"#{disk.DiskNumber} SATA SSD", (Brush)FindResource("MediaSsdBrush"), (Brush)FindResource("MediaSsdBackground")),
-            StoragePhysicalMedia.HDD => ($"#{disk.DiskNumber} HDD", (Brush)FindResource("MediaHddBrush"), (Brush)FindResource("MediaHddBackground")),
-            StoragePhysicalMedia.USBFlash => ($"#{disk.DiskNumber} USB 3.0", (Brush)FindResource("MediaUsbBrush"), (Brush)FindResource("MediaUsbBackground")),
-            _ => ($"#{disk.DiskNumber} DISK", (Brush)FindResource("AccentBrush"), (Brush)FindResource("ChipBackgroundBrush"))
+            StoragePhysicalMedia.NVMeSSD => ($"ДИСК #{disk.DiskNumber} • NVMe", (Brush)FindResource("MediaNVMeBrush"), (Brush)FindResource("MediaNVMeBackground")),
+            StoragePhysicalMedia.SataSSD => ($"ДИСК #{disk.DiskNumber} • SATA SSD", (Brush)FindResource("MediaSsdBrush"), (Brush)FindResource("MediaSsdBackground")),
+            StoragePhysicalMedia.HDD => ($"ДИСК #{disk.DiskNumber} • HDD", (Brush)FindResource("MediaHddBrush"), (Brush)FindResource("MediaHddBackground")),
+            StoragePhysicalMedia.USBFlash => ($"ДИСК #{disk.DiskNumber} • USB", (Brush)FindResource("MediaUsbBrush"), (Brush)FindResource("MediaUsbBackground")),
+            _ => ($"ДИСК #{disk.DiskNumber}", (Brush)FindResource("AccentBrush"), (Brush)FindResource("ChipBackgroundBrush"))
         };
 
         var typeBadge = new Border
@@ -520,41 +523,35 @@ public partial class StorageControlCenterView : UserControl
             BorderBrush = typeBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(5, 1, 5, 1),
+            Padding = new Thickness(6, 1.5, 6, 1.5),
             VerticalAlignment = VerticalAlignment.Center
         };
         typeBadge.Child = new TextBlock
         {
             Text = typeLabel,
-            FontSize = 8.5,
+            FontSize = 9,
             FontWeight = FontWeights.Bold,
             Foreground = typeBrush
         };
         DockPanel.SetDock(typeBadge, Dock.Left);
         row0.Children.Add(typeBadge);
 
-        // Правый блок статусов
+        // Правый блок статусов (Здоровье / S.M.A.R.T. и Температура)
         var statusStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         DockPanel.SetDock(statusStack, Dock.Right);
 
-        // Индикатор здоровья.
-        // Раньше здесь безусловно показывались буква оценки и её цвет, даже когда
-        // оценка не рассчитана (нет измеренных данных), а также «0°C» для
-        // непомеренной температуры. Пользователь видел «A+ 0°C» на диске,
-        // о котором приложение ничего не знает. Теперь при отсутствии данных
-        // показывается «н/д» нейтральным цветом, а не выдуманная оценка.
+        // Индикатор здоровья S.M.A.R.T.
         var healthPill = new Border
         {
             Background = (Brush)FindResource("ChipBackgroundBrush"),
             CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(4, 1, 4, 1),
+            Padding = new Thickness(5, 1.5, 5, 1.5),
             Margin = new Thickness(0, 0, 4, 0),
             VerticalAlignment = VerticalAlignment.Center
         };
         var healthStack = new StackPanel { Orientation = Orientation.Horizontal };
 
         bool scoreKnown = disk.Score.IsCalculated;
-        // Цвет точки: только если оценка реально посчитана, иначе нейтральный.
         var dotColor = scoreKnown
             ? (disk.Score.TotalScore >= 80 ? Color.FromRgb(16, 185, 129)
              : disk.Score.TotalScore >= 60 ? Color.FromRgb(245, 158, 11)
@@ -567,7 +564,7 @@ public partial class StorageControlCenterView : UserControl
             Height = 5,
             Fill = new SolidColorBrush(dotColor),
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 3, 0)
+            Margin = new Thickness(0, 0, 4, 0)
         });
         healthStack.Children.Add(new TextBlock
         {
@@ -578,13 +575,13 @@ public partial class StorageControlCenterView : UserControl
                 ? (Brush)FindResource("PrimaryTextBrush")
                 : (Brush)FindResource("SecondaryTextBrush"),
             ToolTip = scoreKnown
-                ? $"Оценка {disk.Score.TotalScore:F0}/100 по измеренным параметрам"
-                : "Оценка не рассчитана: контроллер не отдаёт измеримые параметры"
+                ? $"Оценка состояния {disk.Score.TotalScore:F0}/100 ({disk.Score.Grade})"
+                : (!string.IsNullOrEmpty(disk.TelemetryNote) ? disk.TelemetryNote : "S.M.A.R.T. недоступен: контроллер не публикует данные")
         });
         healthPill.Child = healthStack;
         statusStack.Children.Add(healthPill);
 
-        // Температура: только если реально измерена.
+        // Температура: только если реально измерена
         if (disk.HasTemperature)
         {
             var tempBrush = new BrushConverter().ConvertFromString(disk.TemperatureColor) as Brush ?? (Brush)FindResource("PrimaryTextBrush");
@@ -592,7 +589,7 @@ public partial class StorageControlCenterView : UserControl
             {
                 Background = (Brush)FindResource("ChipBackgroundBrush"),
                 CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(4, 1, 4, 1),
+                Padding = new Thickness(5, 1.5, 5, 1.5),
                 VerticalAlignment = VerticalAlignment.Center
             };
             tempPill.Child = new TextBlock
@@ -611,7 +608,7 @@ public partial class StorageControlCenterView : UserControl
             {
                 Background = (Brush)FindResource("ChipBackgroundBrush"),
                 CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(4, 1, 4, 1),
+                Padding = new Thickness(5, 1.5, 5, 1.5),
                 VerticalAlignment = VerticalAlignment.Center
             };
             tempPill.Child = new TextBlock
@@ -629,7 +626,7 @@ public partial class StorageControlCenterView : UserControl
         mainGrid.Children.Add(row0);
 
         // --- ROW 1: Название модели диска + Буквы томов + Уникальный идентификатор ---
-        var row1 = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
+        var row1 = new StackPanel { Margin = new Thickness(0, 2, 0, 4) };
         var modelPanel = new DockPanel();
         var driveBadge = new Border
         {
@@ -638,7 +635,7 @@ public partial class StorageControlCenterView : UserControl
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(3),
             Padding = new Thickness(4, 0, 4, 0),
-            Margin = new Thickness(0, 0, 5, 0),
+            Margin = new Thickness(0, 0, 6, 0),
             VerticalAlignment = VerticalAlignment.Center
         };
         driveBadge.Child = new TextBlock
@@ -654,7 +651,7 @@ public partial class StorageControlCenterView : UserControl
         var modelText = new TextBlock
         {
             Text = disk.Model,
-            FontSize = 10,
+            FontSize = 11,
             FontWeight = FontWeights.Bold,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Foreground = (Brush)FindResource("PrimaryTextBrush"),
@@ -663,14 +660,14 @@ public partial class StorageControlCenterView : UserControl
         modelPanel.Children.Add(modelText);
         row1.Children.Add(modelPanel);
 
-        // Уникальный серийный номер и шина для гарантированного отличия идентичных SSD
+        // Дополнительная строка: шина, разметка, разделы, серийный номер
         var idText = new TextBlock
         {
-            Text = disk.HardwareIdentity + (disk.Partitions.Count > 0 ? $" • {disk.Partitions.Count} разд." : ""),
+            Text = $"{disk.BusTypeString} • {disk.PartitionStyle} • {(disk.Partitions.Count > 0 ? $"{disk.Partitions.Count} разд." : "нет томов")}" + (!string.IsNullOrWhiteSpace(disk.SerialNumber) ? $" • SN: {disk.SerialNumber.Trim()}" : ""),
             FontSize = 8.5,
             Style = (Style)FindResource("MutedText"),
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(0, 1, 0, 0)
+            Margin = new Thickness(0, 2, 0, 0)
         };
         row1.Children.Add(idText);
 
@@ -681,7 +678,7 @@ public partial class StorageControlCenterView : UserControl
         var row2 = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
         var pBar = new ProgressBar
         {
-            Height = 4,
+            Height = 4.5,
             Minimum = 0,
             Maximum = 100,
             Value = disk.UsedSpacePercent,
@@ -694,13 +691,13 @@ public partial class StorageControlCenterView : UserControl
         var capDock = new DockPanel();
         capDock.Children.Add(new TextBlock
         {
-            Text = $"{disk.FreeSpaceFormatted} своб.",
+            Text = $"{disk.FreeSpaceFormatted} своб. ({disk.FreeSpacePercent:F0}%)",
             FontSize = 8.5,
             Style = (Style)FindResource("MutedText")
         });
         var totalText = new TextBlock
         {
-            Text = $"{disk.TotalSizeFormatted} ({disk.UsedSpacePercent:F0}%)",
+            Text = $"{disk.TotalSizeFormatted} всего",
             FontSize = 8.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = (Brush)FindResource("PrimaryTextBrush"),
@@ -717,21 +714,46 @@ public partial class StorageControlCenterView : UserControl
 
         border.ToolTip = new ToolTip
         {
-            Content = $"Накопитель: {disk.Model}\nТома: {disk.DriveLettersFormatted}\nДиск: #{disk.DiskNumber} • Серийный номер: {disk.SerialNumber}\nИнтерфейс: {disk.BusTypeString} • Разметка: {disk.PartitionsSummary}\nЕмкость: {disk.TotalSizeFormatted} (Свободно: {disk.FreeSpaceFormatted})\nЗдоровье: {disk.Score.TotalScore:F0}/100 ({disk.Score.Grade})\nТемпература: {disk.TemperatureFormatted}"
+            Content = $"Накопитель: Диск #{disk.DiskNumber} — {disk.Model}\n" +
+                      $"Интерфейс: {disk.BusTypeString} ({disk.MediaTypeString})\n" +
+                      $"Серийный номер: {(string.IsNullOrWhiteSpace(disk.SerialNumber) ? "Не указан" : disk.SerialNumber.Trim())}\n" +
+                      $"Разметка: {disk.PartitionStyle} ({disk.Partitions.Count} разделов)\n" +
+                      $"Тома: {disk.DriveLettersFormatted}\n" +
+                      $"Общая емкость: {disk.TotalSizeFormatted} (свободно: {disk.FreeSpaceFormatted}, {disk.FreeSpacePercent:F1}%)\n" +
+                      $"Состояние: {(disk.Score.IsCalculated ? $"{disk.Score.TotalScore:F0}/100 ({disk.Score.Grade})" : "н/д")}\n" +
+                      $"Температура: {disk.TemperatureFormatted}\n" +
+                      $"Телеметрия: {(disk.HasSmartAttributes ? $"S.M.A.R.T. активен ({disk.SmartAttributes.Count} атрибутов)" : (disk.SmartNeedsAdministrator ? "Требуются права администратора" : (!string.IsNullOrEmpty(disk.TelemetryNote) ? disk.TelemetryNote : "Контроллер не публикует данные")))}"
         };
 
         border.MouseEnter += (s, e) =>
         {
-            if (_selectedDisk != disk) border.BorderBrush = (Brush)FindResource("GlassBorderBrush");
+            if (_selectedDisk?.DiskNumber != disk.DiskNumber) border.BorderBrush = (Brush)FindResource("GlassBorderBrush");
         };
         border.MouseLeave += (s, e) =>
         {
-            if (_selectedDisk != disk) border.BorderBrush = (Brush)FindResource("CardBorderBrush");
+            if (_selectedDisk?.DiskNumber != disk.DiskNumber) border.BorderBrush = (Brush)FindResource("CardBorderBrush");
         };
         border.PreviewMouseLeftButtonDown += (s, e) =>
         {
             SelectDisk(disk);
-            e.Handled = true;
+            border.Focus();
+        };
+        border.MouseLeftButtonDown += (s, e) =>
+        {
+            SelectDisk(disk);
+            border.Focus();
+        };
+        border.KeyDown += (s, e) =>
+        {
+            if (e.Key == Key.Enter || e.Key == Key.Space)
+            {
+                SelectDisk(disk);
+                e.Handled = true;
+            }
+        };
+        border.GotFocus += (s, e) =>
+        {
+            if (_selectedDisk?.DiskNumber != disk.DiskNumber) SelectDisk(disk);
         };
 
         return border;
@@ -748,6 +770,7 @@ public partial class StorageControlCenterView : UserControl
             {
                 bool isSel = d.DiskNumber == disk.DiskNumber;
                 b.BorderBrush = isSel ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("CardBorderBrush");
+                b.BorderThickness = isSel ? new Thickness(2) : new Thickness(1.5);
                 b.Background = isSel ? (Brush)FindResource("ChipBackgroundBrush") : (Brush)FindResource("CardBackgroundBrush");
                 b.Effect = isSel ? new DropShadowEffect
                 {
@@ -761,9 +784,6 @@ public partial class StorageControlCenterView : UserControl
         }
 
         // ── Оценка состояния ────────────────────────────────────────────────
-        // Раньше здесь безусловно выводилось «A+» и «98 / 100», потому что
-        // в модели стояли значения по умолчанию. Теперь при отсутствии
-        // измерений показывается честная «н/д».
         HealthScoreGradeText.Text = disk.Score.Grade;
         HealthScoreValueText.Text = disk.Score.IsCalculated
             ? $"{disk.Score.TotalScore:F0} / 100"
@@ -771,13 +791,13 @@ public partial class StorageControlCenterView : UserControl
         HealthScoreStatusText.Text = disk.Score.StatusText;
         HealthScoreStatusText.Foreground = new BrushConverter().ConvertFromString(disk.Score.StatusColor) as Brush;
 
-        // На чём именно основан вердикт. Без этой строки «A+» выглядит как
-        // факт, хотя зачастую измерен был один параметр из четырёх.
         if (HealthScoreBasisText != null)
         {
             HealthScoreBasisText.Text = disk.Score.IsCalculated
                 ? $"{disk.Score.BasisDescription} · уверенность {disk.Score.MeasuredComponentCount}/4"
-                : "Ни один показатель состояния не измерен — оценка не выставляется";
+                : (!string.IsNullOrEmpty(disk.TelemetryNote)
+                    ? disk.TelemetryNote
+                    : "Показатели состояния не публикуются контроллером диска — оценка не выставляется");
         }
 
         // ── Температура: только реальное измерение ──────────────────────────
@@ -787,11 +807,15 @@ public partial class StorageControlCenterView : UserControl
             : disk.TemperatureC < 65 ? "Внимание"
             : "Троттлинг";
         TempBadgeBorder.Background = new BrushConverter().ConvertFromString(disk.TemperatureColor) as Brush;
-        TempDescText.Text = disk.TemperatureStatus;
+        TempDescText.Text = disk.HasTemperature ? disk.TemperatureStatus : disk.TemperatureSourceDescription;
 
         // ── Износ и ресурс ─────────────────────────────────────────────────
         DiskWearValueText.Text = disk.WearFormatted;
-        DiskLifeDescText.Text = disk.TotalWrittenFormatted;
+        DiskLifeDescText.Text = disk.HasWear
+            ? disk.TotalWrittenFormatted
+            : (disk.MediaType == StoragePhysicalMedia.HDD
+                ? "HDD на магнитных пластинах: износ ячеек NAND неприменим"
+                : (disk.HasLifetimeWrites ? disk.TotalWrittenFormatted : "Контроллер не сообщает выработку ресурса"));
 
         // ── Наработка и циклы ──────────────────────────────────────────────
         DiskPowerHoursText.Text = disk.PowerOnHoursFormatted;
@@ -807,9 +831,6 @@ public partial class StorageControlCenterView : UserControl
         {
             SmartAttributesList.ItemsSource = disk.SmartAttributes;
             if (SmartEmptyText != null) SmartEmptyText.Visibility = Visibility.Collapsed;
-
-            // Итог самотеста и состояние секторов — это выводы из тех же
-            // прочитанных атрибутов, а не отдельный запрос.
             RenderSmartVerdict(disk);
         }
         else
@@ -820,26 +841,22 @@ public partial class StorageControlCenterView : UserControl
             {
                 SmartEmptyText.Visibility = Visibility.Visible;
 
-                // Текст различается по ПРИЧИНЕ отсутствия данных. Раньше
-                // во всех случаях писалось одно и то же, поэтому
-                // невозможность чтения выглядела как отсутствие данных
-                // на диске.
                 if (disk.SmartNeedsAdministrator)
                 {
                     SmartEmptyText.Text =
-                        "Для прямого чтения S.M.A.R.T. с физического контроллера требуются права администратора.\n\n" +
-                        "S.M.A.R.T. опрашивается напрямую через низкоуровневые команды ATA/NVMe, доступ к которым Windows ограничивает для непривилегированных процессов.\n\n" +
+                        $"Для прямого чтения S.M.A.R.T. с физического контроллера накопителя Диск #{disk.DiskNumber} ({disk.Model}) требуются права администратора.\n\n" +
+                        "S.M.A.R.T. опрашивается напрямую через низкоуровневые команды ATA/NVMe, доступ к которым Windows ограничивает для обычных процессов.\n\n" +
                         "Нажмите «🛡 Запросить данные S.M.A.R.T. (UAC)» ниже для разового опроса без перезапуска всей программы.";
                 }
                 else if (disk.TelemetryNote.Length > 0)
                 {
-                    SmartEmptyText.Text = "S.M.A.R.T. недоступен.\n" + disk.TelemetryNote;
+                    SmartEmptyText.Text = $"S.M.A.R.T. недоступен для накопителя Диск #{disk.DiskNumber} ({disk.Model}).\nПричина: " + disk.TelemetryNote;
                 }
                 else
                 {
                     SmartEmptyText.Text =
-                        "S.M.A.R.T. недоступен: контроллер не публикует предиктивные данные.\n" +
-                        "Остальные показатели накопителя измерены настоящим образом.";
+                        $"S.M.A.R.T. недоступен: контроллер или драйвер Windows не публикует атрибуты самотестирования для накопителя Диск #{disk.DiskNumber} ({disk.Model}).\n" +
+                        "Остальные показатели накопителя измерены аппаратным образом.";
                 }
             }
 
@@ -857,22 +874,61 @@ public partial class StorageControlCenterView : UserControl
             SmartElevationStatusText.Visibility = Visibility.Collapsed;
         }
 
-        // Рекомендации Storage AI Advisor
-        PopulateAdvisorRecommendations();
+        // Рекомендации Storage AI Advisor для выбранного накопителя
+        PopulateAdvisorRecommendations(disk);
 
-        // Карта разделов
+        // Карта разделов и привязанные действия
         RenderPartitionMap(disk);
 
         // Бенчмарк: заполняем список томов для теста
         BenchTargetDriveCombo.Items.Clear();
-        foreach (var p in disk.Partitions.Where(p => !string.IsNullOrEmpty(p.DriveLetter)))
+        var letters = disk.Partitions.Where(p => !string.IsNullOrEmpty(p.DriveLetter)).ToList();
+        if (letters.Count > 0)
         {
-            BenchTargetDriveCombo.Items.Add($"{p.DriveLetter}:\\");
+            foreach (var p in letters)
+            {
+                BenchTargetDriveCombo.Items.Add($"{p.DriveLetter}:\\ ({p.VolumeLabel})");
+            }
+            BenchTargetDriveCombo.SelectedIndex = 0;
+            StartBenchBtn.IsEnabled = true;
+            StartBenchBtn.ToolTip = $"Запустить тест скорости для накопителя Диск #{disk.DiskNumber} ({disk.Model})";
         }
-        if (BenchTargetDriveCombo.Items.Count > 0) BenchTargetDriveCombo.SelectedIndex = 0;
+        else
+        {
+            BenchTargetDriveCombo.Items.Add($"[Диск #{disk.DiskNumber}: нет томов с буквой]");
+            BenchTargetDriveCombo.SelectedIndex = 0;
+            StartBenchBtn.IsEnabled = false;
+            StartBenchBtn.ToolTip = $"На накопителе Диск #{disk.DiskNumber} ({disk.Model}) нет смонтированных томов с буквой для бенчмарка";
+        }
 
         // Оптимизатор
-        OptimizerDriveTypeText.Text = $"Обнаружен накопитель: {disk.Model} [{disk.MediaTypeString} • {disk.BusTypeString}]";
+        var optLetters = disk.Partitions.Where(p => !string.IsNullOrEmpty(p.DriveLetter)).ToList();
+        if (optLetters.Count > 0)
+        {
+            OptimizerDriveTypeText.Text = $"Выбран накопитель: Диск #{disk.DiskNumber} — {disk.Model} [{disk.MediaTypeString} • {disk.BusTypeString}] • Тома: {disk.DriveLettersFormatted}";
+            RunOptimizeBtn.IsEnabled = true;
+            RunOptimizeBtn.ToolTip = $"Выполнить оптимизацию для накопителя Диск #{disk.DiskNumber} ({disk.Model})";
+        }
+        else
+        {
+            OptimizerDriveTypeText.Text = $"Выбран накопитель: Диск #{disk.DiskNumber} — {disk.Model} [{disk.MediaTypeString} • {disk.BusTypeString}] • Нет томов с буквой для TRIM/дефрагментации";
+            RunOptimizeBtn.IsEnabled = false;
+            RunOptimizeBtn.ToolTip = $"На накопителе Диск #{disk.DiskNumber} нет томов с буквой для выполнения операции";
+        }
+
+        // Безопасность и Wipe
+        bool canWipe = disk.Partitions.Any(p => !string.IsNullOrEmpty(p.DriveLetter));
+        StartWipeBtn.IsEnabled = canWipe;
+        StartWipeBtn.ToolTip = canWipe
+            ? $"Запустить очистку свободного места на накопителе Диск #{disk.DiskNumber} ({disk.Model})"
+            : $"На накопителе Диск #{disk.DiskNumber} нет томов с буквой для затирания свободного места";
+
+        // Partition Manager: действия с физическим диском
+        bool containsSystem = disk.Partitions.Any(p => p.DriveLetter.Equals("C", StringComparison.OrdinalIgnoreCase) || p.IsBoot || p.IsSystem);
+        DiskCleanBtn.ToolTip = containsSystem
+            ? $"Очистка структуры накопителя Диск #{disk.DiskNumber} (ЗАБЛОКИРОВАНО: диск содержит системный том C:)"
+            : $"Очистить структуру разделов накопителя Диск #{disk.DiskNumber} ({disk.Model}) через DiskPart";
+        DiskClearReadOnlyBtn.ToolTip = $"Снять атрибут защиты от записи с накопителя Диск #{disk.DiskNumber} ({disk.Model})";
     }
 
     /// <summary>
@@ -971,20 +1027,50 @@ public partial class StorageControlCenterView : UserControl
             : "Источник: таблица S.M.A.R.T., прочитанная напрямую с накопителя.";
     }
 
-    private void PopulateAdvisorRecommendations()
+    private void PopulateAdvisorRecommendations(StorageDisk? targetDisk = null)
     {
+        targetDisk ??= _selectedDisk;
         AdvisorRecommendationsStack.Children.Clear();
-        var recs = StorageAdvisorService.GenerateRecommendations(_disks);
 
-        if (recs.Count == 0)
+        if (targetDisk == null)
         {
             AdvisorRecommendationsStack.Children.Add(new TextBlock
             {
-                Text = "✔ Узких мест не обнаружено. Все накопители работают в оптимальном скоростном режиме.",
+                Text = "Выберите накопитель в списке выше для анализа рекомендаций.",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
+                Style = (Style)FindResource("MutedText"),
                 Margin = new Thickness(0, 4, 0, 4)
             });
+            return;
+        }
+
+        var recs = StorageAdvisorService.GenerateRecommendations(new[] { targetDisk });
+
+        if (recs.Count == 0)
+        {
+            var okStack = new StackPanel { Margin = new Thickness(0, 4, 0, 4) };
+            okStack.Children.Add(new TextBlock
+            {
+                Text = $"✔ Накопитель Диск #{targetDisk.DiskNumber} ({targetDisk.Model}) работает в штатном скоростном режиме. Узких мест не обнаружено.",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129))
+            });
+
+            var otherDisks = _disks.Where(d => d.DiskNumber != targetDisk.DiskNumber).ToList();
+            var otherRecs = StorageAdvisorService.GenerateRecommendations(otherDisks);
+            if (otherRecs.Count > 0)
+            {
+                okStack.Children.Add(new TextBlock
+                {
+                    Text = $"ℹ Для других накопителей системы ({otherDisks.Count(d => otherRecs.Any(r => r.TargetDiskNumber == d.DiskNumber))}) найдены оптимизации. Выберите их в списке выше для просмотра деталей.",
+                    FontSize = 10,
+                    Style = (Style)FindResource("MutedText"),
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+            }
+
+            AdvisorRecommendationsStack.Children.Add(okStack);
             return;
         }
 
@@ -1071,7 +1157,59 @@ public partial class StorageControlCenterView : UserControl
         PartitionMapGrid.Children.Clear();
         PartitionMapStyleText.Text = $"Стиль разметки: {disk.PartitionStyle} ({disk.Partitions.Count} томов)";
 
-        if (disk.Partitions.Count == 0) return;
+        if (disk.Partitions.Count == 0)
+        {
+            PartitionMapGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var emptyBlock = new Border
+            {
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 4, 8, 4),
+                Background = (Brush)FindResource("PartitionUnallocatedGradient")
+            };
+            var emptyStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            emptyStack.Children.Add(new TextBlock
+            {
+                Text = "Нераспределенное пространство",
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            emptyStack.Children.Add(new TextBlock
+            {
+                Text = $"{disk.TotalSizeFormatted} (100% свободно)",
+                FontSize = 8.5,
+                Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            emptyBlock.Child = emptyStack;
+            Grid.SetColumn(emptyBlock, 0);
+            PartitionMapGrid.Children.Add(emptyBlock);
+
+            PartitionsListView.ItemsSource = null;
+            PartitionLogsList.ItemsSource = PartitionManagementService.OperationLogs;
+
+            _selectedPartition = null;
+            SelectedPartitionTitleText.Text = $"Накопитель Диск #{disk.DiskNumber} ({disk.Model}) — нет логических разделов";
+            SelectedPartitionDetailsText.Text = $"Нераспределенный объем: {disk.TotalSizeFormatted}. Нажмите «➕ Создать раздел» для инициализации.";
+            ProtectedBadgeBorder.Visibility = Visibility.Collapsed;
+
+            HeroVolumeText.Text = "Не размечено";
+            HeroFsText.Text = "—";
+            HeroCapacityText.Text = $"{disk.TotalSizeFormatted} свободно";
+            HeroSecurityText.Text = "⚪ Свободный накопитель";
+            HeroSecurityText.Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+
+            PartDeleteBtn.IsEnabled = false;
+            PartFormatBtn.IsEnabled = false;
+            PartShrinkBtn.IsEnabled = false;
+            PartExtendBtn.IsEnabled = false;
+            PartChangeLetterBtn.IsEnabled = false;
+            PartChangeLabelBtn.IsEnabled = false;
+            PartChkdskBtn.IsEnabled = false;
+            PartCreateBtn.IsEnabled = true;
+            return;
+        }
 
         int colIdx = 0;
         foreach (var p in disk.Partitions)
@@ -1347,7 +1485,18 @@ public partial class StorageControlCenterView : UserControl
             return;
         }
 
-        string target = BenchTargetDriveCombo.SelectedItem?.ToString() ?? "C:\\";
+        string rawTarget = BenchTargetDriveCombo.SelectedItem?.ToString() ?? "C:\\";
+        string target = "C:\\";
+        if (rawTarget.Length >= 2 && rawTarget[1] == ':')
+        {
+            target = rawTarget.Substring(0, 2) + "\\";
+        }
+        else if (rawTarget.StartsWith("[") || !Directory.Exists(target))
+        {
+            MessageBox.Show("На выбранном накопителе нет смонтированных томов с назначенной буквой диска для проведения бенчмарка.", "Бенчмарк скорости", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         int sizeBytes = BenchSizeCombo.SelectedIndex switch
         {
             0 => 64 * 1024 * 1024,
@@ -1432,7 +1581,12 @@ public partial class StorageControlCenterView : UserControl
     {
         if (_selectedDisk == null) return;
 
-        string targetLetter = _selectedDisk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "C";
+        string targetLetter = _selectedDisk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "";
+        if (string.IsNullOrEmpty(targetLetter))
+        {
+            MessageBox.Show($"На накопителе Диск #{_selectedDisk.DiskNumber} ({_selectedDisk.Model}) нет смонтированных томов с назначенной буквой для запуска оптимизации.", "Оптимизация накопителя", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
         string mode = (OptimizerModeCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Smart";
 
         RunOptimizeBtn.IsEnabled = false;
@@ -1572,7 +1726,12 @@ public partial class StorageControlCenterView : UserControl
         }
 
         if (_selectedDisk == null) return;
-        string targetLetter = _selectedDisk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "D";
+        string targetLetter = _selectedDisk.Partitions.FirstOrDefault(p => !string.IsNullOrEmpty(p.DriveLetter))?.DriveLetter ?? "";
+        if (string.IsNullOrEmpty(targetLetter))
+        {
+            MessageBox.Show($"На накопителе Диск #{_selectedDisk.DiskNumber} ({_selectedDisk.Model}) нет смонтированных томов с назначенной буквой для очистки свободного места.", "Очистка свободного места", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
 
         var confirm = MessageBox.Show(
             $"Вы действительно хотите очистить удаленные данные на свободном пространстве тома {targetLetter}:?\n\nСуществующие файлы НЕ будут затронуты. Удаленные секторы будут перезаписаны нулями.",

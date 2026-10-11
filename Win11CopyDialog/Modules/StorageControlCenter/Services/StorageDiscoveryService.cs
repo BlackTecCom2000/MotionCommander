@@ -114,7 +114,15 @@ public static class StorageDiscoveryService
             sw.Restart();
             foreach (var d in disks)
             {
-                SmartHealthService.EnrichDiskHealth(d);
+                try
+                {
+                    SmartHealthService.EnrichDiskHealth(d);
+                }
+                catch (Exception ex)
+                {
+                    d.TelemetryNote = $"Ошибка сбора телеметрии: {ex.Message}";
+                    d.Source = TelemetrySource.Unavailable;
+                }
                 Trace($"SMART #{d.DiskNumber}", sw.ElapsedMilliseconds);
                 sw.Restart();
             }
@@ -131,7 +139,14 @@ public static class StorageDiscoveryService
             sw.Restart();
             foreach (var d in disks)
             {
-                StorageAdvisorService.EvaluateScore(d);
+                try
+                {
+                    StorageAdvisorService.EvaluateScore(d);
+                }
+                catch
+                {
+                    // Расчёт рекомендаций не должен блокировать отображение накопителей
+                }
             }
             Trace("оценка", sw.ElapsedMilliseconds);
 

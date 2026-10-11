@@ -16,6 +16,7 @@ namespace Win11CopyDialog.Modules.StorageControlCenter.Models;
 public sealed class SmartAttribute
 {
     public byte Id { get; set; }
+    public string IdHex => $"0x{Id:X2}";
     public string Name { get; set; } = "";
 
     public int Current { get; set; }

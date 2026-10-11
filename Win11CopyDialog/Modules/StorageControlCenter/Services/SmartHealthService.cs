@@ -102,7 +102,7 @@ public static class SmartHealthService
     {
         try
         {
-            var raw = SmartRawReader.Read(disk.DiskNumber, out var failure);
+            var raw = SmartRawReader.Read(disk.DiskNumber, out var failure, disk.BusType, disk.MediaType);
             if (raw == null)
             {
                 if (failure != null)
@@ -564,8 +564,8 @@ public static class SmartHealthService
             // Берём все счётчики и сопоставляем через MSFT_Disk ниже.
             using var searcher = new ManagementObjectSearcher(scope,
                 new ObjectQuery("SELECT DeviceId, Temperature, Wear, PowerOnHours, " +
-                                "PowerOnCycles? AS PowerOnCycles, ReadErrorsTotal, WriteErrorsTotal, " +
-                                "FlushErrorsTotal, StartStopCycleCount FROM MSFT_StorageReliabilityCounter"));
+                                "ReadErrorsTotal, WriteErrorsTotal, " +
+                                "StartStopCycleCount FROM MSFT_StorageReliabilityCounter"));
 
             using var results = searcher.Get();
             int matched = 0;
@@ -625,7 +625,7 @@ public static class SmartHealthService
         }
         catch (ManagementException ex)
         {
-            notes.Add($"WMI-хранилище накопителей недоступно (ManagementException: {ex.Message}, HResult: 0x{ex.ErrorCode:X8}).");
+            notes.Add($"WMI-хранилище накопителей недоступно (ManagementException: {ex.Message}, статус: {ex.ErrorCode}, код: 0x{(int)ex.ErrorCode:X8}, HResult: 0x{ex.HResult:X8}).");
             return false;
         }
         catch (UnauthorizedAccessException ex)
@@ -791,7 +791,7 @@ public static class SmartHealthService
         }
         catch (ManagementException ex)
         {
-            notes.Add($"S.M.A.R.T. недоступен через WMI root\\wmi (ManagementException: {ex.Message}, HResult: 0x{ex.ErrorCode:X8}).");
+            notes.Add($"S.M.A.R.T. недоступен через WMI root\\wmi (ManagementException: {ex.Message}, статус: {ex.ErrorCode}, код: 0x{(int)ex.ErrorCode:X8}, HResult: 0x{ex.HResult:X8}).");
             return false;
         }
         catch (UnauthorizedAccessException ex)
@@ -811,8 +811,10 @@ public static class SmartHealthService
     {
         try
         {
-            using var searcher = new ManagementObjectSearcher(
-                $"SELECT InstanceName FROM MSStorageDriver_FailurePredictStatus");
+            var scope = new ManagementScope(WmiNamespace);
+            scope.Connect();
+            using var searcher = new ManagementObjectSearcher(scope,
+                new ObjectQuery("SELECT InstanceName FROM MSStorageDriver_FailurePredictStatus"));
 
             using var results = searcher.Get();
             foreach (ManagementBaseObject obj in results)
@@ -820,8 +822,11 @@ public static class SmartHealthService
                 using (obj)
                 {
                     string? name = obj["InstanceName"]?.ToString();
-                    if (name != null &&
-                        name.EndsWith($"PHYSICALDRIVE{disk.DiskNumber}", StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrEmpty(name)) continue;
+
+                    if (name.EndsWith($"PHYSICALDRIVE{disk.DiskNumber}", StringComparison.OrdinalIgnoreCase) ||
+                        name.EndsWith($"PHYSICALDRIVE{disk.DiskNumber}_0", StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrEmpty(disk.SerialNumber) && name.Contains(disk.SerialNumber.Trim(), StringComparison.OrdinalIgnoreCase)))
                     {
                         return name;
                     }
@@ -962,7 +967,18 @@ public static class SmartHealthService
         {
             object? raw = obj[prop];
             if (raw == null) return false;
-            return double.TryParse(raw.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            if (raw is double d) { value = d; return true; }
+            if (raw is float f) { value = f; return true; }
+            if (raw is int i) { value = i; return true; }
+            if (raw is uint u) { value = u; return true; }
+            if (raw is long l) { value = l; return true; }
+            if (raw is ulong ul) { value = ul; return true; }
+            if (raw is short s) { value = s; return true; }
+            if (raw is ushort us) { value = us; return true; }
+            if (raw is byte b) { value = b; return true; }
+            string str = raw.ToString() ?? "";
+            return double.TryParse(str, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value)
+                || double.TryParse(str, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out value);
         }
         catch { return false; }
     }
@@ -974,7 +990,16 @@ public static class SmartHealthService
         {
             object? raw = obj[prop];
             if (raw == null) return false;
-            return long.TryParse(raw.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+            if (raw is long l) { value = l; return true; }
+            if (raw is int i) { value = i; return true; }
+            if (raw is uint u) { value = u; return true; }
+            if (raw is ulong ul) { value = unchecked((long)ul); return true; }
+            if (raw is short s) { value = s; return true; }
+            if (raw is ushort us) { value = us; return true; }
+            if (raw is byte b) { value = b; return true; }
+            string str = raw.ToString() ?? "";
+            return long.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
+                || long.TryParse(str, NumberStyles.Integer, CultureInfo.CurrentCulture, out value);
         }
         catch { return false; }
     }
@@ -986,7 +1011,15 @@ public static class SmartHealthService
         {
             object? raw = obj[prop];
             if (raw == null) return false;
-            return int.TryParse(raw.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+            if (raw is int i) { value = i; return true; }
+            if (raw is uint u) { value = unchecked((int)u); return true; }
+            if (raw is short s) { value = s; return true; }
+            if (raw is ushort us) { value = us; return true; }
+            if (raw is byte b) { value = b; return true; }
+            if (raw is long l) { value = unchecked((int)l); return true; }
+            string str = raw.ToString() ?? "";
+            return int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)
+                || int.TryParse(str, NumberStyles.Integer, CultureInfo.CurrentCulture, out value);
         }
         catch { return false; }
     }

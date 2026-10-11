@@ -1,18 +1,18 @@
 ﻿{
-    "version":  "3.8.46",
+    "version":  "3.8.47",
     "releaseDate":  "2026-10-11",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Исправлено применение патчей во встроенном обновляторе: устранена блокировка файлов скачивания собственным процессом"
+                      "Полная модернизация окна «Параметры»: стиль Liquid Glass, закреплённая нижняя панель, адаптивная вёрстка"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Patch.zip",
-    "patchSizeMb":  3.45,
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.47-Patch.zip",
+    "patchSizeMb":  3.46,
     "patchMinVersion":  "3.8.0",
-    "fullSizeMb":  38.11,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.46-Setup.exe"
+    "fullSizeMb":  38.13,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.47-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.47-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.47-Setup.exe"
 }

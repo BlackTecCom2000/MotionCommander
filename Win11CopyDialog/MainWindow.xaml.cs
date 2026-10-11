@@ -49,6 +49,8 @@ public partial class MainWindow : Window
     private readonly Queue<double> _speedSamples = new();
     private System.Windows.Threading.DispatcherTimer? _speedGraphTimer;
     private System.Windows.Threading.DispatcherTimer? _diagnosticsTimer;
+    private CancellationTokenSource? _diagnosticsCts;
+    private volatile bool _isDiagnosticsSampling;
     private CancellationTokenSource? _navCts;
     private CancellationTokenSource? _diagRecsCts;
     private CancellationTokenSource? _diagCompareCts;
@@ -83,10 +85,13 @@ public partial class MainWindow : Window
 
         bool on = ThemeManager.Instance.LiveBackdropEnabled;
         LiveStarfield.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        if (!on) LiveStarfield.Opacity = 0;
+        if (!on)
+        {
+            LiveStarfield.Opacity = 0;
+        }
         else
         {
-            LiveStarfield.Opacity = 1;
+            LiveStarfield.Opacity = ThemeManager.Instance.BackdropIntensity;
             LiveStarfield.Visibility = Visibility.Visible;
         }
     }
@@ -99,6 +104,7 @@ public partial class MainWindow : Window
             case nameof(ThemeManager.Theme):
             case nameof(ThemeManager.AnimationQuality):
             case nameof(ThemeManager.LiveBackdropEnabled):
+            case nameof(ThemeManager.BackdropIntensity):
                 ApplyLiveBackdropState();
                 BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
                 break;
@@ -1707,15 +1713,21 @@ public partial class MainWindow : Window
 
         if (DiagnosticsView.Visibility == Visibility.Visible)
         {
+            _diagnosticsCts?.Cancel();
+            _diagnosticsCts?.Dispose();
+            _diagnosticsCts = new CancellationTokenSource();
+
             _diagnosticsTimer?.Start();
             RefreshDiagnosticsUI();
         }
         else
         {
             _diagnosticsTimer?.Stop();
+            _diagnosticsCts?.Cancel();
             _diagRecsCts?.Cancel();
             _diagCompareCts?.Cancel();
             _diagProcessesCts?.Cancel();
+            _isDiagnosticsSampling = false;
         }
 
         if (TransferView.Visibility == Visibility.Visible)
@@ -1735,10 +1747,7 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Возвращает реальное название процессора.
-    ///
-    /// Раньше здесь жёстко стоял литерал «Intel Core», из-за чего на AMD,
-    /// Apple Silicon (Asahi) и ARM-машинах вкладка «Диагностика» показывала
-    /// «Intel Core» независимо от фактического оборудования.
+    /// Читается мгновенно из реестра Windows (<0.1 мс) без блокирующих WMI-запросов.
     /// </summary>
     private static string? _cachedProcessorName;
 
@@ -1748,26 +1757,23 @@ public partial class MainWindow : Window
 
         try
         {
-            using var searcher = new System.Management.ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
-            using var results = searcher.Get();
-            foreach (var item in results)
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\CentralProcessor\0");
+            if (key?.GetValue("ProcessorNameString") is string regName && !string.IsNullOrWhiteSpace(regName))
             {
-                using var obj = item;
-                string? name = obj["Name"]?.ToString();
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    _cachedProcessorName = name.Trim();
-                    return _cachedProcessorName;
-                }
+                _cachedProcessorName = regName.Trim();
+                return _cachedProcessorName;
             }
         }
-        catch (Exception ex)
+        catch { }
+
+        string? envName = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")?.Trim();
+        if (!string.IsNullOrWhiteSpace(envName))
         {
-            Debug.WriteLine($"[Diagnostics] WMI processor query failed: {ex.Message}");
+            _cachedProcessorName = envName;
+            return _cachedProcessorName;
         }
 
-        _cachedProcessorName = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")?.Trim()
-               ?? "Неизвестный процессор";
+        _cachedProcessorName = "Процессор Windows";
         return _cachedProcessorName;
     }
 
@@ -1791,20 +1797,25 @@ public partial class MainWindow : Window
         _diagCompareCts?.Cancel();
         _diagProcessesCts?.Cancel();
 
+        var sample = DynamicSystemMonitorService.GetLatestOrFastSample();
+
         if (DiagTabOverviewRadio?.IsChecked == true)
         {
             ViewDiagOverview.Visibility = Visibility.Visible;
-            UpdateDiagnosticsOverview();
+            UpdateDiagnosticsOverview(sample);
+            TriggerDiagnosticsSampleAsync().ForgetSafe();
         }
         else if (DiagTabMonitoringRadio?.IsChecked == true)
         {
             ViewDiagMonitoring.Visibility = Visibility.Visible;
-            TickDiagnosticsMonitoring();
+            UpdateDiagnosticsMonitoring(sample);
+            TriggerDiagnosticsSampleAsync().ForgetSafe();
         }
         else if (DiagTabBottleneckRadio?.IsChecked == true)
         {
             ViewDiagBottleneck.Visibility = Visibility.Visible;
-            TickDiagnosticsMonitoring();
+            UpdateDiagnosticsBottleneck(sample);
+            TriggerDiagnosticsSampleAsync().ForgetSafe();
         }
         else if (DiagTabRecommendationsRadio?.IsChecked == true)
         {
@@ -1942,16 +1953,20 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateDiagnosticsOverview()
+    private void UpdateDiagnosticsOverview(MonitorSample? sample = null)
     {
         if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
         if (ViewDiagOverview == null || ViewDiagOverview.Visibility != Visibility.Visible) return;
 
-        var sample = DynamicSystemMonitorService.CaptureCurrentSample();
+        sample ??= DynamicSystemMonitorService.GetLatestOrFastSample();
 
         // 1. Статус в верхнем баннере
         if (DiagOverviewHeroCpuText != null)
-            DiagOverviewHeroCpuText.Text = $"{GetProcessorName()} • {HardwareAnalyzer.LogicalCoreCount} потоков";
+        {
+            DiagOverviewHeroCpuText.Text = sample.IsInitializing && string.IsNullOrWhiteSpace(_cachedProcessorName)
+                ? "Сбор телеметрии оборудования..."
+                : $"{GetProcessorName()} • {HardwareAnalyzer.LogicalCoreCount} потоков";
+        }
 
         // Профиль
         var profile = SystemProfileOptimizerService.CurrentProfile;
@@ -1986,37 +2001,36 @@ public partial class MainWindow : Window
         // Плитка 3: Узкие места
         if (DiagTileBottleneckDesc != null) DiagTileBottleneckDesc.Text = bn.Description;
 
-        // Плитка 4 и 5: Рекомендации и Накопители (используем кэшированные диски без блокирующих WMI)
+        // Плитка 4 и 5: Рекомендации и Накопители
         var disks = StorageDiscoveryService.CachedDisks;
         if (disks.Count > 0)
         {
-            var recs = StorageAdvisorService.GenerateRecommendations(disks);
-            if (DiagTileRecsCountText != null) DiagTileRecsCountText.Text = $"{recs.Count} советов";
-            if (DiagTileRecsTopText != null) DiagTileRecsTopText.Text = recs.Count > 0 ? recs[0].Title : "Все подсистемы настроены оптимально";
-
-            if (DiagTileDrivesCountText != null) DiagTileDrivesCountText.Text = $"{disks.Count} дисков";
-            if (DiagTileDrivesLettersText != null)
-            {
-                var letters = disks.Select(d => d.DriveLettersFormatted).Where(l => !string.IsNullOrEmpty(l)).ToList();
-                DiagTileDrivesLettersText.Text = letters.Count > 0 ? $"Тома: {string.Join(", ", letters)}" : "Физические диски";
-            }
+            UpdateOverviewDisksAndRecs(disks);
         }
         else
         {
-            // Фоновый сбор без блокировки UI, если кэш ещё пуст
-            StorageDiscoveryService.GetAllDisksAsync().ForgetSafe();
+            StorageDiscoveryService.GetAllDisksAsync().ContinueWith(t =>
+            {
+                if (t.IsCompletedSuccessfully && t.Result != null)
+                {
+                    Dispatcher.InvokeAsync(() => UpdateOverviewDisksAndRecs(t.Result));
+                }
+            }, TaskScheduler.Default).ForgetSafe();
         }
 
-        // Плитка 7: Процессы (асинхронный опрос раз в 5 секунд, не подвешивающий UI-поток)
+        // Плитка 7: Процессы (асинхронный опрос раз в 5 секунд)
         if ((DateTime.UtcNow - _lastOverviewHeavyRefresh).TotalSeconds >= 5)
         {
             _lastOverviewHeavyRefresh = DateTime.UtcNow;
+            var ct = _diagnosticsCts?.Token ?? CancellationToken.None;
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    var heavy = await ProcessAndStartupService.GetTopHeavyProcessesAsync(1);
-                    var startup = await ProcessAndStartupService.GetStartupItemsAsync();
+                    var heavy = await ProcessAndStartupService.GetTopHeavyProcessesAsync(1, ct);
+                    var startup = await ProcessAndStartupService.GetStartupItemsAsync(ct);
+                    if (ct.IsCancellationRequested) return;
+
                     await Dispatcher.InvokeAsync(() =>
                     {
                         if (heavy.Count > 0 && DiagTileTopProcText != null)
@@ -2030,19 +2044,49 @@ public partial class MainWindow : Window
                     });
                 }
                 catch { }
-            });
+            }, ct);
         }
+    }
+
+    private void UpdateOverviewDisksAndRecs(IReadOnlyList<StorageDisk> disks)
+    {
+        if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+        if (ViewDiagOverview == null || ViewDiagOverview.Visibility != Visibility.Visible) return;
+
+        try
+        {
+            var recs = StorageAdvisorService.GenerateRecommendations(disks);
+            if (DiagTileRecsCountText != null) DiagTileRecsCountText.Text = $"{recs.Count} советов";
+            if (DiagTileRecsTopText != null) DiagTileRecsTopText.Text = recs.Count > 0 ? recs[0].Title : "Все подсистемы настроены оптимально";
+
+            if (DiagTileDrivesCountText != null) DiagTileDrivesCountText.Text = $"{disks.Count} дисков";
+            if (DiagTileDrivesLettersText != null)
+            {
+                var letters = disks.Select(d => d.DriveLettersFormatted).Where(l => !string.IsNullOrEmpty(l)).ToList();
+                DiagTileDrivesLettersText.Text = letters.Count > 0 ? $"Тома: {string.Join(", ", letters)}" : "Физические диски";
+            }
+        }
+        catch { }
     }
 
     private void RefreshDiagnosticsUI()
     {
-        if (DiagTabOverviewRadio?.IsChecked == true)
+        if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+
+        var sample = DynamicSystemMonitorService.GetLatestOrFastSample();
+        ApplyDiagnosticsSampleToActiveSubTab(sample);
+
+        bool needsInitialDiskData = sample.IsInitializing || DynamicSystemMonitorService.LatestSample == null;
+        if (DiagGlobalLoadingBar != null)
         {
-            UpdateDiagnosticsOverview();
+            DiagGlobalLoadingBar.Visibility = needsInitialDiskData ? Visibility.Visible : Visibility.Collapsed;
         }
-        else if (DiagTabMonitoringRadio?.IsChecked == true || DiagTabBottleneckRadio?.IsChecked == true)
+
+        if (DiagTabOverviewRadio?.IsChecked == true ||
+            DiagTabMonitoringRadio?.IsChecked == true ||
+            DiagTabBottleneckRadio?.IsChecked == true)
         {
-            TickDiagnosticsMonitoring();
+            TriggerDiagnosticsSampleAsync().ForgetSafe();
         }
         else if (DiagTabRecommendationsRadio?.IsChecked == true)
         {
@@ -2064,24 +2108,57 @@ public partial class MainWindow : Window
         {
             DiagInitBenchmarkCombo();
         }
-        else
-        {
-            if (DiagTabOverviewRadio != null) DiagTabOverviewRadio.IsChecked = true;
-            else UpdateDiagnosticsOverview();
-        }
-        TickDiagnosticsMonitoring();
     }
 
-    private void TickDiagnosticsMonitoring()
+    private async Task TriggerDiagnosticsSampleAsync()
+    {
+        if (_isDiagnosticsSampling) return;
+        _isDiagnosticsSampling = true;
+
+        var ct = _diagnosticsCts?.Token ?? CancellationToken.None;
+        try
+        {
+            var sample = await DynamicSystemMonitorService.CaptureSampleAsync(ct);
+            if (ct.IsCancellationRequested) return;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+                if (DiagGlobalLoadingBar != null) DiagGlobalLoadingBar.Visibility = Visibility.Collapsed;
+                ApplyDiagnosticsSampleToActiveSubTab(sample);
+            }, System.Windows.Threading.DispatcherPriority.Normal, ct);
+        }
+        catch (OperationCanceledException) { }
+        catch { }
+        finally
+        {
+            _isDiagnosticsSampling = false;
+        }
+    }
+
+    private void ApplyDiagnosticsSampleToActiveSubTab(MonitorSample sample)
     {
         if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
 
         if (ViewDiagOverview != null && ViewDiagOverview.Visibility == Visibility.Visible)
         {
-            UpdateDiagnosticsOverview();
+            UpdateDiagnosticsOverview(sample);
         }
+        else if (ViewDiagMonitoring != null && ViewDiagMonitoring.Visibility == Visibility.Visible)
+        {
+            UpdateDiagnosticsMonitoring(sample);
+        }
+        else if (ViewDiagBottleneck != null && ViewDiagBottleneck.Visibility == Visibility.Visible)
+        {
+            UpdateDiagnosticsBottleneck(sample);
+        }
+    }
 
-        var sample = DynamicSystemMonitorService.CaptureCurrentSample();
+    private void UpdateDiagnosticsMonitoring(MonitorSample sample)
+    {
+        if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+        if (ViewDiagMonitoring == null || ViewDiagMonitoring.Visibility != Visibility.Visible) return;
+
         var history = DynamicSystemMonitorService.GetHistory();
 
         // 1. Обновление текстовых показателей
@@ -2099,14 +2176,11 @@ public partial class MainWindow : Window
         if (DiagLiveDiskActiveText != null) DiagLiveDiskActiveText.Text = $"Активность: {sample.DiskActivePercent:F0}% (очередь {sample.DiskQueueDepth:F1})";
         if (DiagLiveDiskTempText != null) DiagLiveDiskTempText.Text = sample.HasDiskTemp ? $"Температура: {sample.DiskTempC:F0} °C" : "Температура: н/д";
 
-        // 2. Спарклайны на Canvas
-        if (ViewDiagMonitoring != null && ViewDiagMonitoring.Visibility == Visibility.Visible)
-        {
-            RenderSparkline(DiagCpuCanvas, history.Select(s => s.CpuPercent), 100.0, (Brush)FindResource("AccentBrush"));
-            RenderSparkline(DiagRamCanvas, history.Select(s => s.RamPercent), 100.0, new SolidColorBrush(Color.FromRgb(16, 185, 129)));
-            double maxDisk = Math.Max(100.0, history.Count > 0 ? history.Max(s => s.DiskTotalMBps) * 1.2 : 100.0);
-            RenderSparkline(DiagDiskCanvas, history.Select(s => s.DiskTotalMBps), maxDisk, new SolidColorBrush(Color.FromRgb(245, 158, 11)));
-        }
+        // 2. Спарклайны на Canvas (оптимизированное обновление без пересоздания визуального дерева)
+        RenderSparkline(DiagCpuCanvas, history.Select(s => s.CpuPercent), 100.0, (Brush)FindResource("AccentBrush"));
+        RenderSparkline(DiagRamCanvas, history.Select(s => s.RamPercent), 100.0, new SolidColorBrush(Color.FromRgb(16, 185, 129)));
+        double maxDisk = Math.Max(100.0, history.Count > 0 ? history.Max(s => s.DiskTotalMBps) * 1.2 : 100.0);
+        RenderSparkline(DiagDiskCanvas, history.Select(s => s.DiskTotalMBps), maxDisk, new SolidColorBrush(Color.FromRgb(245, 158, 11)));
 
         // 3. Сравнение baseline (ДО / ПОСЛЕ)
         var delta = DynamicSystemMonitorService.GetComparisonDelta();
@@ -2124,8 +2198,13 @@ public partial class MainWindow : Window
             if (DiagDeltaDiskText != null) DiagDeltaDiskText.Text = "—";
             if (DiagDeltaTempText != null) DiagDeltaTempText.Text = "—";
         }
+    }
 
-        // 4. Детектор Bottleneck
+    private void UpdateDiagnosticsBottleneck(MonitorSample sample)
+    {
+        if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+        if (ViewDiagBottleneck == null || ViewDiagBottleneck.Visibility != Visibility.Visible) return;
+
         var bn = BottleneckAnalyzerService.Analyze(_currentDiagContext, sample);
         if (BottleneckTitle != null) BottleneckTitle.Text = bn.Title;
         if (BottleneckDesc != null) BottleneckDesc.Text = bn.Description;
@@ -2147,42 +2226,59 @@ public partial class MainWindow : Window
         }
     }
 
+    private void TickDiagnosticsMonitoring()
+    {
+        if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
+        ApplyDiagnosticsSampleToActiveSubTab(DynamicSystemMonitorService.GetLatestOrFastSample());
+        TriggerDiagnosticsSampleAsync().ForgetSafe();
+    }
+
     private void RenderSparkline(Canvas? canvas, IEnumerable<double> values, double maxScale, Brush strokeBrush)
     {
         if (canvas == null || canvas.ActualWidth < 10 || canvas.ActualHeight < 10) return;
-        canvas.Children.Clear();
 
         double w = canvas.ActualWidth;
         double h = canvas.ActualHeight;
 
-        var valList = values.ToList();
+        var valList = values as IList<double> ?? values.ToList();
         if (valList.Count < 2) return;
 
-        var pts = new PointCollection();
+        var pts = new PointCollection(valList.Count);
         double stepX = w / Math.Max(1, valList.Count - 1);
+        double safeScale = Math.Max(1.0, maxScale);
 
         for (int i = 0; i < valList.Count; i++)
         {
-            double normalized = Math.Clamp(valList[i] / Math.Max(1.0, maxScale), 0.0, 1.0);
+            double normalized = Math.Clamp(valList[i] / safeScale, 0.0, 1.0);
             double y = h - (normalized * (h - 6)) - 3;
             pts.Add(new Point(i * stepX, y));
         }
 
-        var polyline = new System.Windows.Shapes.Polyline
+        var polyline = canvas.Children.OfType<System.Windows.Shapes.Polyline>().FirstOrDefault();
+        if (polyline == null)
         {
-            Points = pts,
-            Stroke = strokeBrush,
-            StrokeThickness = 2.0,
-            StrokeLineJoin = PenLineJoin.Round
-        };
-        canvas.Children.Add(polyline);
+            canvas.Children.Clear();
+            polyline = new System.Windows.Shapes.Polyline
+            {
+                Stroke = strokeBrush,
+                StrokeThickness = 2.0,
+                StrokeLineJoin = PenLineJoin.Round
+            };
+            canvas.Children.Add(polyline);
+        }
+        else
+        {
+            polyline.Stroke = strokeBrush;
+        }
+
+        polyline.Points = pts;
     }
 
     private void DiagSetBaseline_Click(object sender, RoutedEventArgs e)
     {
         DynamicSystemMonitorService.SaveBaselineSnapshot();
         HapticAudio.PlayClick();
-        TickDiagnosticsMonitoring();
+        ApplyDiagnosticsSampleToActiveSubTab(DynamicSystemMonitorService.GetLatestOrFastSample());
         MessageBox.Show("Контрольный «Снимок ДО» успешно сохранён!\nТеперь вы можете применить оптимизации, профили или стресс-тесты и оценить изменения.", "Контрольная точка зафиксирована", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
@@ -2190,7 +2286,7 @@ public partial class MainWindow : Window
     {
         DynamicSystemMonitorService.ClearBaseline();
         HapticAudio.PlayClick();
-        TickDiagnosticsMonitoring();
+        ApplyDiagnosticsSampleToActiveSubTab(DynamicSystemMonitorService.GetLatestOrFastSample());
     }
 
     private void DiagContextCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -2204,7 +2300,7 @@ public partial class MainWindow : Window
             4 => UserActivityContext.GeneralWork,
             _ => UserActivityContext.Auto
         };
-        TickDiagnosticsMonitoring();
+        ApplyDiagnosticsSampleToActiveSubTab(DynamicSystemMonitorService.GetLatestOrFastSample());
     }
 
     private void DiagRefreshRecommendations_Click(object sender, RoutedEventArgs e)
@@ -2635,7 +2731,7 @@ public partial class MainWindow : Window
         {
             if (DiagnosticsView != null && DiagnosticsView.Visibility == Visibility.Visible)
             {
-                TickDiagnosticsMonitoring();
+                TriggerDiagnosticsSampleAsync().ForgetSafe();
             }
         };
     }
@@ -2657,6 +2753,22 @@ public partial class MainWindow : Window
             _diagnosticsTimer.Stop();
             _diagnosticsTimer = null;
         }
+
+        _diagnosticsCts?.Cancel();
+        _diagnosticsCts?.Dispose();
+        _diagnosticsCts = null;
+
+        _diagRecsCts?.Cancel();
+        _diagRecsCts?.Dispose();
+        _diagRecsCts = null;
+
+        _diagCompareCts?.Cancel();
+        _diagCompareCts?.Dispose();
+        _diagCompareCts = null;
+
+        _diagProcessesCts?.Cancel();
+        _diagProcessesCts?.Dispose();
+        _diagProcessesCts = null;
 
         _preflightCts?.Cancel();
         _preflightCts?.Dispose();

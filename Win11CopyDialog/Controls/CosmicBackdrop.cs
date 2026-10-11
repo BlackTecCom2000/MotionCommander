@@ -239,15 +239,17 @@ public sealed class CosmicBackdrop : FrameworkElement
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (_running) return;
         // Окно ещё может не иметь окна-хозяина при первом Loaded.
         var win = Window.GetWindow(this);
         if (win != null && !_mouseHooked)
         {
             win.MouseMove += OnWindowMouseMove;
+            win.StateChanged += OnWindowStateChanged;
+            win.Activated += OnWindowActivated;
+            win.Deactivated += OnWindowDeactivated;
             _mouseHooked = true;
         }
-        Start();
+        if (!_running) Start();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -257,8 +259,32 @@ public sealed class CosmicBackdrop : FrameworkElement
         if (win != null && _mouseHooked)
         {
             win.MouseMove -= OnWindowMouseMove;
+            win.StateChanged -= OnWindowStateChanged;
+            win.Activated -= OnWindowActivated;
+            win.Deactivated -= OnWindowDeactivated;
             _mouseHooked = false;
         }
+    }
+
+    private void OnWindowStateChanged(object? sender, EventArgs e)
+    {
+        if (sender is Window win)
+        {
+            if (win.WindowState == WindowState.Minimized) Stop();
+            else if (ShouldAnimate && IsVisible && Visibility == Visibility.Visible) Start();
+        }
+    }
+
+    private void OnWindowActivated(object? sender, EventArgs e)
+    {
+        if (ShouldAnimate && IsVisible && Visibility == Visibility.Visible) Start();
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e)
+    {
+        // Когда окно не активно (пользователь работает в другой программе):
+        // не тратим ресурсы GPU/CPU на перерисовку фона
+        Stop();
     }
 
     private void OnVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
