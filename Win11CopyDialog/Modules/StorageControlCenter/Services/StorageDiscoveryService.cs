@@ -57,6 +57,26 @@ public static class StorageDiscoveryService
         return sb.ToString();
     }
 
+    public static IReadOnlyList<StorageDisk> CachedDisks
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _cachedDisks ?? (IReadOnlyList<StorageDisk>)Array.Empty<StorageDisk>();
+            }
+        }
+    }
+
+    public static async Task<List<StorageDisk>> GetAllDisksAsync(bool forceRefresh = false, CancellationToken ct = default)
+    {
+        return await Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return GetAllDisks(forceRefresh);
+        }, ct);
+    }
+
     public static List<StorageDisk> GetAllDisks(bool forceRefresh = false)
     {
         lock (_lock)

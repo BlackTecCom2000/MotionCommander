@@ -319,21 +319,21 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Брендовый заголовок -->
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,16,0" WindowChrome.IsHitTestVisibleInChrome="True">
-                        <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentBrush}" Margin="0,0,10,0">
+                    <StackPanel x:Name="HeaderBrandPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,8,0" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Border Width="28" Height="28" CornerRadius="14" Background="{DynamicResource AccentBrush}" Margin="0,0,8,0">
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="12" ShadowDepth="1" Color="{DynamicResource GlowAccentColor}" Opacity="0.8"/>
                             </Border.Effect>
                             <TextBlock Text="✦" FontSize="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
-                        <Border Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.13 All-in-One" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="BrandTitleText" Text="Motion Commander" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" FontSize="14" VerticalAlignment="Center"/>
+                        <Border x:Name="AppVersionHeaderBadge" Background="{DynamicResource MediaNVMeBackground}" BorderBrush="{DynamicResource LiquidGlassSubtleBorderBrush}" BorderThickness="1" CornerRadius="{DynamicResource RadiusPill}" Padding="7,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="AppVersionHeaderBadgeText" Text="v3.8.44" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource MediaNVMeBrush}" VerticalAlignment="Center"/>
                         </Border>
-                        <Button x:Name="SelectVersionBtn" Style="{StaticResource HeaderActionButton}" ToolTip="Выбор версии и откат назад (Time Machine)" Click="SelectVersionBtn_Click" Margin="6,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button x:Name="SelectVersionBtn" Style="{StaticResource HeaderActionButton}" ToolTip="Выбор версии и откат назад (Time Machine)" Click="SelectVersionBtn_Click" Margin="5,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Версии" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="SelectVersionBtnText" Text="Версии" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                         <Button x:Name="CheckUpdatesBtn" Style="{StaticResource HeaderActionButton}" ToolTip="Проверить обновления" Click="CheckUpdatesBtn_Click" Margin="4,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
@@ -342,7 +342,7 @@
                     </StackPanel>
 
                     <!-- Вкладки верхнего уровня (Футуристический Liquid Glass док с мягким бесшовным свечением) -->
-                    <Border Grid.Column="1" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}" CornerRadius="{DynamicResource RadiusFloating}"
+                    <Border x:Name="NavTabsDockBorder" Grid.Column="1" Background="{DynamicResource LiquidGlassMaterialLevel2Brush}" CornerRadius="{DynamicResource RadiusFloating}"
                             Padding="3" BorderBrush="{DynamicResource GlassBorderSubtle}" BorderThickness="1"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             WindowChrome.IsHitTestVisibleInChrome="True">
@@ -350,9 +350,10 @@
                             <DropShadowEffect BlurRadius="24" ShadowDepth="2" Direction="270"
                                               Color="{DynamicResource LiquidGlassShadowColor}" Opacity="0.25"/>
                         </Border.Effect>
-                        <StackPanel Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                        <StackPanel x:Name="NavTabsPanel" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
                             <RadioButton x:Name="TabFilesRadio" Style="{StaticResource FuturisticNavTab}"
-                                         GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                         GroupName="TopNav" IsChecked="True" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"
+                                         ToolTip="Файловый менеджер и архиватор (Alt+1)">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Data="{StaticResource Icon_NavFiles}" Width="13" Height="13" Stretch="Uniform"
                                           Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
@@ -360,7 +361,8 @@
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="TabTransferRadio" Style="{StaticResource FuturisticNavTab}"
-                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"
+                                         ToolTip="Прямая передача и конвейер ввода-вывода (Alt+2)">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Data="{StaticResource Icon_NavSpeed}" Width="13" Height="13" Stretch="Uniform"
                                           Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
@@ -368,7 +370,8 @@
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="TabStorageRadio" Style="{StaticResource FuturisticNavTab}"
-                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"
+                                         ToolTip="Storage Control Center: диски, разделы, SMART и бенчмарк (Alt+3)">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Data="{StaticResource Icon_NavStorage}" Width="13" Height="13" Stretch="Uniform"
                                           Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
@@ -376,7 +379,8 @@
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="TabDiagnosticsRadio" Style="{StaticResource FuturisticNavTab}"
-                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"
+                                         ToolTip="Диагностический центр: узкие места, профили и мониторинг (Alt+4)">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Data="{StaticResource Icon_NavDiagnostics}" Width="13" Height="13" Stretch="Uniform"
                                           Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
@@ -384,7 +388,8 @@
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton x:Name="TabToolsRadio" Style="{StaticResource FuturisticNavTab}"
-                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown">
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"
+                                         ToolTip="Системные утилиты и деинсталлятор (Alt+5)">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <Path Data="{StaticResource Icon_NavTools}" Width="13" Height="13" Stretch="Uniform"
                                           Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
@@ -395,12 +400,12 @@
                     </Border>
 
                     <!-- Быстрые переключатели: Поиск, Очередь, Масштаб, Окно настроек и тема -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <StackPanel x:Name="HeaderActionsPanel" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
                         <Button x:Name="GlobalSearchHeaderBtn" Style="{StaticResource HeaderActionButton}"
                                 ToolTip="Глобальный поиск и палитра команд (Ctrl+K)" Click="GlobalSearchHeaderBtn_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="🔍" FontSize="11" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Поиск" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="GlobalSearchBtnText" Text="Поиск" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
                         <Button x:Name="OperationsQueueHeaderBtn" Style="{StaticResource HeaderActionButton}"
@@ -428,6 +433,11 @@
                         <Button x:Name="QuickThemeBtn" Style="{StaticResource HeaderActionButton}"
                                 ToolTip="Переключение Светлая / Тёмная" Click="QuickTheme_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True">
                             <TextBlock x:Name="QuickThemeIcon" Text="☾" FontSize="12" Foreground="{DynamicResource TitleForegroundBrush}"/>
+                        </Button>
+                        <!-- Кнопка переполнения шапки «⋯» для узких окон -->
+                        <Button x:Name="HeaderMoreActionsBtn" Style="{StaticResource HeaderActionButton}"
+                                ToolTip="Дополнительные команды шапки" Click="HeaderMoreActionsBtn_Click" Margin="0,0,4,0" WindowChrome.IsHitTestVisibleInChrome="True" Visibility="Collapsed">
+                            <TextBlock Text="⋯" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TitleForegroundBrush}" VerticalAlignment="Center"/>
                         </Button>
                     </StackPanel>
 

@@ -53,6 +53,24 @@ public static class ProcessAndStartupService
         { "Win11CopyDialog", ("Motion Commander (Текущее приложение)", false) }
     };
 
+    public static async Task<List<ProcessResourceInfo>> GetTopHeavyProcessesAsync(int limit = 12, CancellationToken ct = default)
+    {
+        return await Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return GetTopHeavyProcesses(limit);
+        }, ct);
+    }
+
+    public static async Task<List<StartupItemInfo>> GetStartupItemsAsync(CancellationToken ct = default)
+    {
+        return await Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+            return GetStartupItems();
+        }, ct);
+    }
+
     public static List<ProcessResourceInfo> GetTopHeavyProcesses(int limit = 12)
     {
         var list = new List<ProcessResourceInfo>();

@@ -48,6 +48,11 @@ public partial class MainWindow : Window
     // Поля телеметрии и конвейера скорости
     private readonly Queue<double> _speedSamples = new();
     private System.Windows.Threading.DispatcherTimer? _speedGraphTimer;
+    private System.Windows.Threading.DispatcherTimer? _diagnosticsTimer;
+    private CancellationTokenSource? _navCts;
+    private CancellationTokenSource? _diagRecsCts;
+    private CancellationTokenSource? _diagCompareCts;
+    private CancellationTokenSource? _diagProcessesCts;
     private double _currentSpeedMb;
     private double _peakSpeedMb;
     private CancellationTokenSource? _transferCts;
@@ -55,6 +60,7 @@ public partial class MainWindow : Window
     private CopyEngine? _liveTransferEngine;
     private CancellationTokenSource? _preflightCts;
     private double _selectedGraphScale = 0; // 0 = Авто
+    private DateTime _lastOverviewHeavyRefresh = DateTime.MinValue;
 
     public MainWindow(string? initialPath = null, int initialTab = 0)
     {
@@ -162,6 +168,9 @@ public partial class MainWindow : Window
         }
 
         CheckForUpdatesOnStartupAsync();
+
+        Loaded += (s, e) => AdaptHeaderLayout(ActualWidth);
+        SizeChanged += MainWindow_SizeChanged;
     }
 
     private async void CheckForUpdatesOnStartupAsync()
@@ -400,31 +409,38 @@ public partial class MainWindow : Window
     }
 
 
-    private void RefreshDrivesAndQuickAccess()
+    private async void RefreshDrivesAndQuickAccess()
     {
-        var quickItems = FileSystemService.GetQuickAccessLocations();
-        QuickAccessList.ItemsSource = quickItems;
-        if (SidebarQuickAccessCountBadge != null)
-            SidebarQuickAccessCountBadge.Text = quickItems.Count.ToString();
-
-        var drives = FileSystemService.GetDrives();
-        DrivesList.ItemsSource = drives;
-        if (SidebarDrivesCountBadge != null)
-            SidebarDrivesCountBadge.Text = $"{drives.Count} тома";
-
-        if (SidebarStorageSummaryText != null)
+        try
         {
-            long totalBytes = drives.Sum(d => d.TotalSize);
-            long freeBytes = drives.Sum(d => d.FreeSpace);
-            SidebarStorageSummaryText.Text = totalBytes > 0
-                ? $"{Formatters.Bytes(freeBytes)} свободно из {Formatters.Bytes(totalBytes)}"
-                : "Накопители готовы";
+            var quickItems = await Task.Run(() => FileSystemService.GetQuickAccessLocations());
+            QuickAccessList.ItemsSource = quickItems;
+            if (SidebarQuickAccessCountBadge != null)
+                SidebarQuickAccessCountBadge.Text = quickItems.Count.ToString();
+
+            var drives = await Task.Run(() => FileSystemService.GetDrives());
+            DrivesList.ItemsSource = drives;
+            if (SidebarDrivesCountBadge != null)
+                SidebarDrivesCountBadge.Text = $"{drives.Count} тома";
+
+            if (SidebarStorageSummaryText != null)
+            {
+                long totalBytes = drives.Sum(d => d.TotalSize);
+                long freeBytes = drives.Sum(d => d.FreeSpace);
+                SidebarStorageSummaryText.Text = totalBytes > 0
+                    ? $"{Formatters.Bytes(freeBytes)} свободно из {Formatters.Bytes(totalBytes)}"
+                    : "Накопители готовы";
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Sidebar] RefreshDrivesAndQuickAccess failed: {ex.Message}");
         }
     }
 
     // ---------- НАВИГАЦИЯ ----------
 
-    public void NavigateTo(string path, bool recordHistory = true)
+    public async void NavigateTo(string path, bool recordHistory = true)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
 
@@ -447,13 +463,27 @@ public partial class MainWindow : Window
         _currentPath = Path.GetFullPath(path);
         PathBox.Text = _currentPath;
 
-        var items = FileSystemService.EnumeratePath(_currentPath, _showHidden, _searchFilter);
-        FileBrowserList.ItemsSource = items;
+        _navCts?.Cancel();
+        _navCts = new CancellationTokenSource();
+        var ct = _navCts.Token;
 
-        UpdateNavButtons();
-        UpdateStatusBar(items);
-        UpdateFavoriteButtonState();
-        UpdateFileToolbarState();
+        try
+        {
+            var items = await Task.Run(() => FileSystemService.EnumeratePath(_currentPath, _showHidden, _searchFilter), ct);
+            if (!ct.IsCancellationRequested)
+            {
+                FileBrowserList.ItemsSource = items;
+                UpdateNavButtons();
+                UpdateStatusBar(items);
+                UpdateFavoriteButtonState();
+                UpdateFileToolbarState();
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[FileManager] EnumeratePath failed: {ex.Message}");
+        }
     }
 
     private void OpenArchiveVirtual(string archivePath, bool recordHistory = true)
@@ -1642,7 +1672,7 @@ public partial class MainWindow : Window
         else if (TabToolsRadio.IsChecked == true) activeView = ToolsView;
 
         bool isFiles = (activeView == FilesView);
-        UpdateSpeedGraphTimer(activeView == DiagnosticsView || activeView == TransferView);
+        UpdateSpeedGraphTimer(activeView == TransferView);
         if (FileBrowserToolbarPanel != null) FileBrowserToolbarPanel.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
         if (SidebarBorder != null) SidebarBorder.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
         if (LeftSplitter != null) LeftSplitter.Visibility = isFiles ? Visibility.Visible : Visibility.Collapsed;
@@ -1677,9 +1707,18 @@ public partial class MainWindow : Window
 
         if (DiagnosticsView.Visibility == Visibility.Visible)
         {
+            _diagnosticsTimer?.Start();
             RefreshDiagnosticsUI();
         }
-        else if (TransferView.Visibility == Visibility.Visible)
+        else
+        {
+            _diagnosticsTimer?.Stop();
+            _diagRecsCts?.Cancel();
+            _diagCompareCts?.Cancel();
+            _diagProcessesCts?.Cancel();
+        }
+
+        if (TransferView.Visibility == Visibility.Visible)
         {
             RefreshTransferUI();
         }
@@ -1701,8 +1740,12 @@ public partial class MainWindow : Window
     /// Apple Silicon (Asahi) и ARM-машинах вкладка «Диагностика» показывала
     /// «Intel Core» независимо от фактического оборудования.
     /// </summary>
+    private static string? _cachedProcessorName;
+
     private static string GetProcessorName()
     {
+        if (_cachedProcessorName != null) return _cachedProcessorName;
+
         try
         {
             using var searcher = new System.Management.ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
@@ -1711,16 +1754,21 @@ public partial class MainWindow : Window
             {
                 using var obj = item;
                 string? name = obj["Name"]?.ToString();
-                if (!string.IsNullOrWhiteSpace(name)) return name.Trim();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    _cachedProcessorName = name.Trim();
+                    return _cachedProcessorName;
+                }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // WMI недоступен или отказал — используем запасной вариант.
+            Debug.WriteLine($"[Diagnostics] WMI processor query failed: {ex.Message}");
         }
 
-        return Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")?.Trim()
+        _cachedProcessorName = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER")?.Trim()
                ?? "Неизвестный процессор";
+        return _cachedProcessorName;
     }
 
     // ================= ДИАГНОСТИКА И ОПТИМИЗАЦИЯ =================
@@ -1737,6 +1785,11 @@ public partial class MainWindow : Window
         ViewDiagProfiles.Visibility = Visibility.Collapsed;
         ViewDiagProcesses.Visibility = Visibility.Collapsed;
         ViewDiagBenchmark.Visibility = Visibility.Collapsed;
+
+        // Отменяем предыдущие незавершённые фоновые загрузки списков
+        _diagRecsCts?.Cancel();
+        _diagCompareCts?.Cancel();
+        _diagProcessesCts?.Cancel();
 
         if (DiagTabOverviewRadio?.IsChecked == true)
         {
@@ -1756,22 +1809,22 @@ public partial class MainWindow : Window
         else if (DiagTabRecommendationsRadio?.IsChecked == true)
         {
             ViewDiagRecommendations.Visibility = Visibility.Visible;
-            DiagRefreshRecommendations();
+            DiagRefreshRecommendationsAsync().ForgetSafe();
         }
         else if (DiagTabCompareRadio?.IsChecked == true)
         {
             ViewDiagCompare.Visibility = Visibility.Visible;
-            DiagRefreshCompareDisks();
+            DiagRefreshCompareDisksAsync().ForgetSafe();
         }
         else if (DiagTabProfilesRadio?.IsChecked == true)
         {
             ViewDiagProfiles.Visibility = Visibility.Visible;
-            DiagRefreshAuditLog();
+            DiagRefreshAuditLogAsync().ForgetSafe();
         }
         else if (DiagTabProcessesRadio?.IsChecked == true)
         {
             ViewDiagProcesses.Visibility = Visibility.Visible;
-            DiagRefreshProcesses();
+            DiagRefreshProcessesAsync().ForgetSafe();
         }
         else if (DiagTabBenchmarkRadio?.IsChecked == true)
         {
@@ -1933,10 +1986,10 @@ public partial class MainWindow : Window
         // Плитка 3: Узкие места
         if (DiagTileBottleneckDesc != null) DiagTileBottleneckDesc.Text = bn.Description;
 
-        // Плитка 4 и 5: Рекомендации и Накопители
-        try
+        // Плитка 4 и 5: Рекомендации и Накопители (используем кэшированные диски без блокирующих WMI)
+        var disks = StorageDiscoveryService.CachedDisks;
+        if (disks.Count > 0)
         {
-            var disks = StorageDiscoveryService.GetAllDisks();
             var recs = StorageAdvisorService.GenerateRecommendations(disks);
             if (DiagTileRecsCountText != null) DiagTileRecsCountText.Text = $"{recs.Count} советов";
             if (DiagTileRecsTopText != null) DiagTileRecsTopText.Text = recs.Count > 0 ? recs[0].Title : "Все подсистемы настроены оптимально";
@@ -1948,34 +2001,75 @@ public partial class MainWindow : Window
                 DiagTileDrivesLettersText.Text = letters.Count > 0 ? $"Тома: {string.Join(", ", letters)}" : "Физические диски";
             }
         }
-        catch { }
-
-        // Плитка 7: Процессы
-        try
+        else
         {
-            var heavy = ProcessAndStartupService.GetTopHeavyProcesses(1);
-            if (heavy.Count > 0 && DiagTileTopProcText != null)
-            {
-                DiagTileTopProcText.Text = $"{heavy[0].Name}.exe ({heavy[0].MemoryFormatted})";
-            }
-            var startup = ProcessAndStartupService.GetStartupItems();
-            if (DiagTileStartupCountText != null)
-            {
-                DiagTileStartupCountText.Text = $"Автозапуск: {startup.Count} программ";
-            }
+            // Фоновый сбор без блокировки UI, если кэш ещё пуст
+            StorageDiscoveryService.GetAllDisksAsync().ForgetSafe();
         }
-        catch { }
+
+        // Плитка 7: Процессы (асинхронный опрос раз в 5 секунд, не подвешивающий UI-поток)
+        if ((DateTime.UtcNow - _lastOverviewHeavyRefresh).TotalSeconds >= 5)
+        {
+            _lastOverviewHeavyRefresh = DateTime.UtcNow;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var heavy = await ProcessAndStartupService.GetTopHeavyProcessesAsync(1);
+                    var startup = await ProcessAndStartupService.GetStartupItemsAsync();
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        if (heavy.Count > 0 && DiagTileTopProcText != null)
+                        {
+                            DiagTileTopProcText.Text = $"{heavy[0].Name}.exe ({heavy[0].MemoryFormatted})";
+                        }
+                        if (DiagTileStartupCountText != null)
+                        {
+                            DiagTileStartupCountText.Text = $"Автозапуск: {startup.Count} программ";
+                        }
+                    });
+                }
+                catch { }
+            });
+        }
     }
 
     private void RefreshDiagnosticsUI()
     {
-        UpdateDiagnosticsOverview();
+        if (DiagTabOverviewRadio?.IsChecked == true)
+        {
+            UpdateDiagnosticsOverview();
+        }
+        else if (DiagTabMonitoringRadio?.IsChecked == true || DiagTabBottleneckRadio?.IsChecked == true)
+        {
+            TickDiagnosticsMonitoring();
+        }
+        else if (DiagTabRecommendationsRadio?.IsChecked == true)
+        {
+            DiagRefreshRecommendationsAsync().ForgetSafe();
+        }
+        else if (DiagTabCompareRadio?.IsChecked == true)
+        {
+            DiagRefreshCompareDisksAsync().ForgetSafe();
+        }
+        else if (DiagTabProfilesRadio?.IsChecked == true)
+        {
+            DiagRefreshAuditLogAsync().ForgetSafe();
+        }
+        else if (DiagTabProcessesRadio?.IsChecked == true)
+        {
+            DiagRefreshProcessesAsync().ForgetSafe();
+        }
+        else if (DiagTabBenchmarkRadio?.IsChecked == true)
+        {
+            DiagInitBenchmarkCombo();
+        }
+        else
+        {
+            if (DiagTabOverviewRadio != null) DiagTabOverviewRadio.IsChecked = true;
+            else UpdateDiagnosticsOverview();
+        }
         TickDiagnosticsMonitoring();
-        DiagRefreshCompareDisks();
-        DiagRefreshRecommendations();
-        DiagRefreshProcesses();
-        DiagRefreshAuditLog();
-        DiagInitBenchmarkCombo();
     }
 
     private void TickDiagnosticsMonitoring()
@@ -2115,18 +2209,32 @@ public partial class MainWindow : Window
 
     private void DiagRefreshRecommendations_Click(object sender, RoutedEventArgs e)
     {
-        DiagRefreshRecommendations();
+        DiagRefreshRecommendationsAsync(forceRefresh: true).ForgetSafe();
         HapticAudio.PlayClick();
     }
 
     private void DiagRefreshRecommendations()
     {
+        DiagRefreshRecommendationsAsync().ForgetSafe();
+    }
+
+    private async Task DiagRefreshRecommendationsAsync(bool forceRefresh = false)
+    {
+        _diagRecsCts?.Cancel();
+        _diagRecsCts = new CancellationTokenSource();
+        var ct = _diagRecsCts.Token;
+
         try
         {
-            var disks = StorageDiscoveryService.GetAllDisks();
-            var recs = StorageAdvisorService.GenerateRecommendations(disks);
+            var disks = await StorageDiscoveryService.GetAllDisksAsync(forceRefresh, ct);
+            ct.ThrowIfCancellationRequested();
+
+            var recs = await Task.Run(() => StorageAdvisorService.GenerateRecommendations(disks), ct);
+            ct.ThrowIfCancellationRequested();
+
             if (DiagRecommendationsList != null) DiagRecommendationsList.ItemsSource = recs;
         }
+        catch (OperationCanceledException) { }
         catch { }
     }
 
@@ -2166,9 +2274,20 @@ public partial class MainWindow : Window
 
     private void DiagRefreshCompareDisks()
     {
+        DiagRefreshCompareDisksAsync().ForgetSafe();
+    }
+
+    private async Task DiagRefreshCompareDisksAsync(bool forceRefresh = false)
+    {
+        _diagCompareCts?.Cancel();
+        _diagCompareCts = new CancellationTokenSource();
+        var ct = _diagCompareCts.Token;
+
         try
         {
-            var disks = StorageDiscoveryService.GetAllDisks();
+            var disks = await StorageDiscoveryService.GetAllDisksAsync(forceRefresh, ct);
+            ct.ThrowIfCancellationRequested();
+
             if (DiagDisksList != null) DiagDisksList.ItemsSource = disks;
 
             if (DiagCompareACombo != null && DiagCompareBCombo != null)
@@ -2189,8 +2308,9 @@ public partial class MainWindow : Window
                     else if (disks.Count > 0) DiagCompareBCombo.SelectedIndex = 0;
                 }
             }
-            UpdateSideBySideComparison();
+            UpdateSideBySideComparison(disks);
         }
+        catch (OperationCanceledException) { }
         catch { }
     }
 
@@ -2199,11 +2319,11 @@ public partial class MainWindow : Window
         UpdateSideBySideComparison();
     }
 
-    private void UpdateSideBySideComparison()
+    private void UpdateSideBySideComparison(IReadOnlyList<StorageDisk>? disks = null)
     {
         try
         {
-            var disks = StorageDiscoveryService.GetAllDisks();
+            disks ??= StorageDiscoveryService.CachedDisks;
             if (disks.Count == 0) return;
 
             int idxA = DiagCompareACombo?.SelectedIndex ?? 0;
@@ -2333,11 +2453,16 @@ public partial class MainWindow : Window
 
     private void DiagRefreshAudit_Click(object sender, RoutedEventArgs e)
     {
-        DiagRefreshAuditLog();
+        DiagRefreshAuditLogAsync().ForgetSafe();
         HapticAudio.PlayClick();
     }
 
-    private async void DiagRefreshAuditLog()
+    private void DiagRefreshAuditLog()
+    {
+        DiagRefreshAuditLogAsync().ForgetSafe();
+    }
+
+    private async Task DiagRefreshAuditLogAsync()
     {
         try
         {
@@ -2349,20 +2474,32 @@ public partial class MainWindow : Window
 
     private void DiagRefreshProcesses_Click(object sender, RoutedEventArgs e)
     {
-        DiagRefreshProcesses();
+        DiagRefreshProcessesAsync().ForgetSafe();
         HapticAudio.PlayClick();
     }
 
     private void DiagRefreshProcesses()
     {
+        DiagRefreshProcessesAsync().ForgetSafe();
+    }
+
+    private async Task DiagRefreshProcessesAsync()
+    {
+        _diagProcessesCts?.Cancel();
+        _diagProcessesCts = new CancellationTokenSource();
+        var ct = _diagProcessesCts.Token;
+
         try
         {
-            var heavy = ProcessAndStartupService.GetTopHeavyProcesses(12);
+            var heavy = await ProcessAndStartupService.GetTopHeavyProcessesAsync(12, ct);
+            ct.ThrowIfCancellationRequested();
             if (DiagProcessesList != null) DiagProcessesList.ItemsSource = heavy;
 
-            var startup = ProcessAndStartupService.GetStartupItems();
+            var startup = await ProcessAndStartupService.GetStartupItemsAsync(ct);
+            ct.ThrowIfCancellationRequested();
             if (DiagStartupList != null) DiagStartupList.ItemsSource = startup;
         }
+        catch (OperationCanceledException) { }
         catch { }
     }
 
@@ -2386,14 +2523,28 @@ public partial class MainWindow : Window
 
     private void DiagInitBenchmarkCombo()
     {
+        DiagInitBenchmarkComboAsync().ForgetSafe();
+    }
+
+    private async Task DiagInitBenchmarkComboAsync()
+    {
         if (BenchTargetCombo == null) return;
         if (BenchTargetCombo.Items.Count == 0)
         {
-            foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady))
+            var drives = await Task.Run(() =>
             {
-                BenchTargetCombo.Items.Add(d.RootDirectory.FullName);
+                try { return DriveInfo.GetDrives().Where(d => d.IsReady).Select(d => d.RootDirectory.FullName).ToList(); }
+                catch { return new List<string>(); }
+            });
+
+            if (BenchTargetCombo.Items.Count == 0)
+            {
+                foreach (var d in drives)
+                {
+                    BenchTargetCombo.Items.Add(d);
+                }
+                if (BenchTargetCombo.Items.Count > 0) BenchTargetCombo.SelectedIndex = 0;
             }
-            if (BenchTargetCombo.Items.Count > 0) BenchTargetCombo.SelectedIndex = 0;
         }
     }
 
@@ -2468,22 +2619,29 @@ public partial class MainWindow : Window
 
         // Защита от повторной инициализации (OnLoaded может вызываться многократно).
         _speedGraphTimer?.Stop();
-
         _speedGraphTimer = new System.Windows.Threading.DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(33) // ~30 FPS
+            Interval = TimeSpan.FromMilliseconds(33) // ~30 FPS для плавной отрисовки передачи файлов
         };
         _speedGraphTimer.Tick += OnSpeedGraphTick;
-        _speedGraphTimer.Start();
+
+        // Отдельный таймер для системной телеметрии (1 раз в секунду вместо 30 FPS!)
+        _diagnosticsTimer?.Stop();
+        _diagnosticsTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1.0)
+        };
+        _diagnosticsTimer.Tick += (s, e) =>
+        {
+            if (DiagnosticsView != null && DiagnosticsView.Visibility == Visibility.Visible)
+            {
+                TickDiagnosticsMonitoring();
+            }
+        };
     }
 
     /// <summary>
     /// Освобождение ресурсов при закрытии окна.
-    ///
-    /// Без этого DispatcherTimer 30 FPS работал бесконечно: Dispatcher удерживает
-    /// таймер, а лямбда Tick замыкается на this, поэтому MainWindow никогда не
-    /// собирался GC, а RenderSpeedGraph() продолжала перерисовывать отсоединённый
-    /// canvas после закрытия окна.
     /// </summary>
     protected override void OnClosed(EventArgs e)
     {
@@ -2492,6 +2650,12 @@ public partial class MainWindow : Window
             _speedGraphTimer.Stop();
             _speedGraphTimer.Tick -= OnSpeedGraphTick;
             _speedGraphTimer = null;
+        }
+
+        if (_diagnosticsTimer != null)
+        {
+            _diagnosticsTimer.Stop();
+            _diagnosticsTimer = null;
         }
 
         _preflightCts?.Cancel();
@@ -2503,6 +2667,22 @@ public partial class MainWindow : Window
         _transferCts?.Dispose();
         _transferCts = null;
 
+        _navCts?.Cancel();
+        _navCts?.Dispose();
+        _navCts = null;
+
+        _diagRecsCts?.Cancel();
+        _diagRecsCts?.Dispose();
+        _diagRecsCts = null;
+
+        _diagCompareCts?.Cancel();
+        _diagCompareCts?.Dispose();
+        _diagCompareCts = null;
+
+        _diagProcessesCts?.Cancel();
+        _diagProcessesCts?.Dispose();
+        _diagProcessesCts = null;
+
         // Без отписки ThemeManager удерживал бы MainWindow живым после закрытия.
         ThemeManager.Instance.PropertyChanged -= OnThemePropertyChanged;
 
@@ -2510,15 +2690,13 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// График скорости нужен только на вкладке «Диагностика».
-    /// Раньше таймер тикал 30 раз в секунду на ЛЮБОЙ вкладке, то есть
-    /// почти все тики были пустыми: вкладка скрыта, график всё равно
-    /// перерисовывался.
+    /// График скорости нужен только на вкладке «Передача».
+    /// Таймер 30 FPS работает исключительно тогда, когда вкладка передачи активна.
     /// </summary>
-    private void UpdateSpeedGraphTimer(bool diagnosticsVisible)
+    private void UpdateSpeedGraphTimer(bool transferVisible)
     {
         if (_speedGraphTimer == null) return;
-        if (diagnosticsVisible) _speedGraphTimer.Start();
+        if (transferVisible) _speedGraphTimer.Start();
         else _speedGraphTimer.Stop();
     }
 
@@ -2530,11 +2708,6 @@ public partial class MainWindow : Window
         }
         _speedSamples.Enqueue(_currentSpeedMb);
         RenderSpeedGraph();
-
-        if (DiagnosticsView != null && DiagnosticsView.Visibility == Visibility.Visible)
-        {
-            TickDiagnosticsMonitoring();
-        }
     }
 
     private void LiveSpeedCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -3635,12 +3808,141 @@ public partial class MainWindow : Window
         dlg.Show();
     }
 
+    private bool _isCompactHeader;
+
+    private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        AdaptHeaderLayout(e.NewSize.Width);
+    }
+
+    private void AdaptHeaderLayout(double width)
+    {
+        if (HeaderBrandPanel == null || HeaderActionsPanel == null) return;
+
+        bool isNarrow = width < 1080;
+        bool isVeryNarrow = width < 980;
+        _isCompactHeader = isNarrow;
+
+        string currentVer = UpdateService.GetCurrentVersion();
+        if (AppVersionHeaderBadgeText != null)
+        {
+            AppVersionHeaderBadgeText.Text = isNarrow ? $"v{currentVer}" : $"v{currentVer} All-in-One";
+        }
+
+        if (AppVersionHeaderBadge != null)
+        {
+            AppVersionHeaderBadge.Visibility = width < 930 ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        if (SelectVersionBtnText != null)
+        {
+            SelectVersionBtnText.Visibility = isNarrow ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        if (GlobalSearchBtnText != null)
+        {
+            GlobalSearchBtnText.Visibility = isNarrow ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        UpdateQueueHeaderBadge();
+
+        if (isVeryNarrow)
+        {
+            if (SelectVersionBtn != null) SelectVersionBtn.Visibility = Visibility.Collapsed;
+            if (CheckUpdatesBtn != null) CheckUpdatesBtn.Visibility = Visibility.Collapsed;
+            if (UiScaleCombo != null) UiScaleCombo.Visibility = Visibility.Collapsed;
+            if (HeaderMoreActionsBtn != null) HeaderMoreActionsBtn.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            if (SelectVersionBtn != null) SelectVersionBtn.Visibility = Visibility.Visible;
+            if (CheckUpdatesBtn != null) CheckUpdatesBtn.Visibility = Visibility.Visible;
+            if (UiScaleCombo != null) UiScaleCombo.Visibility = Visibility.Visible;
+            if (HeaderMoreActionsBtn != null) HeaderMoreActionsBtn.Visibility = Visibility.Collapsed;
+        }
+
+        if (NavTabsPanel != null)
+        {
+            Thickness tabPadding = isVeryNarrow ? new Thickness(5, 3, 5, 3) :
+                                   isNarrow ? new Thickness(7, 4, 7, 4) :
+                                   new Thickness(10, 5, 10, 5);
+
+            foreach (var child in NavTabsPanel.Children)
+            {
+                if (child is RadioButton rb)
+                    rb.Padding = tabPadding;
+            }
+        }
+    }
+
+    private void HeaderMoreActionsBtn_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (sender is FrameworkElement btn)
+        {
+            var menu = new ContextMenu();
+
+            var miVer = new MenuItem
+            {
+                Header = "⏳ Выбор версии и откат назад (Time Machine)",
+                ToolTip = "Управление версиями программы и откат к стабильным выпускам"
+            };
+            miVer.Click += SelectVersionBtn_Click;
+            menu.Items.Add(miVer);
+
+            var miUpd = new MenuItem
+            {
+                Header = "🔄 Проверить обновления",
+                ToolTip = "Проверить наличие нового релиза Motion Commander онлайн"
+            };
+            miUpd.Click += CheckUpdatesBtn_Click;
+            menu.Items.Add(miUpd);
+
+            int qCount = UnifiedOperationsQueueService.Instance?.ActiveOperations.Count ?? 0;
+            var miQueue = new MenuItem
+            {
+                Header = $"⏳ Очередь операций ({qCount})",
+                ToolTip = "Журнал активных и завершённых операций"
+            };
+            miQueue.Click += OperationsQueueHeaderBtn_Click;
+            menu.Items.Add(miQueue);
+
+            menu.Items.Add(new Separator());
+
+            var miScale = new MenuItem { Header = "🔍 Масштаб интерфейса" };
+            foreach (var scale in new[] { ("100%", "1.0"), ("115%", "1.15"), ("125%", "1.25"), ("150%", "1.5") })
+            {
+                var sub = new MenuItem { Header = scale.Item1, Tag = scale.Item2 };
+                sub.Click += (s, ev) =>
+                {
+                    if (UiScaleCombo != null)
+                    {
+                        foreach (ComboBoxItem item in UiScaleCombo.Items)
+                        {
+                            if (item.Tag?.ToString() == scale.Item2)
+                            {
+                                UiScaleCombo.SelectedItem = item;
+                                break;
+                            }
+                        }
+                    }
+                };
+                miScale.Items.Add(sub);
+            }
+            menu.Items.Add(miScale);
+
+            menu.PlacementTarget = btn;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
     private void UpdateQueueHeaderBadge()
     {
         int count = UnifiedOperationsQueueService.Instance.ActiveOperations.Count;
         if (QueueCountBadgeText != null)
         {
-            QueueCountBadgeText.Text = $"Очередь ({count})";
+            QueueCountBadgeText.Text = _isCompactHeader ? $"{count}" : $"Очередь ({count})";
             QueueCountBadgeText.Foreground = count > 0
                 ? (Brush)FindResource("AccentBrush")
                 : (Brush)FindResource("TitleForegroundBrush");

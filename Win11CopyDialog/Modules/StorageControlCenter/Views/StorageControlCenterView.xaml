@@ -45,20 +45,29 @@
             </Grid>
         </Border>
 
-        <!-- 2. ПОДВКЛАДКИ УПРАВЛЕНИЯ -->
+        <!-- 2. ПОДВКЛАДКИ УПРАВЛЕНИЯ (АДАПТИВНАЯ ПАНЕЛЬ С МЕНЮ «ЕЩЁ ▾») -->
         <Border Grid.Row="1" Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource GlassBorderBrush}"
                 BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,0,10">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly">
-                <UniformGrid Columns="7" MinWidth="750">
-                    <RadioButton x:Name="SubTabHealthRadio" GroupName="StorageSubGroup" Content="🩺 Обзор и Health" Style="{StaticResource StorageSubTab}" IsChecked="True" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                    <RadioButton x:Name="SubTabPartitionsRadio" GroupName="StorageSubGroup" Content="🗂 Partition Manager" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                    <RadioButton x:Name="SubTabBenchmarkRadio" GroupName="StorageSubGroup" Content="🏎 Бенчмарк скорости" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                    <RadioButton x:Name="SubTabOptimizerRadio" GroupName="StorageSubGroup" Content="⚡ Оптимизация и TRIM" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                    <RadioButton x:Name="SubTabCleanupRadio" GroupName="StorageSubGroup" Content="🧹 Анализ пространства" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                    <RadioButton x:Name="SubTabSafetyRadio" GroupName="StorageSubGroup" Content="🛡 Безопасность и Wipe" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                    <RadioButton x:Name="SubTabMigrationRadio" GroupName="StorageSubGroup" Content="🔄 Клонирование ОС" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked"/>
-                </UniformGrid>
-            </ScrollViewer>
+            <DockPanel LastChildFill="True">
+                <!-- Меню «Ещё ▾» справа: всегда видна в любом размере окна, обеспечивая мгновенный доступ ко всем 7 подвкладкам -->
+                <Button x:Name="StorageMoreMenuBtn" DockPanel.Dock="Right" Style="{StaticResource CyberToolButton}"
+                        Content="Ещё ▾" Padding="10,5" Margin="4,0,2,0" VerticalAlignment="Center"
+                        Click="StorageMoreMenu_Click" ToolTip="Все разделы управления накопителями (быстрый переход)"/>
+
+                <!-- Прокручиваемый список подвкладок с клавиатурной навигацией -->
+                <ScrollViewer x:Name="StorageSubTabsScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                              PanningMode="HorizontalOnly" Focusable="False">
+                    <StackPanel x:Name="StorageSubTabsPanel" Orientation="Horizontal">
+                        <RadioButton x:Name="SubTabHealthRadio" GroupName="StorageSubGroup" Content="🩺 Обзор и Health" Style="{StaticResource StorageSubTab}" IsChecked="True" Checked="SubTab_Checked" Click="SubTab_Checked" ToolTip="Здоровье диска, оценка Storage Score, температура и S.M.A.R.T."/>
+                        <RadioButton x:Name="SubTabPartitionsRadio" GroupName="StorageSubGroup" Content="🗂 Partition Manager" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked" ToolTip="Управление разделами, сжатие, расширение, форматирование и буквы"/>
+                        <RadioButton x:Name="SubTabBenchmarkRadio" GroupName="StorageSubGroup" Content="🏎 Бенчмарк скорости" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked" ToolTip="Тест линейной скорости, случайного доступа 4K и задержки"/>
+                        <RadioButton x:Name="SubTabOptimizerRadio" GroupName="StorageSubGroup" Content="⚡ Оптимизация и TRIM" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked" ToolTip="Нативный ReTrim для SSD/NVMe и дефрагментация для HDD"/>
+                        <RadioButton x:Name="SubTabCleanupRadio" GroupName="StorageSubGroup" Content="🧹 Анализ пространства" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked" ToolTip="Безопасная очистка системного кэша и поиск тяжелых файлов"/>
+                        <RadioButton x:Name="SubTabSafetyRadio" GroupName="StorageSubGroup" Content="🛡 Безопасность и Wipe" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked" ToolTip="Затирание удаленных данных в нераспределенном пространстве"/>
+                        <RadioButton x:Name="SubTabMigrationRadio" GroupName="StorageSubGroup" Content="🔄 Клонирование ОС" Style="{StaticResource StorageSubTab}" Checked="SubTab_Checked" Click="SubTab_Checked" ToolTip="Мастер миграции Windows и клонирования системного диска"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
 
         <!-- 3. РАБОЧАЯ ОБЛАСТЬ -->
@@ -247,17 +256,18 @@
                 <StackPanel Margin="0,0,4,0">
                     <!-- 1. ПАНЕЛЬ ИНСТРУМЕНТОВ PARTITION MANAGER -->
                     <Border Style="{StaticResource Card}" Padding="10" Margin="0,0,0,10">
-                        <WrapPanel Orientation="Horizontal">
-                            <Button x:Name="PartCreateBtn" Style="{StaticResource CyberToolButton}" Content="➕ Создать раздел" Padding="10,5" Margin="0,0,5,5" Click="PartCreate_Click"/>
-                            <Button x:Name="PartDeleteBtn" Style="{StaticResource CyberDangerButton}" Content="❌ Удалить том (Override)" Padding="12,5" Margin="0,0,5,5" Click="PartDelete_Click"/>
-                            <Button x:Name="PartShrinkBtn" Style="{StaticResource CyberToolButton}" Content="↔ Сжать том" Padding="10,5" Margin="0,0,5,5" Click="PartShrink_Click"/>
-                            <Button x:Name="PartExtendBtn" Style="{StaticResource CyberToolButton}" Content="➡ Расширить том" Padding="10,5" Margin="0,0,5,5" Click="PartExtend_Click"/>
-                            <Button x:Name="PartFormatBtn" Style="{StaticResource CyberToolButton}" Content="💾 Форматировать" Padding="10,5" Margin="0,0,5,5" Click="PartFormat_Click"/>
-                            <Button x:Name="PartChangeLetterBtn" Style="{StaticResource CyberToolButton}" Content="🔤 Буква диска" Padding="10,5" Margin="0,0,5,5" Click="PartChangeLetter_Click"/>
-                            <Button x:Name="PartChangeLabelBtn" Style="{StaticResource CyberToolButton}" Content="🏷 Метка тома" Padding="10,5" Margin="0,0,5,5" Click="PartChangeLabel_Click"/>
-                            <Button x:Name="DiskCleanBtn" Style="{StaticResource CyberToolButton}" Content="🧹 Очистить диск (Clean)" Padding="10,5" Margin="0,0,5,5" Click="DiskClean_Click"/>
-                            <Button x:Name="DiskClearReadOnlyBtn" Style="{StaticResource CyberToolButton}" Content="🔓 Снять Read-Only" Padding="10,5" Margin="0,0,5,5" Click="DiskClearReadOnly_Click"/>
-                            <Button x:Name="PartChkdskBtn" Style="{StaticResource CyberToolButton}" Content="🩺 Проверка Chkdsk" Padding="10,5" Margin="0,0,5,5" Click="PartChkdsk_Click"/>
+                        <WrapPanel x:Name="PartitionToolbarPanel" Orientation="Horizontal">
+                            <Button x:Name="PartCreateBtn" Style="{StaticResource CyberToolButton}" Content="➕ Создать раздел" Padding="10,5" Margin="0,0,5,5" Click="PartCreate_Click" ToolTip="Создать новый том в неразмеченной области"/>
+                            <Button x:Name="PartShrinkBtn" Style="{StaticResource CyberToolButton}" Content="↔ Сжать том" Padding="10,5" Margin="0,0,5,5" Click="PartShrink_Click" ToolTip="Уменьшить размер выбранного тома"/>
+                            <Button x:Name="PartExtendBtn" Style="{StaticResource CyberToolButton}" Content="➡ Расширить том" Padding="10,5" Margin="0,0,5,5" Click="PartExtend_Click" ToolTip="Увеличить размер тома за счет неразмеченного пространства"/>
+                            <Button x:Name="PartFormatBtn" Style="{StaticResource CyberToolButton}" Content="💾 Форматировать" Padding="10,5" Margin="0,0,5,5" Click="PartFormat_Click" ToolTip="Форматирование тома в NTFS, FAT32 или exFAT"/>
+                            <Button x:Name="PartDeleteBtn" Style="{StaticResource CyberDangerButton}" Content="❌ Удалить том" Padding="12,5" Margin="0,0,5,5" Click="PartDelete_Click" ToolTip="Удалить выбранный том (требует подтверждения)"/>
+                            <Button x:Name="PartChangeLetterBtn" Style="{StaticResource CyberToolButton}" Content="🔤 Буква" Padding="10,5" Margin="0,0,5,5" Click="PartChangeLetter_Click" ToolTip="Назначить или изменить букву диска (A-Z)"/>
+                            <Button x:Name="PartChangeLabelBtn" Style="{StaticResource CyberToolButton}" Content="🏷 Метка" Padding="10,5" Margin="0,0,5,5" Click="PartChangeLabel_Click" ToolTip="Сменить имя/метку тома"/>
+                            <Button x:Name="DiskCleanBtn" Style="{StaticResource CyberToolButton}" Content="🧹 Clean" Padding="10,5" Margin="0,0,5,5" Click="DiskClean_Click" ToolTip="Очистить структуру разделов накопителя через DiskPart"/>
+                            <Button x:Name="DiskClearReadOnlyBtn" Style="{StaticResource CyberToolButton}" Content="🔓 Read-Only" Padding="10,5" Margin="0,0,5,5" Click="DiskClearReadOnly_Click" ToolTip="Снять атрибут защиты от записи с диска"/>
+                            <Button x:Name="PartChkdskBtn" Style="{StaticResource CyberToolButton}" Content="🩺 Chkdsk" Padding="10,5" Margin="0,0,5,5" Click="PartChkdsk_Click" ToolTip="Проверка файловой системы тома утилитой Chkdsk"/>
+                            <Button x:Name="PartMoreOpsBtn" Style="{StaticResource CyberToolButton}" Content="Ещё операции ▾" Padding="10,5" Margin="0,0,5,5" Click="PartMoreOps_Click" ToolTip="Все операции с разделами и диском" Visibility="Collapsed"/>
                         </WrapPanel>
                     </Border>
 

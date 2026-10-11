@@ -97,4 +97,24 @@ public static class UiDispatcher
         }
         return null;
     }
+
+    /// <summary>
+    /// Безопасно запускает фоновую задачу fire-and-forget: исключения перехватываются и логируются в Debug,
+    /// предотвращая UnobservedTaskException или аварийное падение процесса.
+    /// </summary>
+    public static async void ForgetSafe(this Task task)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Отмена операции — нормальное поведение при переключении экранов.
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ForgetSafe] Background task failed: {ex}");
+        }
+    }
 }

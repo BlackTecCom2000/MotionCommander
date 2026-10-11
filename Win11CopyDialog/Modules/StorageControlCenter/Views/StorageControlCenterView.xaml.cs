@@ -30,6 +30,7 @@ public partial class StorageControlCenterView : UserControl
     private readonly Dictionary<int, LiveDiskIcon> _liveIcons = new();
     private CancellationTokenSource? _benchCts;
     private CancellationTokenSource? _wipeCts;
+    private CancellationTokenSource? _cleanupCts;
 
     // Поля интерактивной формы Partition Manager
     private string _currentAction = "";
@@ -52,6 +53,8 @@ public partial class StorageControlCenterView : UserControl
 
         Loaded += StorageControlCenterView_Loaded;
         Unloaded += StorageControlCenterView_Unloaded;
+        IsVisibleChanged += StorageControlCenterView_IsVisibleChanged;
+        SizeChanged += StorageControlCenterView_SizeChanged;
     }
 
     public void SelectSubTab(int index)
@@ -68,6 +71,111 @@ public partial class StorageControlCenterView : UserControl
         };
         target.IsChecked = true;
         SubTab_Checked(target, new RoutedEventArgs());
+        target.BringIntoView();
+    }
+
+    private void StorageMoreMenu_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (sender is FrameworkElement btn)
+        {
+            var menu = new ContextMenu();
+            void AddItem(string title, string desc, int idx, bool isChecked)
+            {
+                var mi = new MenuItem
+                {
+                    Header = title,
+                    ToolTip = desc,
+                    IsChecked = isChecked
+                };
+                mi.Click += (s, ev) => SelectSubTab(idx);
+                menu.Items.Add(mi);
+            }
+
+            AddItem("🩺 Обзор & Health", "Здоровье диска, оценка Storage Score, температура и S.M.A.R.T.", 0, SubTabHealthRadio?.IsChecked == true);
+            AddItem("🗂 Partition Manager", "Управление разделами, сжатие, расширение, форматирование и буквы", 1, SubTabPartitionsRadio?.IsChecked == true);
+            AddItem("🏎 Бенчмарк скорости", "Тест линейной скорости, случайного доступа 4K и задержки", 2, SubTabBenchmarkRadio?.IsChecked == true);
+            AddItem("⚡ Оптимизация и TRIM", "Нативный ReTrim для SSD/NVMe и безопасная дефрагментация HDD", 3, SubTabOptimizerRadio?.IsChecked == true);
+            AddItem("🧹 Анализ пространства", "Безопасная очистка системного кэша и поиск тяжелых файлов", 4, SubTabCleanupRadio?.IsChecked == true);
+            AddItem("🛡 Безопасность и Wipe", "Затирание удаленных данных в свободном пространстве", 5, SubTabSafetyRadio?.IsChecked == true);
+            AddItem("🔄 Клонирование ОС", "Мастер миграции Windows и клонирования системного диска", 6, SubTabMigrationRadio?.IsChecked == true);
+
+            menu.PlacementTarget = btn;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void PartMoreOps_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        if (sender is FrameworkElement btn)
+        {
+            var menu = new ContextMenu();
+            void AddItem(string title, string tip, RoutedEventHandler handler)
+            {
+                var mi = new MenuItem
+                {
+                    Header = title,
+                    ToolTip = tip
+                };
+                mi.Click += handler;
+                menu.Items.Add(mi);
+            }
+
+            AddItem("🔤 Назначить букву диска…", "Назначить или изменить букву тома (A-Z)", (s, ev) => PartChangeLetter_Click(s, ev));
+            AddItem("🏷 Изменить метку тома…", "Задать имя/метку выбранного раздела", (s, ev) => PartChangeLabel_Click(s, ev));
+            AddItem("🩺 Проверка файловой системы (Chkdsk)…", "Запустить поиск ошибок в томе", (s, ev) => PartChkdsk_Click(s, ev));
+            menu.Items.Add(new Separator());
+            AddItem("🔓 Снять атрибут Read-Only", "Очистить флаг защиты от записи на диске", (s, ev) => DiskClearReadOnly_Click(s, ev));
+            AddItem("🧹 Очистить структуру диска (Clean)…", "Удалить все разделы диска через DiskPart clean", (s, ev) => DiskClean_Click(s, ev));
+
+            menu.PlacementTarget = btn;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void StorageControlCenterView_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        AdaptLayout(e.NewSize.Width);
+    }
+
+    private void AdaptLayout(double width)
+    {
+        bool isNarrow = width < 1050;
+        bool isVeryNarrow = width < 860;
+
+        if (SubTabHealthRadio != null)
+            SubTabHealthRadio.Content = isNarrow ? "🩺 Обзор" : "🩺 Обзор и Health";
+        if (SubTabPartitionsRadio != null)
+            SubTabPartitionsRadio.Content = isNarrow ? "🗂 Разделы" : "🗂 Partition Manager";
+        if (SubTabBenchmarkRadio != null)
+            SubTabBenchmarkRadio.Content = isNarrow ? "🏎 Бенчмарк" : "🏎 Бенчмарк скорости";
+        if (SubTabOptimizerRadio != null)
+            SubTabOptimizerRadio.Content = isNarrow ? "⚡ TRIM" : "⚡ Оптимизация и TRIM";
+        if (SubTabCleanupRadio != null)
+            SubTabCleanupRadio.Content = isNarrow ? "🧹 Очистка" : "🧹 Анализ пространства";
+        if (SubTabSafetyRadio != null)
+            SubTabSafetyRadio.Content = isNarrow ? "🛡 Wipe" : "🛡 Безопасность и Wipe";
+        if (SubTabMigrationRadio != null)
+            SubTabMigrationRadio.Content = isNarrow ? "🔄 Клон" : "🔄 Клонирование ОС";
+
+        if (RefreshDrivesBtn != null)
+            RefreshDrivesBtn.Content = isVeryNarrow ? "🔄 Диски" : "🔄 Обновить диски";
+        if (ExportReportBtn != null)
+            ExportReportBtn.Content = isVeryNarrow ? "📊 Отчет" : "📊 Отчет S.M.A.R.T.";
+
+        if (PartitionToolbarPanel != null)
+        {
+            Visibility secVis = isVeryNarrow ? Visibility.Collapsed : Visibility.Visible;
+            if (PartChangeLetterBtn != null) PartChangeLetterBtn.Visibility = secVis;
+            if (PartChangeLabelBtn != null) PartChangeLabelBtn.Visibility = secVis;
+            if (DiskCleanBtn != null) DiskCleanBtn.Visibility = secVis;
+            if (DiskClearReadOnlyBtn != null) DiskClearReadOnlyBtn.Visibility = secVis;
+            if (PartChkdskBtn != null) PartChkdskBtn.Visibility = secVis;
+            if (PartMoreOpsBtn != null) PartMoreOpsBtn.Visibility = isVeryNarrow ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
     private async void StorageControlCenterView_Loaded(object sender, RoutedEventArgs e)
@@ -124,6 +232,22 @@ public partial class StorageControlCenterView : UserControl
         }
     }
 
+    private void StorageControlCenterView_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible)
+        {
+            if (!_telemetryTimer.IsEnabled && _disks.Count > 0)
+            {
+                _telemetryTimer.Start();
+            }
+        }
+        else
+        {
+            _telemetryTimer.Stop();
+            SafeCancel(Volatile.Read(ref _cleanupCts));
+        }
+    }
+
     private void StorageControlCenterView_Unloaded(object sender, RoutedEventArgs e)
     {
         _telemetryTimer.Stop();
@@ -135,6 +259,7 @@ public partial class StorageControlCenterView : UserControl
         // Поле и Dispose делает владелец в своём finally.
         SafeCancel(Volatile.Read(ref _benchCts));
         SafeCancel(Volatile.Read(ref _wipeCts));
+        SafeCancel(Volatile.Read(ref _cleanupCts));
 
         // Раньше CTS отменялись, но НЕ обнулялись. Обработчики кнопок
         // используют «_benchCts != null» как признак «тест идёт», поэтому после
@@ -191,18 +316,36 @@ public partial class StorageControlCenterView : UserControl
 
     public async Task RefreshDisksAsync()
     {
-        DrivesStripPanel.Children.Clear();
-        var loadingText = new TextBlock
+        // Если уже есть данные в кэше, сразу отображаем карточки без задержек и мигания
+        if (_disks.Count == 0 && StorageDiscoveryService.CachedDisks.Count > 0)
         {
-            Text = "Опрос физических накопителей и S.M.A.R.T. контроллеров...",
-            FontSize = 11,
-            Foreground = (Brush)FindResource("AccentBrush"),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 8, 10, 8)
-        };
-        DrivesStripPanel.Children.Add(loadingText);
+            _disks = StorageDiscoveryService.CachedDisks.ToList();
+            DrivesStripPanel.Children.Clear();
+            foreach (var disk in _disks)
+            {
+                var card = CreateDiskCard(disk);
+                DrivesStripPanel.Children.Add(card);
+            }
+            if (_disks.Count > 0)
+            {
+                SelectDisk(_selectedDisk != null ? _disks.FirstOrDefault(d => d.DiskNumber == _selectedDisk.DiskNumber) ?? _disks[0] : _disks[0]);
+            }
+        }
+        else if (_disks.Count == 0)
+        {
+            DrivesStripPanel.Children.Clear();
+            var loadingText = new TextBlock
+            {
+                Text = "Опрос физических накопителей и S.M.A.R.T. контроллеров...",
+                FontSize = 11,
+                Foreground = (Brush)FindResource("AccentBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 8, 10, 8)
+            };
+            DrivesStripPanel.Children.Add(loadingText);
+        }
 
-        _disks = await Task.Run(() => StorageDiscoveryService.GetAllDisks(forceRefresh: true));
+        _disks = await StorageDiscoveryService.GetAllDisksAsync(forceRefresh: true);
 
         DrivesStripPanel.Children.Clear();
 
@@ -217,8 +360,11 @@ public partial class StorageControlCenterView : UserControl
             SelectDisk(_selectedDisk != null ? _disks.FirstOrDefault(d => d.DiskNumber == _selectedDisk.DiskNumber) ?? _disks[0] : _disks[0]);
         }
 
-        // Загрузка категорий очистки
-        LoadCleanupCategories();
+        // Загрузка категорий очистки только если активна соответствующая подвкладка
+        if (SubTabCleanupRadio?.IsChecked == true)
+        {
+            LoadCleanupCategories();
+        }
         MigrationWizardComponent.SetDisks(_disks);
 
         // Фрагментация измеряется ОТДЕЛЬНО и в фоне.
@@ -1131,6 +1277,20 @@ public partial class StorageControlCenterView : UserControl
         ViewCleanup.Visibility = SubTabCleanupRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewSafety.Visibility = SubTabSafetyRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewMigration.Visibility = SubTabMigrationRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        if (SubTabCleanupRadio.IsChecked == true)
+        {
+            LoadCleanupCategories();
+        }
+        else
+        {
+            SafeCancel(Volatile.Read(ref _cleanupCts));
+        }
+
+        if (sender is FrameworkElement fe)
+        {
+            fe.BringIntoView();
+        }
     }
 
     private async void RefreshDrives_Click(object sender, RoutedEventArgs e)
@@ -1303,23 +1463,41 @@ public partial class StorageControlCenterView : UserControl
     // ================= ОЧИСТКА =================
     private async void LoadCleanupCategories()
     {
-        // Этот метод вызывается и из RefreshDisksAsync, и из CleanNow_Click.
-        // Раньше он был «голым» await: исключение из сканирования всплывало
-        // в глобальный обработчик и подменялось модальным окном ошибки,
-        // хотя это фоновые справочные данные.
+        var cts = new CancellationTokenSource();
+        var prev = Interlocked.Exchange(ref _cleanupCts, cts);
+        SafeCancel(prev);
+
         try
         {
             CleanupTotalReclaimableText.Text = "Сканирование временных файлов...";
-            var items = await StorageCleanupService.ScanCleanupCategoriesAsync();
-            CleanupCategoriesList.ItemsSource = items;
-
-            long total = items.Sum(i => i.SizeBytes);
-            CleanupTotalReclaimableText.Text = $"Найдено для очистки: {Formatters.Bytes(total)}";
+            var items = await StorageCleanupService.ScanCleanupCategoriesAsync(cts.Token);
+            if (!cts.IsCancellationRequested)
+            {
+                CleanupCategoriesList.ItemsSource = items;
+                long total = items.Sum(i => i.SizeBytes);
+                CleanupTotalReclaimableText.Text = $"Найдено для очистки: {Formatters.Bytes(total)}";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Отменено при переключении подвкладки
         }
         catch (Exception ex)
         {
-            CleanupCategoriesList.ItemsSource = null;
-            CleanupTotalReclaimableText.Text = $"Не удалось просканировать временные файлы: {ex.Message}";
+            if (!cts.IsCancellationRequested)
+            {
+                CleanupCategoriesList.ItemsSource = null;
+                CleanupTotalReclaimableText.Text = $"Не удалось просканировать временные файлы: {ex.Message}";
+                Debug.WriteLine($"[StorageControlCenter] Cleanup scan failed: {ex.Message}");
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_cleanupCts, cts))
+            {
+                _cleanupCts = null;
+            }
+            cts.Dispose();
         }
     }
 

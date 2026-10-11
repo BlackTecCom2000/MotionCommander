@@ -165,6 +165,10 @@ public static class BottleneckAnalyzerService
         return result;
     }
 
+    private static DateTime _lastProcessScan = DateTime.MinValue;
+    private static UserActivityContext _cachedProcessContext = UserActivityContext.GeneralWork;
+    private static readonly object _contextLock = new();
+
     private static UserActivityContext DetectCurrentContext(MonitorSample sample)
     {
         // 1. Проверяем наличие активных копирований в Motion Commander
@@ -173,27 +177,43 @@ public static class BottleneckAnalyzerService
             return UserActivityContext.FileTransfer;
         }
 
-        // 2. Проверяем процессы (игры, лаунчеры, бенчмарки)
-        try
+        // 2. Проверяем процессы с кэшированием (не чаще раза в 5 секунд и с ранним выходом)
+        lock (_contextLock)
         {
-            var processes = Process.GetProcesses();
-            foreach (var p in processes)
+            if ((DateTime.UtcNow - _lastProcessScan).TotalSeconds < 5)
             {
-                string name = p.ProcessName.ToLowerInvariant();
-                if (name.Contains("steam") || name.Contains("epicgames") || name.Contains("game") ||
-                    name.Contains("cyberpunk") || name.Contains("dota") || name.Contains("cs2") ||
-                    name.Contains("unreal") || name.Contains("unity"))
+                return _cachedProcessContext;
+            }
+
+            _lastProcessScan = DateTime.UtcNow;
+            try
+            {
+                var processes = Process.GetProcesses();
+                _cachedProcessContext = UserActivityContext.GeneralWork;
+
+                foreach (var p in processes)
                 {
-                    return UserActivityContext.Gaming;
-                }
-                if (name.Contains("crystaldisk") || name.Contains("cinebench") || name.Contains("furmark") || name.Contains("3dmark"))
-                {
-                    return UserActivityContext.Benchmark;
+                    string name = p.ProcessName.ToLowerInvariant();
+                    if (name.Contains("steam") || name.Contains("epicgames") || name.Contains("game") ||
+                        name.Contains("cyberpunk") || name.Contains("dota") || name.Contains("cs2") ||
+                        name.Contains("unreal") || name.Contains("unity"))
+                    {
+                        _cachedProcessContext = UserActivityContext.Gaming;
+                        break;
+                    }
+                    if (name.Contains("crystaldisk") || name.Contains("cinebench") || name.Contains("furmark") || name.Contains("3dmark"))
+                    {
+                        _cachedProcessContext = UserActivityContext.Benchmark;
+                        break;
+                    }
                 }
             }
-        }
-        catch { }
+            catch
+            {
+                _cachedProcessContext = UserActivityContext.GeneralWork;
+            }
 
-        return UserActivityContext.GeneralWork;
+            return _cachedProcessContext;
+        }
     }
 }

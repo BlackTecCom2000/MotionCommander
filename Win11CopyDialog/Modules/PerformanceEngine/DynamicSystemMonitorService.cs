@@ -107,15 +107,18 @@ public static class DynamicSystemMonitorService
             }
             catch { }
 
-            // Опрос температуры накопителя через WMI (если доступна)
+            // Температура накопителя берётся из кэша (без блокирующего повторного сканирования WMI)
             try
             {
-                var disks = StorageControlCenter.Services.StorageDiscoveryService.GetAllDisks();
-                var hotDisk = disks.FirstOrDefault(d => d.HasTemperature);
-                if (hotDisk != null)
+                var disks = StorageControlCenter.Services.StorageDiscoveryService.CachedDisks;
+                if (disks != null)
                 {
-                    sample.DiskTempC = hotDisk.TemperatureC;
-                    sample.HasDiskTemp = true;
+                    var hotDisk = disks.FirstOrDefault(d => d.HasTemperature);
+                    if (hotDisk != null)
+                    {
+                        sample.DiskTempC = hotDisk.TemperatureC;
+                        sample.HasDiskTemp = true;
+                    }
                 }
             }
             catch { }
