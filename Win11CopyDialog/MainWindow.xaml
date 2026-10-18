@@ -1274,8 +1274,9 @@
                             <!-- Игровая категория TAJ ARENA -->
                             <Border Style="{StaticResource Card}" Padding="18" Margin="0,14,0,0">
                                 <DockPanel>
-                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
-                                        <TextBlock Text="🎮" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <!-- Логотип сайта tajarena.tj на белой плашке: картинка рассчитана на светлый фон -->
+                                    <Border Width="40" Height="40" CornerRadius="10" Background="#FFFFFF" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <Image Source="/Assets/TajArenaLogo.png" Stretch="Uniform" Margin="3"/>
                                     </Border>
                                     <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Открыть TAJ ARENA" Padding="14,6" Click="OpenTajArena_Click"/>
                                     <StackPanel VerticalAlignment="Center">

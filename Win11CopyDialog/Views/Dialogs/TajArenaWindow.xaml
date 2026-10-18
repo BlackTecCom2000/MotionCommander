@@ -22,9 +22,9 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="34" Height="34" CornerRadius="10" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                        <Border Width="34" Height="34" CornerRadius="10" Background="#FFFFFF"
                                 BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
-                            <TextBlock Text="🎮" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Image Source="/Assets/TajArenaLogo.png" Stretch="Uniform" Margin="2"/>
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="TAJ ARENA — игровая категория" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>

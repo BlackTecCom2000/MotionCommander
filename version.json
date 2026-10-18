@@ -1,20 +1,20 @@
 ﻿{
-    "version":  "3.8.50",
+    "version":  "3.8.51",
     "releaseDate":  "2026-10-18",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Вкладка «Диагностика»: добавлен честный счётчик секунд сбора телеметрии - теперь видно, что программа собирает данные WMI, а не зависла",
-                      "Замер зависания на реальной машине: нажатие вкладки - 61 мс, 185/185 замеров окно отвечает; первый полный снимок занимал до 6.6 с (WMI счётчики)",
-                      "Плитки до первого полного снимка остаются пустыми намеренно: подставлять догадки вместо измерений нельзя"
+                      "Обновлятор: исправлен падеж быстрого патча, который ломал ЛЮБОЕ обновление (FormatException формата GUID); теперь {Guid.NewGuid():N[..8]} заменён на честные первые 8 символов N-формы",
+                      "TAJ ARENA: логотип сайта tajarena.tj теперь в карточке стартовой вкладки и в шапке окна игры",
+                      "Проверено: сборка 0 ошибок / 0 предупреждений, аудит 22 экрана без дефектов, PNG подтверждён внутри собранной сборки"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Patch.zip",
-    "patchSizeMb":  3.49,
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Patch.zip",
+    "patchSizeMb":  3.53,
     "patchMinVersion":  "3.8.0",
-    "fullSizeMb":  38.16,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Setup.exe"
+    "fullSizeMb":  38.2,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Setup.exe"
 }

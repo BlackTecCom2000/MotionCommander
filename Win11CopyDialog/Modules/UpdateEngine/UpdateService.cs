@@ -492,7 +492,11 @@ public static class UpdateService
         string targetFilePath = Path.Combine(tempFolder, originalFileName);
 
         // Уникальный временный файл (.part) изолирует процесс загрузки от внешних блокировок и остаточных файлов
-        string uniquePartPath = Path.Combine(tempFolder, $"{originalFileName}.{Guid.NewGuid():N[..8]}.part");
+        // ВАЖНО: нельзя писать {Guid.NewGuid():N[..8]} — «N[..8]» уходит в Guid.ToString(format)
+        // и всегда бросает FormatException("Format string can be only ..."). Так и происходит:
+        // первый полный снимок быстрого патча у пользователей падал всегда.
+        // Берём первые 8 символов N-формы после форматирования.
+        string uniquePartPath = Path.Combine(tempFolder, $"{originalFileName}.{Guid.NewGuid().ToString("N")[..8]}.part");
 
         using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
