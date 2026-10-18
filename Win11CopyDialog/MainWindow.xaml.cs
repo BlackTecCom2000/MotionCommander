@@ -49,6 +49,9 @@ public partial class MainWindow : Window
     private readonly Queue<double> _speedSamples = new();
     private System.Windows.Threading.DispatcherTimer? _speedGraphTimer;
     private System.Windows.Threading.DispatcherTimer? _diagnosticsTimer;
+
+    /// <summary>Момент появления вкладки «Диагностика»: старт честного счётчика ожидания.</summary>
+    private DateTime _diagWaitStartUtc = DateTime.UtcNow;
     private CancellationTokenSource? _diagnosticsCts;
     private volatile bool _isDiagnosticsSampling;
     private CancellationTokenSource? _navCts;
@@ -1717,6 +1720,16 @@ public partial class MainWindow : Window
             _diagnosticsCts?.Dispose();
             _diagnosticsCts = new CancellationTokenSource();
 
+            // Старт честного счётчика ожидания: до первого полного снимка
+            // телеметрии плитки пусты, и пользователь должен видеть,
+            // что программа работает, а не висит.
+            _diagWaitStartUtc = DateTime.UtcNow;
+            if (DiagGlobalStatusText != null)
+            {
+                DiagGlobalStatusText.Visibility = Visibility.Visible;
+                DiagGlobalStatusText.Text = "Сбор телеметрии (0 с): CPU и ОЗУ показаны, дисковая активность опрашивается...";
+            }
+
             _diagnosticsTimer?.Start();
             RefreshDiagnosticsUI();
         }
@@ -2081,6 +2094,16 @@ public partial class MainWindow : Window
         {
             DiagGlobalLoadingBar.Visibility = needsInitialDiskData ? Visibility.Visible : Visibility.Collapsed;
         }
+        if (DiagGlobalStatusText != null)
+        {
+            DiagGlobalStatusText.Visibility = needsInitialDiskData ? Visibility.Visible : Visibility.Collapsed;
+            if (needsInitialDiskData)
+            {
+                DiagGlobalStatusText.Text =
+                    $"Сбор телеметрии ({(int)(DateTime.UtcNow - _diagWaitStartUtc).TotalSeconds} с): " +
+                    "CPU и ОЗУ показаны мгновенно, дисковая активность опрашивается WMI...";
+            }
+        }
 
         if (DiagTabOverviewRadio?.IsChecked == true ||
             DiagTabMonitoringRadio?.IsChecked == true ||
@@ -2125,6 +2148,11 @@ public partial class MainWindow : Window
             {
                 if (DiagnosticsView == null || DiagnosticsView.Visibility != Visibility.Visible) return;
                 if (DiagGlobalLoadingBar != null) DiagGlobalLoadingBar.Visibility = Visibility.Collapsed;
+                if (DiagGlobalStatusText != null)
+                {
+                    // Полный снимок пришёл: счётчик ожидания больше не нужен.
+                    DiagGlobalStatusText.Visibility = Visibility.Collapsed;
+                }
                 ApplyDiagnosticsSampleToActiveSubTab(sample);
             }, System.Windows.Threading.DispatcherPriority.Normal, ct);
         }
@@ -2731,6 +2759,15 @@ public partial class MainWindow : Window
         {
             if (DiagnosticsView != null && DiagnosticsView.Visibility == Visibility.Visible)
             {
+                // Честный таймер ожидания. Когда полный снимок ещё не пришёл,
+                // каждая секунда видна пользователю.
+                if (DynamicSystemMonitorService.LatestSample == null && DiagGlobalStatusText != null)
+                {
+                    DiagGlobalStatusText.Visibility = Visibility.Visible;
+                    DiagGlobalStatusText.Text =
+                        $"Сбор телеметрии ({(int)(DateTime.UtcNow - _diagWaitStartUtc).TotalSeconds} с): " +
+                        "CPU и ОЗУ показаны мгновенно, дисковая активность опрашивается WMI...";
+                }
                 TriggerDiagnosticsSampleAsync().ForgetSafe();
             }
         };

@@ -1404,6 +1404,14 @@
                                 </ScrollViewer>
                             </DockPanel>
                         </Border>
+                        <!-- Честный статус сбора телеметрии: плитки до первого
+                             полного снимка пусты намеренно (показывать догадки
+                             нельзя), поэтому рядом с индикатором идёт
+                             реальный счётчик секунд ожидания — пустой
+                             экран не выглядит зависанием -->
+                        <TextBlock x:Name="DiagGlobalStatusText" FontSize="11"
+                                   Margin="14,6,14,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                   Style="{StaticResource MutedText}" Visibility="Collapsed"/>
                         <!-- Индикатор активного фонового обновления телеметрии -->
                         <ProgressBar x:Name="DiagGlobalLoadingBar" Height="2" VerticalAlignment="Bottom"
                                      Margin="8,0,8,1" IsIndeterminate="True"

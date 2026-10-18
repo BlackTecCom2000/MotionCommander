@@ -1,21 +1,20 @@
 ﻿{
-    "version":  "3.8.49",
+    "version":  "3.8.50",
     "releaseDate":  "2026-10-18",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Новая игровая категория TAJ ARENA: автопоиск установленных игр (Steam через реестр и манифесты Valve, Epic Games, Riot, GOG) и свои папки",
-                      "Реальные измерения: объём каждой игры считается заново при каждом открытии, доля диска - по фактическим DriveInfo",
-                      "Кнопка «Играть» запускает существующий exe; при неоднозначности пользователь выбирает приложение сам",
-                      "Новый режим диагностики --arena: полный автопоиск с честным журналом источников"
+                      "Вкладка «Диагностика»: добавлен честный счётчик секунд сбора телеметрии - теперь видно, что программа собирает данные WMI, а не зависла",
+                      "Замер зависания на реальной машине: нажатие вкладки - 61 мс, 185/185 замеров окно отвечает; первый полный снимок занимал до 6.6 с (WMI счётчики)",
+                      "Плитки до первого полного снимка остаются пустыми намеренно: подставлять догадки вместо измерений нельзя"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Patch.zip",
     "patchSizeMb":  3.49,
     "patchMinVersion":  "3.8.0",
     "fullSizeMb":  38.16,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.50-Setup.exe"
 }
