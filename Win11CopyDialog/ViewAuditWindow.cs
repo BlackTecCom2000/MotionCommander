@@ -159,6 +159,7 @@ public sealed class ViewAuditWindow : Window
             Audit(outp, listener, "WizTreeAnalyzerWindow", () => new Views.Dialogs.WizTreeAnalyzerWindow());
             Audit(outp, listener, "DuplicateFinderWindow", () => new Views.Dialogs.DuplicateFinderWindow());
             Audit(outp, listener, "DriverInspectorWindow", () => new Views.Dialogs.DriverInspectorWindow());
+            Audit(outp, listener, "TajArenaWindow", () => new Views.Dialogs.TajArenaWindow());
             Audit(outp, listener, "CreateArchiveWindow", () => new Views.Dialogs.CreateArchiveWindow(new[] { @"C:\Windows\System32\notepad.exe" }));
             Audit(outp, listener, "ExtractArchiveWindow", () => new Views.Dialogs.ExtractArchiveWindow(@"C:\Windows\notepad.exe"));
             Audit(outp, listener, "AdvancedToolsWindow", () => new Views.Dialogs.AdvancedToolsWindow(@"C:\Windows\System32\notepad.exe"));

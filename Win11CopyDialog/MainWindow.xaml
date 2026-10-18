@@ -1270,6 +1270,20 @@
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
+
+                            <!-- Игровая категория TAJ ARENA -->
+                            <Border Style="{StaticResource Card}" Padding="18" Margin="0,14,0,0">
+                                <DockPanel>
+                                    <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource AccentBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
+                                        <TextBlock Text="🎮" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource CyberButton}" Content="Открыть TAJ ARENA" Padding="14,6" Click="OpenTajArena_Click"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Игровая категория TAJ ARENA" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <TextBlock Text="Автопоиск установленных игр (Steam, Epic, Riot, GOG) и свои папки: реальный объём, доля диска и запуск найденным приложением" FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>

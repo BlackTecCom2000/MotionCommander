@@ -1,18 +1,21 @@
 ﻿{
-    "version":  "3.8.48",
-    "releaseDate":  "2026-10-11",
+    "version":  "3.8.49",
+    "releaseDate":  "2026-10-18",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Улучшен процесс обновления: программа автоматически закрывается после загрузки и бесшовно обновляется поверх файлов без запуска переустановки"
+                      "Новая игровая категория TAJ ARENA: автопоиск установленных игр (Steam через реестр и манифесты Valve, Epic Games, Riot, GOG) и свои папки",
+                      "Реальные измерения: объём каждой игры считается заново при каждом открытии, доля диска - по фактическим DriveInfo",
+                      "Кнопка «Играть» запускает существующий exe; при неоднозначности пользователь выбирает приложение сам",
+                      "Новый режим диагностики --arena: полный автопоиск с честным журналом источников"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.48-Patch.zip",
-    "patchSizeMb":  3.46,
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Patch.zip",
+    "patchSizeMb":  3.49,
     "patchMinVersion":  "3.8.0",
-    "fullSizeMb":  38.13,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.48-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.48-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.48-Setup.exe"
+    "fullSizeMb":  38.16,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.49-Setup.exe"
 }

@@ -3674,6 +3674,12 @@ public partial class MainWindow : Window
         new DriverInspectorWindow { Owner = this }.Show();
     }
 
+    private void OpenTajArena_Click(object sender, RoutedEventArgs e)
+    {
+        HapticAudio.PlayClick();
+        new TajArenaWindow { Owner = this }.Show();
+    }
+
     private void OpenChecksumTool_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();

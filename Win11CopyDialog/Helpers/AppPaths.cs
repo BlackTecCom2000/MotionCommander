@@ -245,6 +245,20 @@ public static class AppPaths
     public static string MetricsFile => Path.Combine(WritableDataDirectory, "startup-metrics.json");
 
     /// <summary>
+    /// Файл состояния игровой категории TAJ ARENA.
+    /// </summary>
+    /// <remarks>
+    /// <para>Содержит игры, добавленные вручную, скрытые записи и
+    /// выбранные пользователем исполняемые файлы.</para>
+    ///
+    /// <para>Лежит рядом с настройками, а не рядом с программой: в
+    /// Program Files запись запрещена, и параметры не сохранились бы
+    /// вовсе. Существование файла не означает, что он корректен, —
+    /// чтение должно иметь вариант отката на пустое состояние.</para>
+    /// </remarks>
+    public static string TajArenaFile => Path.Combine(WritableDataDirectory, "taj-arena.json");
+
+    /// <summary>
     /// Файл падений программы.
     /// </summary>
     /// <remarks>

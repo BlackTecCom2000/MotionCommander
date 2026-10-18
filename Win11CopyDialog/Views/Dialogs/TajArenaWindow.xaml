@@ -1,0 +1,127 @@
+<Window x:Class="Win11CopyDialog.Views.Dialogs.TajArenaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="TAJ ARENA — Игровая категория — Motion Commander"
+        Height="720" Width="1080" MinWidth="900" MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" CornerRadius="12" GlassFrameThickness="0" ResizeBorderThickness="7"/>
+    </WindowChrome.WindowChrome>
+
+    <Border Style="{StaticResource GlassWindowRoot}">
+        <DockPanel>
+            <!-- ШАПКА -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource GlassDialogTitleBar}" Padding="18,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="34" Height="34" CornerRadius="10" Background="{DynamicResource LiquidGlassActiveHighlight}"
+                                BorderBrush="{DynamicResource DialogChromaticBevel}" BorderThickness="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                            <TextBlock Text="🎮" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="TAJ ARENA — игровая категория" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Установленные игры с реальными измерениями: объём, доля диска, запуск" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Style="{StaticResource CaptionButton}" Content="─" ToolTip="Свернуть" Click="Min_Click"/>
+                        <Button x:Name="MaxBtn" Style="{StaticResource CaptionButton}" Content="□" ToolTip="Развернуть" Click="Max_Click"/>
+                        <Button Style="{StaticResource CaptionCloseButton}" Content="✕" ToolTip="Закрыть" Click="Close_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- НИЖНИЙ СТАТУС -->
+            <Border DockPanel.Dock="Bottom" Padding="18,12" BorderBrush="{DynamicResource LiquidGlassInputBorderBrush}" BorderThickness="0,1,0,0">
+                <DockPanel>
+                    <ProgressBar x:Name="ScanProgress" DockPanel.Dock="Right" Width="180" Height="6" IsIndeterminate="True" Visibility="Collapsed" BorderThickness="0" Background="{DynamicResource LiquidGlassInputBackgroundBrush}" Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock x:Name="StatusText" Text="Поиск установленных игр..." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                               ToolTipService.InitialShowDelay="200">
+                        <TextBlock.ToolTip>
+                            <ToolTip x:Name="StatusDetailsTip" Content="Подробности последнего поиска появятся здесь."/>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
+                </DockPanel>
+            </Border>
+
+            <!-- ТЕЛО -->
+            <Grid Margin="18,14">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Панель управления -->
+                <Border Grid.Row="0" Style="{StaticResource GlassSectionCard}" Margin="0,0,0,12">
+                    <DockPanel Margin="0,0,0,0">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Button Style="{StaticResource GlassButton}" Content="➕ Добавить папку" Margin="0,0,8,0" Padding="14,0" Height="34" Click="AddFolder_Click"
+                                    ToolTip="Добавить игру вручную: папка будет измерена по-настоящему и сохранится между запусками"/>
+                            <Button x:Name="RemoveBtn" Style="{StaticResource GlassButton}" Content="🚫 Убрать из списка" Margin="0,0,8,0" Padding="14,0" Height="34" Click="Remove_Click" IsEnabled="False"
+                                    ToolTip="Вручную добавленные игры удаляются, найденные автоматически — скрываются до следующего поиска"/>
+                            <Button x:Name="PlayBtn" Style="{StaticResource GlassPrimaryButton}" Content="▶ Играть" Padding="16,0" Height="34" Click="Play_Click" IsEnabled="False"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="RefreshBtn" Style="{StaticResource GlassButton}" Content="🔍 Найти заново" Margin="0,0,8,0" Padding="14,0" Height="34" Click="Refresh_Click"
+                                    ToolTip="Повторный автопоиск по реестру, библиотекам Steam и файлу Epic Games"/>
+                            <Button x:Name="ChooseExeBtn" Style="{StaticResource GlassButton}" Content="🎯 Выбрать приложение" Padding="14,0" Height="34" Click="ChooseExe_Click" IsEnabled="False"
+                                    ToolTip="Указать исполняемый файл игры вручную, когда автоматический выбор неоднозначен"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- Таблица игр -->
+                <Border Grid.Row="1" Style="{StaticResource GlassSectionCard}" Margin="0" Padding="4">
+                    <ListView x:Name="GamesListView" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextPrimaryBrush}"
+                              SelectionChanged="GamesListView_SelectionChanged"
+                              MouseDoubleClick="GamesListView_MouseDoubleClick">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Запуск" Width="110">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding LaunchBadgeBrush}" CornerRadius="6" Padding="6,2" HorizontalAlignment="Center">
+                                                <TextBlock Text="{Binding LaunchBadgeText}" FontSize="10" FontWeight="Bold" Foreground="{Binding LaunchBadgeForeground}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Игра" Width="300">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding InstallPath}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+
+                                <GridViewColumn Header="Платформа" Width="120" DisplayMemberBinding="{Binding PlatformName}"/>
+                                <GridViewColumn Header="Размер" Width="110" DisplayMemberBinding="{Binding SizeFormatted}"/>
+                                <GridViewColumn Header="Доля диска" Width="100" DisplayMemberBinding="{Binding PercentFormatted}"/>
+                                <GridViewColumn Header="Исполняемый файл" Width="220">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding MainExeName}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Border>
+            </Grid>
+        </DockPanel>
+    </Border>
+</Window>

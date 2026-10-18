@@ -63,6 +63,12 @@ internal static class Program
             return Smoke.ProbeResources();
         }
 
+        // Игровая категория TAJ ARENA: настоящий автопоиск на этой машине.
+        if (Array.IndexOf(args, "--arena") >= 0)
+        {
+            return ArenaProbe.Run(autoplay);
+        }
+
         // Отчёт S.M.A.R.T. с повышенных прав.
         //
         // Обрабатывается до всех остальных режимов: он запускает
