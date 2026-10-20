@@ -154,7 +154,18 @@ public static class UpdateService
     public const string GitHubRepoUrl = "https://github.com/BlackTecCom2000/MotionCommander";
 
     private const string RawBaseUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/";
-    private const string JsDelivrBaseUrl = "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander@main/";
+    private const string JsDelivrRepo = "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander";
+
+    /// <summary>
+    /// База зеркала jsDelivr для файлов без версии в имени (version.json).
+    /// </summary>
+    /// <remarks>
+    /// Именно <c>@latest</c>, а не <c>@main</c>: ссылка на ветку кэшируется,
+    /// и после релиза зеркало отдавало прошлый манифест — измерено
+    /// 20.10.2026, @main → 3.8.51 при опубликованном 3.8.52. С @latest
+    /// зеркало сразу отдало 3.8.52, а checksums.json — свежий.
+    /// </remarks>
+    private static string JsDelivrLatestBase => $"{JsDelivrRepo}@latest/";
     private const int DownloadAttemptsPerMirror = 3;
     private const int IdleTimeoutSeconds = 60;
 
@@ -819,7 +830,14 @@ public static class UpdateService
             relative.EndsWith("-Setup.exe", StringComparison.OrdinalIgnoreCase);
 
         if (!tooLargeForJsDelivr)
-            list.Add($"{JsDelivrBaseUrl}{relative}");
+        {
+            // Файл привязан к тегу своей версии: ссылка на тег неизменяема,
+            // поэтому зеркало не может отдать чужой файл из будущего релиза.
+            // Для имени без версии остаётся @latest (см. JsDelivrLatestBase).
+            string? fileVersion = TryExtractVersionFromFileName(Path.GetFileName(relative));
+            string reference = !string.IsNullOrEmpty(fileVersion) ? $"@v{fileVersion}" : "@latest";
+            list.Add($"{JsDelivrRepo}{reference}/{relative}");
+        }
 
         // Тот же файл через github.com/raw: другой хост, другая блокировка,
         // тот же коммит main.
@@ -832,7 +850,7 @@ public static class UpdateService
     public static IReadOnlyList<string> GetManifestCandidates() => new[]
     {
         ManifestUrl,
-        $"{JsDelivrBaseUrl}version.json"
+        $"{JsDelivrLatestBase}version.json"
     };
 
     /// <summary>Читает version.json с основного адреса или зеркала, с журналом попыток.</summary>

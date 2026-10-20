@@ -6,9 +6,11 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -263,6 +265,8 @@ exit /b 1
                     throw new Exception($"Для патча ожидались 3 адреса, получено {patch.Count}");
                 if (!patch[1].StartsWith("https://cdn.jsdelivr.net/", StringComparison.Ordinal))
                     throw new Exception($"Второй адрес патча должен быть jsDelivr, а он: {patch[1]}");
+                if (!patch[1].Contains("@v3.8.52/", StringComparison.Ordinal))
+                    throw new Exception($"Файл зеркала обязан быть привязан к тегу версии, а не к ветке: {patch[1]}");
                 if (patch[2] != "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.8.52-Patch.zip")
                     throw new Exception($"Третий адрес патча неверен: {patch[2]}");
 
@@ -281,6 +285,8 @@ exit /b 1
                 var manifests = UpdateService.GetManifestCandidates();
                 if (manifests.Count != 2 || !manifests[1].Contains("jsdelivr", StringComparison.OrdinalIgnoreCase))
                     throw new Exception("Манифест должен иметь зеркало jsDelivr (измерено: отдаёт version.json)");
+                if (!manifests[1].Contains("@latest/version.json", StringComparison.Ordinal))
+                    throw new Exception($"Манифест зеркала обязан использовать @latest, а не ветку: {manifests[1]}");
             });
 
             // --- TEST 8: Патч обязан вести в ожидаемую версию ---
@@ -642,6 +648,44 @@ exit /b 1
             bool trusted = UpdateService.IsTrustedDownloadUrl(url);
             output.WriteLine($"    {label}: {(trusted ? "доверенный" : "ПОСТОРОННИЙ")} — {new Uri(url).Host}");
             if (!trusted) problems++;
+        }
+
+        // Паритет зеркала: jsDelivr @latest обязан отдавать ту же версию,
+        // что и raw. Проверка отдельная, потому что @main уже один раз
+        // отдал прошлый релиз (измерено 20.10.2026: 3.8.51 при 3.8.52).
+        try
+        {
+            sw.Restart();
+            using var mirrorClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            mirrorClient.DefaultRequestHeaders.Add("User-Agent", "MotionCommander-Diagnostics");
+
+            string mirrorUrl =
+                "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander@latest/version.json" +
+                $"?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            string mirrorJson = mirrorClient.GetStringAsync(mirrorUrl).GetAwaiter().GetResult();
+            sw.Stop();
+
+            string mirrorVersion = "";
+            using (var mirrorDoc = JsonDocument.Parse(mirrorJson))
+            {
+                if (mirrorDoc.RootElement.TryGetProperty("version", out var mv))
+                    mirrorVersion = mv.GetString() ?? "";
+            }
+
+            bool same = string.Equals(
+                UpdateService.NormalizeVersion(mirrorVersion),
+                UpdateService.NormalizeVersion(info.LatestVersion),
+                StringComparison.OrdinalIgnoreCase);
+
+            output.WriteLine(
+                $"  Зеркало jsDelivr: {sw.Elapsed.TotalMilliseconds:F0} мс, v{mirrorVersion} " +
+                (same ? "(совпадает с raw)" : "(РАСХОЖДЕНИЕ с raw)"));
+        }
+        catch (Exception ex)
+        {
+            // Зеркало — запасной путь; его недоступность не делает канал
+            // неисправным, но должна быть видна в отчёте.
+            output.WriteLine($"  [WARN] Зеркало jsDelivr недоступно: {ex.Message}");
         }
 
         // Контрольная сумма полного архива: проверяется без скачивания

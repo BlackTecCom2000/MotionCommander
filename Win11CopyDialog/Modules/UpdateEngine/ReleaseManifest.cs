@@ -179,8 +179,10 @@ public static class ReleaseManifest
     {
         // Замерено 20.10.2026: оба адреса отдают checksums.json;
         // jsDelivr — зеркало на случай недоступности raw.githubusercontent.
+        // @latest, а не @main: ссылка на ветку кэшируется и после релиза
+        // отдавала прошлый манифест.
         yield return "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/";
-        yield return "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander@main/dist/";
+        yield return "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander@latest/dist/";
         yield return "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/";
     }
 }

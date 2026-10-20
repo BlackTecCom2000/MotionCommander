@@ -1,23 +1,20 @@
 ﻿{
-    "version":  "3.8.52",
+    "version":  "3.8.53",
     "releaseDate":  "2026-10-20",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Обновлятор: снят общий 15-секундный лимит на загрузку — медленные каналы больше не обрываются. Измерено: патч 3 701 246 байт скачан за 43,9 с и сверен по SHA-256",
-                      "Загрузка: докачка с места обрыва по HTTP Range, 3 попытки на адрес, зеркало jsDelivr для манифеста и патча, отдельный сторож простоя 60 с",
-                      "Защита: пакет принимается только по HTTPS с официальных адресов, патч обязан вести в ожидаемую версию, устаревший checksums.json отличается от подмены файла",
-                      "Применение: исправлено экранирование % в путях скрипта, надёжное ожидание процесса, маркер «обновление применено» с проверкой фактической версии и честное сообщение об откате",
-                      "Диагностика: журнал update.log по всем этапам, ETA по измеренной скорости, автопроверка обновлений не чаще раза в 3 часа",
-                      "Проверено: сборка 0 ошибок / 0 предупреждений; 16/16 тестов движка, включая реальную докачку (2 запроса, Range: bytes=68266-) и медленную загрузку 16,3 с; живой канал: манифест 411 мс, патч 3 701 246 байт, SHA-256 подтверждён; 22/22 экрана"
+                      "Обновлятор: зеркало jsDelivr теперь использует @latest и тег версии вместо @main — ссылка на ветку кэшировалась и после релиза отдавала прошлый манифест (измерено: @main → 3.8.51 при опубликованном 3.8.52)",
+                      "Проверено на живом канале: зеркало @latest за 2,4 с отдало 3.8.52 (совпадает с raw), checksums.json за 0,5 с, патч 3 721 343 байт скачан за 18,6 с и сверен по SHA-256",
+                      "Сборка 0 ошибок / 0 предупреждений; 16/16 тестов движка, включая докачку по HTTP Range (2 запроса, Range: bytes=68266-) и медленную загрузку 16,4 с; 22/22 экрана"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.53-Patch.zip",
     "patchSizeMb":  3.55,
     "patchMinVersion":  "3.8.0",
     "fullSizeMb":  38.22,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.53-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.53-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.53-Setup.exe"
 }
