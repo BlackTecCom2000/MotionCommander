@@ -143,6 +143,12 @@ public static class ReleaseManifest
             try
             {
                 string url = $"{baseUrl}{ManifestName}?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+                // Зеркало на плавающей ссылке кэшируется: сбрасываем,
+                // иначе после релиза checksums.json остаётся прошлым
+                // и сверка объявляет «манифест от другой версии».
+                await UpdateService.TryPurgeCdnCacheAsync(baseUrl + ManifestName, ct);
+
                 using var response = await Client.GetAsync(url, ct);
                 if (!response.IsSuccessStatusCode)
                 {

@@ -606,6 +606,10 @@ public static class UpdateService
             string host;
             try { host = new Uri(candidate).Host; } catch { host = candidate; }
 
+            // Для файлов на плавающей ссылке зеркала кэш сбрасывается один
+            // раз перед попытками; для теговых ссылок это ничего не делает.
+            await TryPurgeCdnCacheAsync(candidate, ct);
+
             for (int attempt = 1; attempt <= DownloadAttemptsPerMirror; attempt++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -703,6 +707,46 @@ public static class UpdateService
         }
 
         UpdateLog.Info("download", $"Источник обновления: {uri.Host}{uri.AbsolutePath}");
+    }
+
+    /// <summary>
+    /// Сбрасывает кэш jsDelivr для файла, если адрес ссылается на
+    /// плавающую ветку (@latest/@main).
+    /// </summary>
+    /// <remarks>
+    /// <para>Измерено 20.10.2026: после публикации 3.8.53 ссылка
+    /// <c>@latest/version.json</c> продолжает отдавать 3.8.52, хотя
+    /// <c>@v3.8.53/version.json</c> уже свежий. После вызова
+    /// <c>purge.jsdelivr.net</c> та же ссылка отдаёт 3.8.53. Без сброса
+    /// зеркало в регионах с недоступным raw.githubusercontent показывало
+    /// бы «обновлений нет».</para>
+    ///
+    /// <para>Сброс — best-effort: он ограничен 5 секундами и никогда не
+    /// срывает обновление. Файлы, привязанные к тегу версии, не сбрасываются:
+    /// их содержимое неизменяемо.</para>
+    /// </remarks>
+    public static async Task TryPurgeCdnCacheAsync(string url, CancellationToken ct)
+    {
+        try
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return;
+            if (!uri.Host.Equals("cdn.jsdelivr.net", StringComparison.OrdinalIgnoreCase)) return;
+            if (!uri.AbsolutePath.Contains("@latest", StringComparison.OrdinalIgnoreCase) &&
+                !uri.AbsolutePath.Contains("@main", StringComparison.OrdinalIgnoreCase)) return;
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+
+            string purgeUrl = "https://purge.jsdelivr.net" + uri.AbsolutePath;
+            using var response = await _httpClient.GetAsync(purgeUrl, timeout.Token);
+
+            UpdateLog.Info("manifest",
+                $"jsDelivr purge: HTTP {(int)response.StatusCode} ({uri.AbsolutePath})");
+        }
+        catch (Exception ex)
+        {
+            UpdateLog.Warn("manifest", $"jsDelivr purge не удался: {ex.Message}");
+        }
     }
 
     /// <summary>Скачивает файл за один заход, продолжая .part через HTTP Range.</summary>
@@ -863,6 +907,11 @@ public static class UpdateService
             try
             {
                 string urlWithBypass = $"{candidate}?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+                // Плавающая ссылка на зеркале кэшируется: без сброса после
+                // релиза она отдаёт прошлый манифест (измерено).
+                await TryPurgeCdnCacheAsync(candidate, ct);
+
                 string json = await _httpClient.GetStringAsync(urlWithBypass, ct);
                 UpdateLog.Info("manifest",
                     $"{new Uri(candidate).Host}: {json.Length} байт за {sw.Elapsed.TotalMilliseconds:F0} мс");

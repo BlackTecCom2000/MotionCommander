@@ -662,6 +662,11 @@ exit /b 1
             string mirrorUrl =
                 "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander@latest/version.json" +
                 $"?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+
+            // Ровно как в рабочем пути: сначала сброс кэша плавающей ссылки.
+            UpdateService.TryPurgeCdnCacheAsync(mirrorUrl, CancellationToken.None)
+                .GetAwaiter().GetResult();
+
             string mirrorJson = mirrorClient.GetStringAsync(mirrorUrl).GetAwaiter().GetResult();
             sw.Stop();
 
