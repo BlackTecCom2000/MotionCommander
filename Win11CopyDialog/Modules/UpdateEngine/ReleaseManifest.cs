@@ -54,7 +54,7 @@ public static class ReleaseManifest
     /// безопаснее: отсутствие подтверждения не должно читаться как
     /// разрешение.</para>
     /// </remarks>
-    public static async Task<string> GetSha256ForAsync(string filePath, CancellationToken ct)
+    public static async Task<string> GetSha256ForAsync(string filePath, CancellationToken ct, string? expectedVersion = null)
     {
         string name = Path.GetFileName(filePath);
         if (string.IsNullOrEmpty(name)) return string.Empty;
@@ -78,6 +78,29 @@ public static class ReleaseManifest
         if (string.IsNullOrWhiteSpace(json)) return string.Empty;
 
         using var doc = JsonDocument.Parse(json);
+
+        // Манифест обязан относиться к той же версии, что и файл. При
+        // устаревшем манифесте с CDN сверка давала бы «контрольная сумма
+        // не совпала» — сообщение о подмене там, где на самом деле
+        // просто закэшировался прошлый релиз.
+        if (!string.IsNullOrWhiteSpace(expectedVersion) &&
+            doc.RootElement.TryGetProperty("version", out var versionProp))
+        {
+            string manifestVersion = versionProp.GetString() ?? "";
+            if (!string.IsNullOrWhiteSpace(manifestVersion) &&
+                !string.Equals(manifestVersion.TrimStart('v', 'V'),
+                               expectedVersion.TrimStart('v', 'V'),
+                               StringComparison.OrdinalIgnoreCase))
+            {
+                UpdateLog.Warn("integrity",
+                    $"checksums.json относится к версии {manifestVersion}, а файл — к {expectedVersion}");
+                throw new UpdateIntegrityException(
+                    $"Манифест контрольных сумм относится к версии v{manifestVersion}, " +
+                    $"а скачивается файл версии v{expectedVersion}. " +
+                    "Вероятно, CDN отдал устаревший манифест; повторите обновление через минуту.");
+            }
+        }
+
         if (!doc.RootElement.TryGetProperty("files", out var files)) return string.Empty;
         if (!files.TryGetProperty(name, out var hash)) return string.Empty;
 
@@ -116,13 +139,26 @@ public static class ReleaseManifest
         // 2. Сетевой запрос с cache-bypass для предотвращения устаревания CDN-кэша после релиза
         foreach (string baseUrl in ManifestBaseUrls())
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 string url = $"{baseUrl}{ManifestName}?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 using var response = await Client.GetAsync(url, ct);
-                if (!response.IsSuccessStatusCode) continue;
+                if (!response.IsSuccessStatusCode)
+                {
+                    // 404 на зеркале — обычное дело для только что созданного
+                    // файла (CDN ещё не подхватил). Это не ошибка приложения,
+                    // но в журнале должно быть видно, почему взят другой адрес.
+                    UpdateLog.Warn("integrity",
+                        $"{new Uri(baseUrl).Host}: HTTP {(int)response.StatusCode} для {ManifestName}");
+                    continue;
+                }
 
-                return await response.Content.ReadAsStringAsync(ct);
+                string json = await response.Content.ReadAsStringAsync(ct);
+                UpdateLog.Info("integrity",
+                    $"{ManifestName} получен с {new Uri(baseUrl).Host} " +
+                    $"({json.Length} байт за {sw.Elapsed.TotalMilliseconds:F0} мс)");
+                return json;
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
@@ -130,6 +166,8 @@ public static class ReleaseManifest
                 // Молча продолжать нельзя — отсутствие манифеста
                 // приведёт к отказу обновления, и пользователь должен
                 // узнать об этом из сообщения, а не из пустого лога.
+                UpdateLog.Warn("integrity",
+                    $"{new Uri(baseUrl).Host}: сбой за {sw.Elapsed.TotalMilliseconds:F0} мс — {ex.Message}");
             }
         }
 
@@ -139,6 +177,10 @@ public static class ReleaseManifest
     /// <summary>Адреса, на которых ищется манифест, по порядку.</summary>
     private static IEnumerable<string> ManifestBaseUrls()
     {
+        // Замерено 20.10.2026: оба адреса отдают checksums.json;
+        // jsDelivr — зеркало на случай недоступности raw.githubusercontent.
         yield return "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/";
+        yield return "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander@main/dist/";
+        yield return "https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/";
     }
 }

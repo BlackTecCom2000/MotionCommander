@@ -186,14 +186,40 @@ public partial class MainWindow : Window
     {
         try
         {
+            // Автопроверка не чаще раза в 3 часа: программа часто
+            // перезапускается (после обновления, при смене темы), и
+            // каждый запуск дёргал бы GitHub. Ручная кнопка проверки
+            // этот интервал игнорирует.
+            if (!UpdateService.IsAutoCheckDue(TimeSpan.FromHours(3)))
+            {
+                UpdateLog.Info("startup", "Автопроверка обновлений пропущена: прошло меньше 3 часов");
+                return;
+            }
+
             var updateInfo = await UpdateService.CheckForUpdatesAsync();
+
+            // Время запоминается только при успешном ответе: иначе при
+            // отсутствии сети автопроверка замолчала бы на 3 часа,
+            // хотя сеть могла появиться через минуту.
+            if (string.IsNullOrEmpty(updateInfo.ErrorMessage))
+                UpdateService.RecordAutoCheck(updateInfo.LatestVersion);
+
             if (updateInfo.IsUpdateAvailable)
             {
                 AvailableUpdateBtn.Visibility = Visibility.Visible;
                 AvailableUpdateBtn.ToolTip = $"Доступна новая версия: v{updateInfo.LatestVersion}";
+
+                // Контекст загрузки нужен, чтобы кнопка вела на тот же
+                // пакет, который был найден при проверке.
+                UpdateLog.Info("startup",
+                    $"Доступно обновление v{updateInfo.CurrentVersion} → v{updateInfo.LatestVersion} " +
+                    $"({updateInfo.PackageType})");
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            UpdateLog.Warn("startup", $"Автопроверка обновлений не удалась: {ex.Message}");
+        }
     }
 
     public AppState GetCurrentState()

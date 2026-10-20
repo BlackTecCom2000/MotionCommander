@@ -1,20 +1,23 @@
 ﻿{
-    "version":  "3.8.51",
-    "releaseDate":  "2026-10-18",
+    "version":  "3.8.52",
+    "releaseDate":  "2026-10-20",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Обновлятор: исправлен падеж быстрого патча, который ломал ЛЮБОЕ обновление (FormatException формата GUID); теперь {Guid.NewGuid():N[..8]} заменён на честные первые 8 символов N-формы",
-                      "TAJ ARENA: логотип сайта tajarena.tj теперь в карточке стартовой вкладки и в шапке окна игры",
-                      "Проверено: сборка 0 ошибок / 0 предупреждений, аудит 22 экрана без дефектов, PNG подтверждён внутри собранной сборки"
+                      "Обновлятор: снят общий 15-секундный лимит на загрузку — медленные каналы больше не обрываются. Измерено: патч 3 701 246 байт скачан за 43,9 с и сверен по SHA-256",
+                      "Загрузка: докачка с места обрыва по HTTP Range, 3 попытки на адрес, зеркало jsDelivr для манифеста и патча, отдельный сторож простоя 60 с",
+                      "Защита: пакет принимается только по HTTPS с официальных адресов, патч обязан вести в ожидаемую версию, устаревший checksums.json отличается от подмены файла",
+                      "Применение: исправлено экранирование % в путях скрипта, надёжное ожидание процесса, маркер «обновление применено» с проверкой фактической версии и честное сообщение об откате",
+                      "Диагностика: журнал update.log по всем этапам, ETA по измеренной скорости, автопроверка обновлений не чаще раза в 3 часа",
+                      "Проверено: сборка 0 ошибок / 0 предупреждений; 16/16 тестов движка, включая реальную докачку (2 запроса, Range: bytes=68266-) и медленную загрузку 16,3 с; живой канал: манифест 411 мс, патч 3 701 246 байт, SHA-256 подтверждён; 22/22 экрана"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Patch.zip",
-    "patchSizeMb":  3.53,
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Patch.zip",
+    "patchSizeMb":  3.55,
     "patchMinVersion":  "3.8.0",
-    "fullSizeMb":  38.2,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.51-Setup.exe"
+    "fullSizeMb":  38.22,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.52-Setup.exe"
 }

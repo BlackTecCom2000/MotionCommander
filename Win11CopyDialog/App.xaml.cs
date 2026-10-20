@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using Win11CopyDialog.Models;
 using Win11CopyDialog.Helpers;
+using Win11CopyDialog.Modules.UpdateEngine;
 
 namespace Win11CopyDialog;
 
@@ -27,6 +28,12 @@ public partial class App : Application
         Helpers.AppPaths.EnsureDirectories();
 
         CleanupOldFiles();
+
+        // Подтверждение обновления читается до создания окна: скрипт
+        // применения пишет маркер только после успешной замены файлов.
+        // Без этого «обновилось или откатилось» приходилось угадывать
+        // по номеру версии в заголовке.
+        _pendingUpdateMessage = ConsumeUpdateAppliedMarker();
 
         // crash.log РАНЬШЕ писался рядом с exe. В Program Files запись запрещена,
         // лог молча не создавался, а диалог утверждал, что он записан.
@@ -82,6 +89,7 @@ public partial class App : Application
             {
                 var main = new MainWindow();
                 main.Loaded += (_, _) => main.ApplyStateAndTakeover(stateFilePath, oldPid);
+                AttachUpdateAppliedNotice(main);
                 main.Show();
 
                 // Показатели запуска пишутся после первого показа окна:
@@ -493,8 +501,139 @@ public partial class App : Application
             }
             var primary = new MainWindow(startDir, initialTab);
             primary.ContentRendered += (_, _) => Helpers.StartupMetrics.Write();
+            AttachUpdateAppliedNotice(primary);
             primary.Show();
         }
+    }
+
+    /// <summary>Сообщение о применённом обновлении, ожидающее первого показа окна.</summary>
+    private static string? _pendingUpdateMessage;
+
+    /// <summary>Показывать сообщение как предупреждение, а не как успех.</summary>
+    private static bool _pendingUpdateIsWarning;
+
+    /// <summary>
+    /// Читает и удаляет маркеры, которые пишет скрипт обновления:
+    /// успешный (update_applied.txt) или отката (update_failed.txt).
+    /// </summary>
+    /// <remarks>
+    /// <para>Формат маркера: «старая_версия новая_версия» в одной строке.
+    /// Если маркер повреждён, он всё равно удаляется: иначе сообщение
+    /// появлялось бы при каждом запуске.</para>
+    ///
+    /// <para>Успех подтверждается не только маркером, но и фактической
+    /// версией запущенного файла: если скрипт записал успех, а заменены
+    /// не все файлы, пользователь узнает об этом сразу, а не будет
+    /// искать причину странного поведения.</para>
+    /// </remarks>
+    private static string? ConsumeUpdateAppliedMarker()
+    {
+        string dataDir = Helpers.AppPaths.WritableDataDirectory;
+        string appliedPath = Path.Combine(dataDir, "update_applied.txt");
+        string failedPath = Path.Combine(dataDir, "update_failed.txt");
+
+        try
+        {
+            if (File.Exists(failedPath))
+            {
+                string failedText = File.ReadAllText(failedPath).Trim();
+                File.Delete(failedPath);
+
+                string[] failedParts = failedText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                string fromFailed = failedParts.Length > 0 ? failedParts[0] : "?";
+                string toFailed = failedParts.Length > 1 ? failedParts[1] : "?";
+
+                UpdateLog.Warn("startup",
+                    $"Обновление v{fromFailed} → v{toFailed} не применено: выполнен откат");
+
+                _pendingUpdateIsWarning = true;
+                return $"Не удалось применить обновление v{toFailed}.\n\n" +
+                       $"Файлы программы не заменены, восстановлена версия v{fromFailed}. " +
+                       "Программа работает как до обновления.\n\n" +
+                       $"Причина записана в журнал:\n{UpdateLog.LogFilePath}";
+            }
+
+            if (!File.Exists(appliedPath)) return null;
+
+            string text = File.ReadAllText(appliedPath).Trim();
+            File.Delete(appliedPath);
+
+            string[] parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2)
+            {
+                UpdateLog.Warn("startup", $"Маркер обновления повреждён: «{text}»");
+                return null;
+            }
+
+            string fromVersion = parts[0];
+            string toVersion = parts[1];
+
+            // Фактическая проверка: запущенный файл должен быть уже новой
+            // версии. Маркер пишется до запуска, поэтому сам по себе он
+            // не доказывает, что все файлы действительно заменились.
+            string actualVersion = UpdateService.GetCurrentVersion();
+
+            if (toVersion == "?")
+            {
+                UpdateLog.Warn("startup",
+                    $"Обновление применено, но конечная версия не записана скриптом (запущена v{actualVersion})");
+                return $"Обновление применено (запущена версия v{actualVersion}).\n\n" +
+                       "Скрипт не записал конечную версию, поэтому подтвердить её автоматически не удалось. " +
+                       $"Журнал: {UpdateLog.LogFilePath}";
+            }
+
+            if (!VersionsEqual(actualVersion, toVersion))
+            {
+                UpdateLog.Error("startup",
+                    $"Обновление не подтвердилось: ожидалась v{toVersion}, запущена v{actualVersion}");
+                _pendingUpdateIsWarning = true;
+                return $"Обновление v{fromVersion} → v{toVersion} не подтвердилось.\n\n" +
+                       $"Запущена версия v{actualVersion}: часть файлов программы не заменилась.\n" +
+                       $"Запустите установщик v{toVersion} повторно. Журнал:\n{UpdateLog.LogFilePath}";
+            }
+
+            UpdateLog.Info("startup", $"Обновление применено и подтверждено: v{fromVersion} → v{toVersion}");
+
+            return $"Обновление применено: v{fromVersion} → v{toVersion}.\n\n" +
+                   "Все файлы программы заменены, резервная копия прошлой версии сохранена. " +
+                   "Если что-то работает не так, запустите установщик текущей версии.";
+        }
+        catch (Exception ex)
+        {
+            UpdateLog.Warn("startup", $"Не удалось прочитать маркер обновления: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static bool VersionsEqual(string left, string right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return false;
+
+        string a = UpdateService.NormalizeVersion(left);
+        string b = UpdateService.NormalizeVersion(right);
+
+        if (Version.TryParse(a, out var va) && Version.TryParse(b, out var vb))
+            return va.Major == vb.Major && va.Minor == vb.Minor && va.Build == vb.Build;
+
+        return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Показывает подтверждение обновления после первого кадра окна.</summary>
+    private static void AttachUpdateAppliedNotice(Window window)
+    {
+        if (string.IsNullOrEmpty(_pendingUpdateMessage)) return;
+
+        string message = _pendingUpdateMessage;
+        bool isWarning = _pendingUpdateIsWarning;
+        _pendingUpdateMessage = null;
+        _pendingUpdateIsWarning = false;
+
+        window.ContentRendered += (_, _) =>
+            MessageBox.Show(
+                message,
+                isWarning ? "Обновление не применено" : "Обновление установлено",
+                MessageBoxButton.OK,
+                isWarning ? MessageBoxImage.Warning : MessageBoxImage.Information);
     }
 
     /// <summary>

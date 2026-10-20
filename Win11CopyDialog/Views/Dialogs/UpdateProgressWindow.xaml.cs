@@ -14,6 +14,19 @@ public partial class UpdateProgressWindow : Window
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _fallbackDelayCts;
 
+    /// <summary>
+    /// Является ли текущая загрузка патчем.
+    /// </summary>
+    /// <remarks>
+    /// Признак берётся из <see cref="UpdateInfo.PackageType"/>, а не из
+    /// режима смены версии: режим отвечает на вопрос «выше или ниже»,
+    /// а патч — это свойство пакета. При выборе версии вручную патч мог
+    /// скачиваться как «полный пакет» и наоборот: подпись в окне и
+    /// запасной путь расходились с реально загружаемым файлом.
+    /// </remarks>
+    private bool IsPatchPackage =>
+        _updateInfo.PackageType == UpdatePackageType.Patch && _updateInfo.HasPatch;
+
     public UpdateProgressWindow(UpdateInfo updateInfo)
     {
         InitializeComponent();
@@ -21,7 +34,7 @@ public partial class UpdateProgressWindow : Window
 
         VersionTransitionText.Text = $"v{updateInfo.CurrentVersion} ➔ v{updateInfo.LatestVersion}";
 
-        bool isPatch = updateInfo.SwitchMode == VersionSwitchMode.Upgrade;
+        bool isPatch = IsPatchPackage;
         if (isPatch)
         {
             PackageBadgeText.Text = "⚡ Быстрый патч";
@@ -42,7 +55,12 @@ public partial class UpdateProgressWindow : Window
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _cts = new CancellationTokenSource();
-        bool isPatch = _updateInfo.SwitchMode == VersionSwitchMode.Upgrade;
+        bool isPatch = IsPatchPackage;
+
+        string packageLabel = isPatch ? "патч" : "полный пакет";
+        UpdateLog.Info("ui",
+            $"Обновление v{_updateInfo.CurrentVersion} → v{_updateInfo.LatestVersion}: " +
+            $"{packageLabel}, режим {_updateInfo.SwitchMode}");
 
         var progress = new Progress<(long bytesRead, long totalBytes, int percent, double speedMBps)>(p =>
         {
@@ -50,8 +68,20 @@ public partial class UpdateProgressWindow : Window
             PercentText.Text = $"{p.percent}%";
             double downloadedMb = p.bytesRead / (1024.0 * 1024.0);
             double totalMb = p.totalBytes > 0 ? p.totalBytes / (1024.0 * 1024.0) : 0;
+
+            // Остаток считается по ИЗМЕРЕННОЙ скорости текущей сессии,
+            // а не по предполагаемой скорости канала: только такая оценка
+            // не врёт, когда канал просел или загрузка возобновилась.
+            string etaText = "";
+            if (totalMb > 0 && p.speedMBps > 0.01)
+            {
+                double remainingMb = Math.Max(0, totalMb - downloadedMb);
+                int etaSeconds = (int)Math.Ceiling(remainingMb / p.speedMBps);
+                etaText = $" · осталось ~{FormatDuration(etaSeconds)}";
+            }
+
             DownloadStatsText.Text = totalMb > 0
-                ? $"{downloadedMb:F1} / {totalMb:F1} МБ ({p.speedMBps:F1} МБ/с)"
+                ? $"{downloadedMb:F1} / {totalMb:F1} МБ ({p.speedMBps:F1} МБ/с){etaText}"
                 : $"{downloadedMb:F1} МБ ({p.speedMBps:F1} МБ/с)";
             StatusText.Text = isPatch
                 ? $"Загрузка патча: {downloadedMb:F1} МБ из {totalMb:F1} МБ..."
@@ -98,7 +128,8 @@ public partial class UpdateProgressWindow : Window
                 PercentText.Visibility = Visibility.Collapsed;
                 CancelBtn.IsEnabled = false;
 
-                stagingDir = await UpdateService.PrepareStagingAsync(downloadedFile, _cts.Token);
+                stagingDir = await UpdateService.PrepareStagingAsync(
+                    downloadedFile, _cts.Token, _updateInfo.LatestVersion);
 
                 // Когда загрузилось и распаковано — программа закрывается и обновляется поверх файлов
                 StatusText.Text = isPatch 
@@ -145,6 +176,8 @@ public partial class UpdateProgressWindow : Window
                 FallbackPackageSizeText.Text = $"Размер полного архива: ~{fullSizeMb:F1} МБ. Файлы программы сохранены без изменений.";
                 DownloadFullBtn.Content = $"📦 Скачать полный пакет (~{fullSizeMb:F1} МБ)";
 
+                UpdateLog.Warn("ui", $"Патч не применён, переход к полному пакету: {userReason}");
+
                 FallbackNoticeCard.Visibility = Visibility.Visible;
                 StatusText.Text = "Переход к загрузке полной программы...";
                 UpdateProgressBar.IsIndeterminate = false;
@@ -173,13 +206,29 @@ public partial class UpdateProgressWindow : Window
             }
             catch (Exception ex) when (!_cts.IsCancellationRequested)
             {
+                UpdateLog.Error("ui", $"Обновление не выполнено: {ex}");
                 MessageBox.Show(
-                    $"Не удалось выполнить обновление программы:\n{ex.Message}\n\nТекущая установленная версия программы не была затронута и продолжает работать.", 
+                    $"Не удалось выполнить обновление программы:\n{ex.Message}\n\nТекущая установленная версия программы не была затронута и продолжает работать.\n\n" +
+                    $"Подробный журнал обновления:\n{UpdateLog.LogFilePath}", 
                     "Ошибка обновления", MessageBoxButton.OK, MessageBoxImage.Error);
                 this.Close();
                 return;
             }
         }
+    }
+
+    /// <summary>Длительность в человекочитаемом виде для оценки остатка.</summary>
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds < 60) return $"{seconds} с";
+
+        int minutes = seconds / 60;
+        int restSeconds = seconds % 60;
+        if (minutes < 60) return restSeconds > 0 ? $"{minutes} мин {restSeconds} с" : $"{minutes} мин";
+
+        int hours = minutes / 60;
+        int restMinutes = minutes % 60;
+        return restMinutes > 0 ? $"{hours} ч {restMinutes} мин" : $"{hours} ч";
     }
 
     private void RetryPatchBtn_Click(object sender, RoutedEventArgs e)

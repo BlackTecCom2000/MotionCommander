@@ -129,18 +129,58 @@ public sealed class UpdateInfo
 
 public static class UpdateService
 {
+    /// <summary>Клиент для небольших запросов (манифест, GitHub API).</summary>
     private static readonly HttpClient _httpClient = new()
     {
-        Timeout = TimeSpan.FromSeconds(15)
+        Timeout = TimeSpan.FromSeconds(30)
+    };
+
+    /// <summary>
+    /// Клиент для скачивания пакетов обновления. Timeout бесконечный осознанно:
+    /// HttpClient.Timeout действует на ВСЮ операцию, включая чтение тела ответа,
+    /// поэтому прежние 15 секунд обрывали загрузку 38 МБ на каналах медленнее
+    /// ~20 Мбит/с (а патч 3.5 МБ — медленнее ~1.9 Мбит/с) невнятным
+    /// TaskCanceledException. Зависшее соединение теперь ловится отдельным
+    /// сторожевым таймером простоя (60 с без единого байта), а не общим
+    /// лимитом на весь файл.
+    /// </summary>
+    private static readonly HttpClient _downloadClient = new()
+    {
+        Timeout = Timeout.InfiniteTimeSpan
     };
 
     public const string ManifestUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/version.json";
     public const string GitHubReleasesUrl = "https://api.github.com/repos/BlackTecCom2000/MotionCommander/releases/latest";
     public const string GitHubRepoUrl = "https://github.com/BlackTecCom2000/MotionCommander";
 
+    private const string RawBaseUrl = "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/";
+    private const string JsDelivrBaseUrl = "https://cdn.jsdelivr.net/gh/BlackTecCom2000/MotionCommander@main/";
+    private const int DownloadAttemptsPerMirror = 3;
+    private const int IdleTimeoutSeconds = 60;
+
+    /// <summary>
+    /// Адреса, с которых разрешено скачивать пакеты обновления.
+    /// </summary>
+    /// <remarks>
+    /// version.json приходит из того же репозитория, но проверка хоста
+    /// всё равно нужна: опечатка в манифесте иначе приводит к загрузке
+    /// с постороннего сервера и непонятной ошибке, а подменённый
+    /// манифест — к загрузке с произвольного адреса. Список совпадает
+    /// с реально используемыми источниками: raw.githubusercontent,
+    /// github.com/raw, зеркало jsDelivr и объекты GitHub Releases.
+    /// </remarks>
+    private static readonly HashSet<string> TrustedDownloadHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "raw.githubusercontent.com",
+        "github.com",
+        "cdn.jsdelivr.net",
+        "objects.githubusercontent.com"
+    };
+
     static UpdateService()
     {
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "MotionCommander-AutoUpdater");
+        _downloadClient.DefaultRequestHeaders.Add("User-Agent", "MotionCommander-AutoUpdater");
     }
 
     public static string GetCurrentVersion()
@@ -168,9 +208,11 @@ public static class UpdateService
 
         try
         {
-            // 1. Попытка чтения Manifest URL (быстро, с cache_bypass для мгновенной отдачи после push в репозиторий)
-            string urlWithBypass = $"{ManifestUrl}?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
-            string json = await _httpClient.GetStringAsync(urlWithBypass, ct);
+            // 1. Манифест: raw.githubusercontent, затем зеркало jsDelivr
+            //    (в части регионов raw.githubusercontent недоступен или
+            //    медленный). Замеры 20.10.2026: оба адреса отдают
+            //    version.json; основной путь — raw, зеркало — при сбое.
+            string json = await FetchManifestJsonAsync(ct);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -241,10 +283,16 @@ public static class UpdateService
                 ? UpdatePackageType.Patch
                 : UpdatePackageType.FullPackage;
 
+            UpdateLog.Info("check",
+                $"Установлена v{currentVerStr}, доступна v{info.LatestVersion}; " +
+                $"обновление={info.IsUpdateAvailable}; пакет={info.PackageType}; " +
+                $"патч={info.PatchSizeMb:F1} МБ; полный={info.FullSizeMb:F1} МБ");
+
             return info;
         }
         catch (Exception ex)
         {
+            UpdateLog.Warn("check", $"Манифест недоступен ({ex.Message}); пробую GitHub Releases API");
             // 2. Fallback: Запрос к официальному GitHub Releases API
             try
             {
@@ -297,6 +345,7 @@ public static class UpdateService
             catch { }
 
             info.ErrorMessage = ex.Message;
+            UpdateLog.Error("check", $"Проверка обновлений невозможна: {ex.Message}");
             return info;
         }
     }
@@ -427,7 +476,13 @@ public static class UpdateService
                             TagName = tagName,
                             Name = $"Motion Commander {tagName}",
                             DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Portable.zip",
-                            SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Setup.exe",
+                            // Инсталлятор появился в dist начиная с 3.8.2.
+                            // Для более старых тегов ссылка не строится:
+                            // иначе пользователь получал бы 404 на кнопке
+                            // «скачать установщик».
+                            SetupExeUrl = CompareVersions(verNum, "3.8.2") >= 0
+                                ? $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Setup.exe"
+                                : "",
                             Body = $"Релиз Motion Commander {tagName}. Совместим со встроенным обновлением и откатом."
                         };
 
@@ -454,14 +509,27 @@ public static class UpdateService
             foreach (var v in fallbackVersions)
             {
                 int cmp = CompareVersions(v, currentVer);
+
+                // Состав каталога dist проверен по факту: Patch.zip
+                // публикуется начиная с 3.8.5, Setup.exe — с 3.8.2,
+                // Portable.zip — для всех перечисленных версий.
+                // Ссылки на несуществующие файлы не строятся: оффлайн-
+                // список не должен предлагать заведомый 404.
+                bool hasPatch = CompareVersions(v, "3.8.5") >= 0;
+                bool hasSetup = CompareVersions(v, "3.8.2") >= 0;
+
                 list.Add(new ReleaseVersionItem
                 {
                     Version = v,
                     TagName = $"v{v}",
                     Name = $"Motion Commander v{v}",
-                    PatchUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Patch.zip",
+                    PatchUrl = hasPatch
+                        ? $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Patch.zip"
+                        : "",
                     DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Portable.zip",
-                    SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Setup.exe",
+                    SetupExeUrl = hasSetup
+                        ? $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{v}-Setup.exe"
+                        : "",
                     Body = $"Релиз v{v} из дистрибутивов Motion Commander.",
                     IsCurrent = cmp == 0,
                     IsUpgrade = cmp > 0,
@@ -476,6 +544,20 @@ public static class UpdateService
         return list;
     }
 
+    /// <summary>
+    /// Скачивает пакет обновления с повторами, докачкой с места обрыва и
+    /// зеркалами. Контрольная сумма сверяется до распаковки и запуска.
+    /// </summary>
+    /// <remarks>
+    /// <para>Поведение проверено реальными запросами 20.10.2026:
+    /// raw.githubusercontent и cdn.jsdelivr.net поддерживают Range
+    /// (HTTP 206), поэтому прерванная загрузка продолжается с места
+    /// обрыва, а не начинается с нуля.</para>
+    ///
+    /// <para>Зеркало jsDelivr отдаёт файлы до 20 МБ: Portable.zip (38 МБ)
+    /// получает 404, Setup.exe (21.7 МБ) — 403. Поэтому зеркало
+    /// добавляется только для файлов, которые оно реально обслуживает.</para>
+    /// </remarks>
     public static async Task<string> DownloadUpdateAsync(
         string downloadUrl, 
         IProgress<(long bytesRead, long totalBytes, int percent, double speedMBps)>? progress = null, 
@@ -486,63 +568,376 @@ public static class UpdateService
 
         string tempFolder = Path.Combine(Path.GetTempPath(), "MotionCommander-Update");
         Directory.CreateDirectory(tempFolder);
+        CleanStaleTempFiles(tempFolder);
 
-        string originalFileName = Path.GetFileName(new Uri(downloadUrl).LocalPath);
+        var sourceUri = new Uri(downloadUrl);
+        ValidateDownloadHost(sourceUri);
+
+        string originalFileName = Path.GetFileName(sourceUri.LocalPath);
         if (string.IsNullOrEmpty(originalFileName)) originalFileName = "MotionCommander-Update.zip";
         string targetFilePath = Path.Combine(tempFolder, originalFileName);
 
-        // Уникальный временный файл (.part) изолирует процесс загрузки от внешних блокировок и остаточных файлов
+        // Уникальный временный файл (.part) изолирует процесс загрузки от внешних блокировок и остаточных файлов.
         // ВАЖНО: нельзя писать {Guid.NewGuid():N[..8]} — «N[..8]» уходит в Guid.ToString(format)
-        // и всегда бросает FormatException("Format string can be only ..."). Так и происходит:
-        // первый полный снимок быстрого патча у пользователей падал всегда.
+        // и всегда бросает FormatException("Format string can be only ...").
         // Берём первые 8 символов N-формы после форматирования.
         string uniquePartPath = Path.Combine(tempFolder, $"{originalFileName}.{Guid.NewGuid().ToString("N")[..8]}.part");
 
-        using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
+        var mirrors = GetMirrorCandidates(downloadUrl);
+        UpdateLog.Info("download", $"Файл {originalFileName}; адресов-кандидатов: {mirrors.Count}");
 
-        long totalBytes = response.Content.Headers.ContentLength ?? -1L;
-        string calculatedSha256;
+        Exception? lastError = null;
+        Exception? lastIntegrityError = null;
+        var totalStopwatch = Stopwatch.StartNew();
 
-        using (var sha = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256))
+        foreach (string candidate in mirrors)
         {
-            await using (var contentStream = await response.Content.ReadAsStreamAsync(ct))
-            await using (var fileStream = new FileStream(uniquePartPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            string host;
+            try { host = new Uri(candidate).Host; } catch { host = candidate; }
+
+            for (int attempt = 1; attempt <= DownloadAttemptsPerMirror; attempt++)
             {
-                byte[] buffer = new byte[81920];
-                long totalBytesRead = 0;
-                int bytesRead;
-                var sw = Stopwatch.StartNew();
-
-                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+                ct.ThrowIfCancellationRequested();
+                var attemptStopwatch = Stopwatch.StartNew();
+                try
                 {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                    sha.AppendData(buffer, 0, bytesRead);
-                    totalBytesRead += bytesRead;
+                    await DownloadFileOnceAsync(candidate, uniquePartPath, progress, ct);
 
-                    if (progress != null)
-                    {
-                        int percent = totalBytes > 0 ? (int)((totalBytesRead * 100) / totalBytes) : 0;
-                        double speed = sw.Elapsed.TotalSeconds > 0 ? (totalBytesRead / (1024.0 * 1024.0)) / sw.Elapsed.TotalSeconds : 0;
-                        progress.Report((totalBytesRead, totalBytes, percent, speed));
-                    }
+                    // Потоки записи закрыты и освобождены.
+                    // Целостность проверяется ДО распаковки и запуска.
+                    string calculatedSha256 = await ComputeFileSha256WithRetryAsync(uniquePartPath, ct);
+                    await VerifyIntegrityAsync(uniquePartPath, originalFileName, calculatedSha256, ct);
+
+                    // Безопасное повышение временного файла до целевого пути с повторными попытками.
+                    // Если целевой файл заблокирован другим процессом (антивирусом или Проводником),
+                    // возвращаем проверенный путь .part напрямую, чтобы не прерывать обновление.
+                    string finalPath = await SafePromoteDownloadedFileAsync(uniquePartPath, targetFilePath, ct);
+
+                    UpdateLog.Info("download",
+                        $"Загрузка завершена за {totalStopwatch.Elapsed.TotalSeconds:F1} с " +
+                        $"({host}, попытка {attempt}); SHA-256 подтверждён");
+                    return finalPath;
                 }
+                catch (OperationCanceledException)
+                {
+                    UpdateLog.Warn("download", "Загрузка отменена пользователем");
+                    throw;
+                }
+                catch (UpdateIntegrityException ex)
+                {
+                    // Содержимое не совпало с манифестом. Повторять с этого же
+                    // зеркала бессмысленно; пробуем следующее, но если и там
+                    // расхождение — пользователь увидит именно причину.
+                    lastIntegrityError = ex;
+                    UpdateLog.Error("download", $"Проверка SHA-256 не прошла ({host}): {ex.Message}");
+                    TryDelete(uniquePartPath);
+                    break;
+                }
+                catch (Exception ex) when (ex is HttpRequestException or IOException)
+                {
+                    lastError = ex;
+                    UpdateLog.Warn("download",
+                        $"Попытка {attempt} из {DownloadAttemptsPerMirror} ({host}) " +
+                        $"провалилась за {attemptStopwatch.Elapsed.TotalSeconds:F1} с: {ex.Message}");
 
-                await fileStream.FlushAsync(ct);
+                    if (attempt < DownloadAttemptsPerMirror)
+                        await Task.Delay(500 * attempt, ct);
+                }
             }
-
-            calculatedSha256 = Convert.ToHexString(sha.GetHashAndReset());
         }
 
-        // Потоки записи закрыты и освобождены.
-        // Целостность проверяется ДО распаковки и запуска.
-        await VerifyIntegrityAsync(uniquePartPath, originalFileName, calculatedSha256, ct);
+        TryDelete(uniquePartPath);
 
-        // Безопасное повышение временного файла до целевого пути с повторными попытками.
-        // Если целевой файл заблокирован другим процессом (например, антивирусом или Проводником),
-        // возвращаем проверенный путь .part напрямую, чтобы не прерывать обновление.
-        string finalPath = await SafePromoteDownloadedFileAsync(uniquePartPath, targetFilePath, ct);
-        return finalPath;
+        if (lastIntegrityError != null)
+            throw lastIntegrityError;
+
+        throw new IOException(
+            $"Не удалось скачать обновление ни с одного из {mirrors.Count} адресов " +
+            $"(попыток на адрес: {DownloadAttemptsPerMirror}). " +
+            $"Последняя ошибка: {lastError?.Message ?? "неизвестна"}",
+            lastError);
+    }
+
+    public static bool IsTrustedDownloadUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (uri.IsLoopback) return true;
+        return uri.Scheme == Uri.UriSchemeHttps && TrustedDownloadHosts.Contains(uri.Host);
+    }
+
+    /// <summary>
+    /// Проверяет, что пакет скачивается по HTTPS с адреса проекта.
+    /// </summary>
+    /// <remarks>
+    /// Исключение для loopback нужно локальным тестам и оффлайн-зеркалам:
+    /// это не сетевой адрес, и подменить им официальный источник нельзя.
+    /// </remarks>
+    private static void ValidateDownloadHost(Uri uri)
+    {
+        if (uri.IsLoopback) return;
+
+        if (uri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new IOException(
+                $"Обновление можно скачать только по HTTPS, а ссылка использует «{uri.Scheme}». " +
+                "Загрузка отменена.");
+        }
+
+        if (!TrustedDownloadHosts.Contains(uri.Host))
+        {
+            throw new IOException(
+                $"Ссылка на обновление указывает на неизвестный сервер «{uri.Host}». " +
+                "Загрузка отменена: пакет должен приходить только с официальных " +
+                "адресов проекта.");
+        }
+
+        UpdateLog.Info("download", $"Источник обновления: {uri.Host}{uri.AbsolutePath}");
+    }
+
+    /// <summary>Скачивает файл за один заход, продолжая .part через HTTP Range.</summary>
+    private static async Task DownloadFileOnceAsync(
+        string url,
+        string partPath,
+        IProgress<(long bytesRead, long totalBytes, int percent, double speedMBps)>? progress,
+        CancellationToken ct)
+    {
+        long existingBytes = 0;
+        try
+        {
+            if (File.Exists(partPath)) existingBytes = new FileInfo(partPath).Length;
+        }
+        catch
+        {
+            existingBytes = 0;
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        if (existingBytes > 0)
+            request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(existingBytes, null);
+
+        using var response = await _downloadClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+        {
+            // .part длиннее файла на сервере (например, файл перезалили):
+            // начинаем заново, следующий заход скачает всё.
+            TryDelete(partPath);
+            throw new IOException("Сервер отклонил продолжение загрузки (HTTP 416); файл будет скачан заново.");
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        bool resumed = response.StatusCode == System.Net.HttpStatusCode.PartialContent && existingBytes > 0;
+        if (!resumed) existingBytes = 0; // сервер отдал полный файл — пишем с нуля
+
+        long totalBytes = -1;
+        if (resumed && response.Content.Headers.ContentRange?.Length is long rangeTotal)
+            totalBytes = rangeTotal;
+        else if (response.Content.Headers.ContentLength is long contentLength)
+            totalBytes = contentLength;
+
+        if (resumed)
+            UpdateLog.Info("download", $"Продолжение загрузки с {existingBytes} байт");
+
+        await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+        await using var fileStream = new FileStream(
+            partPath,
+            resumed ? FileMode.Append : FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            81920,
+            true);
+
+        byte[] buffer = new byte[81920];
+        long received = existingBytes;
+        var sessionWatch = Stopwatch.StartNew();
+
+        using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        while (true)
+        {
+            // Сторож простоя: 60 секунд без единого байта — это мёртвое
+            // соединение, а не медленный канал. Общего лимита на файл нет.
+            idleCts.CancelAfter(TimeSpan.FromSeconds(IdleTimeoutSeconds));
+
+            int bytesRead;
+            try
+            {
+                bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, idleCts.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new IOException(
+                    $"Соединение не передаёт данные более {IdleTimeoutSeconds} секунд; " +
+                    "следующая попытка продолжит загрузку с того же места.");
+            }
+
+            if (bytesRead <= 0) break;
+
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+            received += bytesRead;
+
+            if (progress != null)
+            {
+                double seconds = sessionWatch.Elapsed.TotalSeconds;
+                double sessionBytes = received - existingBytes;
+                double speed = seconds > 0 ? (sessionBytes / (1024.0 * 1024.0)) / seconds : 0;
+                int percent = totalBytes > 0
+                    ? (int)Math.Min(100, received * 100.0 / totalBytes)
+                    : 0;
+                progress.Report((received, totalBytes, percent, speed));
+            }
+        }
+
+        await fileStream.FlushAsync(ct);
+
+        if (totalBytes > 0 && received < totalBytes)
+            throw new IOException(
+                $"Соединение закрылось до конца файла: получено {received} из {totalBytes} байт. " +
+                "Следующая попытка продолжит загрузку с того же места.");
+    }
+
+    /// <summary>
+    /// Список адресов для загрузки: основной, затем зеркала, которые
+    /// реально отдают этот файл.
+    /// </summary>
+    public static IReadOnlyList<string> GetMirrorCandidates(string url)
+    {
+        var list = new List<string>();
+        if (string.IsNullOrWhiteSpace(url)) return list;
+
+        list.Add(url);
+
+        if (!url.StartsWith(RawBaseUrl, StringComparison.OrdinalIgnoreCase))
+            return list;
+
+        string relative = url[RawBaseUrl.Length..];
+
+        // Замерено 20.10.2026: jsDelivr отдаёт файлы до 20 МБ.
+        // Portable.zip (38 МБ) -> HTTP 404, Setup.exe (21.7 МБ) -> HTTP 403.
+        bool tooLargeForJsDelivr =
+            relative.EndsWith("-Portable.zip", StringComparison.OrdinalIgnoreCase) ||
+            relative.EndsWith("-Setup.exe", StringComparison.OrdinalIgnoreCase);
+
+        if (!tooLargeForJsDelivr)
+            list.Add($"{JsDelivrBaseUrl}{relative}");
+
+        // Тот же файл через github.com/raw: другой хост, другая блокировка,
+        // тот же коммит main.
+        list.Add($"{GitHubRepoUrl}/raw/main/{relative}");
+
+        return list;
+    }
+
+    /// <summary>Адреса манифеста version.json по порядку.</summary>
+    public static IReadOnlyList<string> GetManifestCandidates() => new[]
+    {
+        ManifestUrl,
+        $"{JsDelivrBaseUrl}version.json"
+    };
+
+    /// <summary>Читает version.json с основного адреса или зеркала, с журналом попыток.</summary>
+    private static async Task<string> FetchManifestJsonAsync(CancellationToken ct)
+    {
+        Exception? lastError = null;
+        foreach (string candidate in GetManifestCandidates())
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                string urlWithBypass = $"{candidate}?cache_bypass={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                string json = await _httpClient.GetStringAsync(urlWithBypass, ct);
+                UpdateLog.Info("manifest",
+                    $"{new Uri(candidate).Host}: {json.Length} байт за {sw.Elapsed.TotalMilliseconds:F0} мс");
+                return json;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                lastError = ex;
+                UpdateLog.Warn("manifest",
+                    $"{new Uri(candidate).Host}: сбой за {sw.Elapsed.TotalMilliseconds:F0} мс — {ex.Message}");
+            }
+        }
+
+        throw lastError ?? new IOException("Ни один адрес манифеста не ответил.");
+    }
+
+    /// <summary>Удаляет старые .part и архивы прошлых обновлений (старше 7 дней).</summary>
+    private static void CleanStaleTempFiles(string tempFolder)
+    {
+        try
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-7);
+            foreach (string file in Directory.EnumerateFiles(tempFolder))
+            {
+                try
+                {
+                    var info = new FileInfo(file);
+                    bool ours = file.EndsWith(".part", StringComparison.OrdinalIgnoreCase) ||
+                                Path.GetFileName(file).StartsWith("MotionCommander-", StringComparison.OrdinalIgnoreCase);
+                    if (ours && info.LastWriteTimeUtc < cutoff)
+                        info.Delete();
+                }
+                catch
+                {
+                    // Файл занят другим процессом — пропускаем, это не ошибка обновления.
+                }
+            }
+        }
+        catch
+        {
+            // Каталог недоступен — чистка не является условием обновления.
+        }
+    }
+
+    /// <summary>Версия из имени файла вида MotionCommander-v3.8.52-Patch.zip.</summary>
+    internal static string? TryExtractVersionFromFileName(string fileName)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(
+            fileName ?? string.Empty,
+            @"MotionCommander-v([0-9]+(?:\.[0-9]+){1,3})-",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    /// <summary>Проверка автообновления не чаще заданного интервала.</summary>
+    public static bool IsAutoCheckDue(TimeSpan interval)
+    {
+        try
+        {
+            string path = Path.Combine(AppPaths.WritableDataDirectory, "update_check.json");
+            if (!File.Exists(path)) return true;
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("lastCheckUtc", out var lastProp)) return true;
+            if (!DateTime.TryParse(lastProp.GetString(), null,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var last)) return true;
+
+            return DateTime.UtcNow - last >= interval;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    /// <summary>Запоминает время успешной проверки обновлений.</summary>
+    public static void RecordAutoCheck(string latestVersion)
+    {
+        try
+        {
+            string path = Path.Combine(AppPaths.WritableDataDirectory, "update_check.json");
+            Directory.CreateDirectory(AppPaths.WritableDataDirectory);
+            var payload = new Dictionary<string, string>
+            {
+                ["lastCheckUtc"] = DateTime.UtcNow.ToString("O"),
+                ["latestVersion"] = latestVersion ?? ""
+            };
+            File.WriteAllText(path, JsonSerializer.Serialize(payload));
+        }
+        catch
+        {
+            // Не критично для обновления.
+        }
     }
 
     private static async Task<string> SafePromoteDownloadedFileAsync(string partPath, string targetPath, CancellationToken ct)
@@ -582,7 +977,11 @@ public static class UpdateService
         string? precalculatedHash, 
         CancellationToken ct)
     {
-        string expected = await ReleaseManifest.GetSha256ForAsync(originalFileName, ct);
+        // Версия из имени файла (MotionCommander-v3.8.52-Patch.zip) позволяет
+        // отличить «файл повреждён» от «манифест устарел»: устаревший
+        // checksums.json с CDN иначе выглядел бы как подмена содержимого.
+        string? expectedVersion = TryExtractVersionFromFileName(originalFileName);
+        string expected = await ReleaseManifest.GetSha256ForAsync(originalFileName, ct, expectedVersion);
 
         if (string.IsNullOrEmpty(expected))
         {
@@ -661,9 +1060,13 @@ public static class UpdateService
     /// Распаковывает обновление во ВРЕМЕННЫЙ КАТАЛОГ ДАННЫХ, а не рядом с
     /// программой.
     /// </summary>
-    public static async Task<string> PrepareStagingAsync(string zipPath, CancellationToken ct = default)
+    public static async Task<string> PrepareStagingAsync(
+        string zipPath,
+        CancellationToken ct = default,
+        string? expectedTargetVersion = null)
     {
         string stagingDir = AppPaths.StagingDirectory;
+        UpdateLog.Info("staging", $"Распаковка {Path.GetFileName(zipPath)} в {stagingDir}");
 
         try
         {
@@ -735,6 +1138,22 @@ public static class UpdateService
                         "Патч не подходит к текущей версии; требуется загрузка полного установочного пакета.",
                         currentVer, targetVer, minVer);
                 }
+
+                // Патч обязан вести именно в ту версию, которую показал
+                // манифест. Без этой проверки устаревший или чужой патч
+                // мог молча «откатить» приложение в другую версию.
+                if (!string.IsNullOrWhiteSpace(expectedTargetVersion) &&
+                    !string.IsNullOrWhiteSpace(targetVer) &&
+                    CompareVersions(targetVer, expectedTargetVersion) != 0)
+                {
+                    throw new PatchIncompatibleException(
+                        $"Патч ведёт в версию v{targetVer}, а ожидается v{expectedTargetVersion}. " +
+                        "Скачался патч от другой версии; требуется полный установочный пакет.",
+                        currentVer, targetVer, minVer);
+                }
+
+                UpdateLog.Info("staging",
+                    $"Манифест патча: minCompatibleVersion={minVer}, targetVersion={targetVer}, установлена v{currentVer}");
             }
             catch (PatchIncompatibleException)
             {
@@ -833,13 +1252,36 @@ public static class UpdateService
         PruneOldBackups(backupRoot, maxToKeep: 3);
 
         string currentVer = GetCurrentVersion();
+        string targetVersion = TryReadTargetVersion(stagingFolder);
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         string backupFolder = Path.Combine(backupRoot, $"backup_v{currentVer}_{timestamp}");
 
+        // Нужно ли повышение привилегий: проверяется реальной записью
+        // рядом с программой, а не предположением о пути установки.
+        bool needsElevation = !IsDirectoryWritable(currentDir);
+
+        // Маркер успешного применения: обновлённая версия при следующем
+        // запуске сообщит «обновление применено» и удалит маркер.
+        string markerPath = Path.Combine(AppPaths.WritableDataDirectory, "update_applied.txt");
+        // Парный маркер отказа: если скрипт откатился, пользователь узнает
+        // об этом при следующем запуске, а не по «версия не изменилась».
+        string failedMarkerPath = Path.Combine(AppPaths.WritableDataDirectory, "update_failed.txt");
+        string updateLogPath = UpdateLog.LogFilePath;
+
+        UpdateLog.Info("apply",
+            $"Применение v{currentVer} → v{targetVersion}: файлов {files.Length}, " +
+            $"резервная копия {backupFolder}, повышение прав: {(needsElevation ? "да" : "нет")}");
+
         // Скрипт запускается ПОСЛЕ выхода процесса: так снимаются все
-        // блокировки на собственные исполняемые файлы.
-        string batPath = Path.Combine(AppPaths.StagingDirectory, "mc_update.bat");
+        // блокировки на собственные исполняемые файлы. Лежит в каталоге
+        // данных, а не в staging: staging удаляется целиком.
+        string batPath = Path.Combine(AppPaths.WritableDataDirectory, "mc_update.bat");
         int currentPid = Environment.ProcessId;
+
+        // Внутри кавычек cmd всё равно раскрывает %VAR%; профиль
+        // пользователя может содержать %, поэтому каждый путь
+        // экранируется удвоением (см. EscapeBatchPath). Без этого
+        // скрипт молча ломался.
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("@echo off");
@@ -847,6 +1289,7 @@ public static class UpdateService
         sb.AppendLine("echo ========================================================");
         sb.AppendLine("echo   Motion Commander — Seamless Update Engine");
         sb.AppendLine("echo ========================================================");
+        sb.AppendLine($"echo [%DATE% %TIME%] [bat] Update started v{currentVer} -^> v{targetVersion} >> \"{EscapeBatchPath(updateLogPath)}\"");
         sb.AppendLine("echo Waiting for Motion Commander to close...");
 
         // Проверка живого процесса по CSV-выводу tasklist.
@@ -854,7 +1297,7 @@ public static class UpdateService
         // чтобы блокировка исполняемых файлов не сорвала обновление.
         sb.AppendLine("set wait_count=0");
         sb.AppendLine(":waitloop");
-        sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" /NH /FO CSV 2>NUL | findstr /C:\"\"{currentPid}\"\" >NUL");
+        sb.AppendLine($"tasklist /FI \"PID eq {currentPid}\" /NH /FO CSV 2>NUL | findstr /C:\"{currentPid}\" >NUL");
         sb.AppendLine("if \"%ERRORLEVEL%\"==\"0\" (");
         sb.AppendLine("    set /a wait_count+=1");
         sb.AppendLine($"    if %wait_count% geq 5 (taskkill /F /PID {currentPid} >nul 2>&1)");
@@ -868,8 +1311,8 @@ public static class UpdateService
 
         // Шаг 1: Создание резервной копии файлов перед заменой (для отката)
         sb.AppendLine("echo [1/3] Creating rollback backup of existing files...");
-        sb.AppendLine($"if not exist \"{backupFolder}\" mkdir \"{backupFolder}\"");
-        sb.AppendLine($"echo Backup v{currentVer} created on %DATE% %TIME% > \"{Path.Combine(backupFolder, "backup_info.txt")}\"");
+        sb.AppendLine($"if not exist \"{EscapeBatchPath(backupFolder)}\" mkdir \"{EscapeBatchPath(backupFolder)}\"");
+        sb.AppendLine($"echo Backup v{currentVer} created on %DATE% %TIME% > \"{EscapeBatchPath(Path.Combine(backupFolder, "backup_info.txt"))}\"");
 
         foreach (var file in files)
         {
@@ -878,9 +1321,9 @@ public static class UpdateService
             string backupDest = Path.Combine(backupFolder, relative);
             string backupDestDir = Path.GetDirectoryName(backupDest) ?? backupFolder;
 
-            sb.AppendLine($"if exist \"{dest}\" (");
-            sb.AppendLine($"    if not exist \"{backupDestDir}\" mkdir \"{backupDestDir}\"");
-            sb.AppendLine($"    copy /Y \"{dest}\" \"{backupDest}\" >nul");
+            sb.AppendLine($"if exist \"{EscapeBatchPath(dest)}\" (");
+            sb.AppendLine($"    if not exist \"{EscapeBatchPath(backupDestDir)}\" mkdir \"{EscapeBatchPath(backupDestDir)}\"");
+            sb.AppendLine($"    copy /Y \"{EscapeBatchPath(dest)}\" \"{EscapeBatchPath(backupDest)}\" >nul");
             sb.AppendLine(")");
         }
 
@@ -891,18 +1334,21 @@ public static class UpdateService
             string relative = file[(stagingFolder.Length + 1)..];
             string dest = Path.Combine(currentDir, relative);
             string destDir = Path.GetDirectoryName(dest) ?? currentDir;
-            sb.AppendLine($"if not exist \"{destDir}\" mkdir \"{destDir}\"");
-            sb.AppendLine($"call :safe_copy \"{file}\" \"{dest}\"");
+            sb.AppendLine($"if not exist \"{EscapeBatchPath(destDir)}\" mkdir \"{EscapeBatchPath(destDir)}\"");
+            sb.AppendLine($"call :safe_copy \"{EscapeBatchPath(file)}\" \"{EscapeBatchPath(dest)}\"");
             sb.AppendLine("if errorlevel 1 (");
-            sb.AppendLine($"    echo ERROR: Failed to replace {relative}. Triggering rollback!");
+            sb.AppendLine($"    echo [%DATE% %TIME%] [bat] ERROR: failed to replace {relative} >> \"{EscapeBatchPath(updateLogPath)}\"");
             sb.AppendLine("    goto rollback");
             sb.AppendLine(")");
         }
 
-        // Шаг 3: Успешный запуск и очистка
+        // Шаг 3: маркер успеха и запуск обновлённой программы
         sb.AppendLine("echo [3/3] Update applied successfully. Starting updated application...");
-        sb.AppendLine($"start \"\" \"{exePath}\" --seamless-update \"{stateFilePath}\"");
-        sb.AppendLine($"rd /s /q \"{stagingFolder}\" 2>nul");
+        sb.AppendLine($"if exist \"{EscapeBatchPath(failedMarkerPath)}\" del /f /q \"{EscapeBatchPath(failedMarkerPath)}\" 2>nul");
+        sb.AppendLine($"echo {currentVer} {targetVersion} > \"{EscapeBatchPath(markerPath)}\"");
+        sb.AppendLine($"echo [%DATE% %TIME%] [bat] Update applied: v{currentVer} -^> v{targetVersion} >> \"{EscapeBatchPath(updateLogPath)}\"");
+        sb.AppendLine($"start \"\" \"{EscapeBatchPath(exePath)}\" --seamless-update \"{EscapeBatchPath(stateFilePath)}\"");
+        sb.AppendLine($"rd /s /q \"{EscapeBatchPath(stagingFolder)}\" 2>nul");
         sb.AppendLine("exit /b 0");
 
         // Обработка сбоя: атомарный откат к резервной копии
@@ -910,6 +1356,7 @@ public static class UpdateService
         sb.AppendLine("echo ========================================================");
         sb.AppendLine("echo CRITICAL: Update failed! Rolling back to previous version...");
         sb.AppendLine("echo ========================================================");
+        sb.AppendLine($"echo [%DATE% %TIME%] [bat] ROLLBACK: copy failed, restoring v{currentVer} >> \"{EscapeBatchPath(updateLogPath)}\"");
 
         foreach (var file in files)
         {
@@ -917,15 +1364,17 @@ public static class UpdateService
             string dest = Path.Combine(currentDir, relative);
             string backupDest = Path.Combine(backupFolder, relative);
 
-            sb.AppendLine($"if exist \"{backupDest}\" (");
-            sb.AppendLine($"    copy /Y \"{backupDest}\" \"{dest}\" >nul");
+            sb.AppendLine($"if exist \"{EscapeBatchPath(backupDest)}\" (");
+            sb.AppendLine($"    copy /Y \"{EscapeBatchPath(backupDest)}\" \"{EscapeBatchPath(dest)}\" >nul");
             sb.AppendLine(") else (");
-            sb.AppendLine($"    if exist \"{dest}\" del /f /q \"{dest}\" 2>nul");
+            sb.AppendLine($"    if exist \"{EscapeBatchPath(dest)}\" del /f /q \"{EscapeBatchPath(dest)}\" 2>nul");
             sb.AppendLine(")");
         }
 
         sb.AppendLine("echo Rollback completed. Starting previous version...");
-        sb.AppendLine($"start \"\" \"{exePath}\"");
+        sb.AppendLine($"echo [%DATE% %TIME%] [bat] ROLLBACK completed >> \"{EscapeBatchPath(updateLogPath)}\"");
+        sb.AppendLine($"echo {currentVer} {targetVersion} > \"{EscapeBatchPath(failedMarkerPath)}\"");
+        sb.AppendLine($"start \"\" \"{EscapeBatchPath(exePath)}\"");
         sb.AppendLine("exit /b 1");
 
         // Подпрограмма безопасного копирования с повторными попытками
@@ -942,10 +1391,7 @@ public static class UpdateService
         sb.AppendLine("goto copy_retry");
 
         File.WriteAllText(batPath, sb.ToString(), new System.Text.UTF8Encoding(false));
-
-        // Нужно ли повышение привилегий: проверяется реальной записью
-        // рядом с программой, а не предположением о пути установки.
-        bool needsElevation = !IsDirectoryWritable(currentDir);
+        UpdateLog.Info("apply", $"Скрипт применения записан: {batPath} ({new FileInfo(batPath).Length} байт)");
 
         var psi = new ProcessStartInfo
         {
@@ -960,7 +1406,10 @@ public static class UpdateService
 
         try
         {
-            Process.Start(psi);
+            using var scriptProcess = Process.Start(psi);
+            UpdateLog.Info("apply",
+                $"Скрипт запущен (cmd pid={scriptProcess?.Id}); " +
+                $"повышение прав: {(needsElevation ? "запрошено" : "не требуется")}");
         }
         catch (System.ComponentModel.Win32Exception ex)
         {
@@ -969,11 +1418,13 @@ public static class UpdateService
             // «Отказано в доступе» без пояснения, и обновление выглядело сломанным.
             if (ex.NativeErrorCode == 1223)
             {
+                UpdateLog.Warn("apply", "UAC: пользователь отклонил повышение прав; обновление не применено");
                 throw new UACDeclinedException(
                     "Обновление установлено в Program Files, поэтому для его применения нужны права администратора. " +
                     "Запустите Motion Commander от имени администратора и повторите обновление, " +
                     "либо выберите при установке режим «только для меня».", ex);
             }
+            UpdateLog.Error("apply", $"Не удалось запустить скрипт обновления: {ex.Message}");
             throw new IOException($"Не удалось запустить применение обновления: {ex.Message}", ex);
         }
 
@@ -1002,6 +1453,81 @@ public static class UpdateService
             await Task.Delay(2000);
             try { Environment.Exit(0); } catch { }
         });
+    }
+
+    /// <summary>
+    /// Экранирует путь для вставки в командный файл.
+    /// </summary>
+    /// <remarks>
+    /// Внутри двойных кавычек cmd всё равно раскрывает <c>%VAR%</c>.
+    /// Профиль пользователя вида <c>C:\Users\100% Ready</c> превращал
+    /// скрипт обновления в мусор: путь обрезался, копирование падало,
+    /// и обновление откатывалось без внятной причины. Удвоение
+    /// процента — единственное, что нужно внутри кавычек: символы
+    /// <c>&amp; | &lt; &gt; ( )</c> там литеральны.
+    /// </remarks>
+    public static string EscapeBatchPath(string? path) =>
+        (path ?? string.Empty).Replace("%", "%%");
+
+    /// <summary>
+    /// Определяет версию, в которую ведёт подготовленное обновление.
+    /// </summary>
+    /// <remarks>
+    /// Для патча версия берётся из patch_manifest.json, для полного
+    /// пакета манифеста нет — тогда читается версия файла сборки.
+    /// Без этого маркер после полного обновления содержал бы «?»,
+    /// и проверка «версия действительно новая» не работала бы.
+    /// </remarks>
+    private static string TryReadTargetVersion(string stagingFolder)
+    {
+        string? fromManifest = null;
+        try
+        {
+            string manifest = Path.Combine(stagingFolder, "patch_manifest.json");
+            if (File.Exists(manifest))
+            {
+                using var doc = JsonDocument.Parse(File.ReadAllText(manifest));
+                if (doc.RootElement.TryGetProperty("targetVersion", out var tv))
+                    fromManifest = tv.GetString();
+            }
+        }
+        catch
+        {
+            fromManifest = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(fromManifest) && fromManifest != "?")
+            return NormalizeVersion(fromManifest);
+
+        foreach (string candidate in new[] { "Win11CopyDialog.dll", "motion.exe", "Win11CopyDialog.exe" })
+        {
+            string path = Path.Combine(stagingFolder, candidate);
+            if (!File.Exists(path)) continue;
+
+            try
+            {
+                var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+                string raw = info.FileVersion ?? info.ProductVersion ?? "";
+                if (!string.IsNullOrWhiteSpace(raw))
+                    return NormalizeVersion(raw);
+            }
+            catch
+            {
+                // Попробуем следующий файл: версия нужна для подтверждения,
+                // но её отсутствие не должно срывать обновление.
+            }
+        }
+
+        return "?";
+    }
+
+    /// <summary>Приводит «3.8.52.0» к «3.8.52», чтобы сравнение версий не врало.</summary>
+    public static string NormalizeVersion(string version)
+    {
+        string trimmed = (version ?? string.Empty).Trim().TrimStart('v', 'V');
+        if (Version.TryParse(trimmed, out var parsed) && parsed.Build >= 0)
+            return $"{parsed.Major}.{parsed.Minor}.{parsed.Build}";
+        return trimmed;
     }
 
     /// <summary>

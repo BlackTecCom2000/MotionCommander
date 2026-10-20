@@ -49,6 +49,13 @@ internal static class Program
             return UpdateEngineTest.Run(Console.Out);
         }
 
+        // Проверка ЖИВОГО канала обновления: манифест, контрольные суммы,
+        // реальная загрузка патча через зеркала.
+        if (Array.IndexOf(args, "--test-update-live") >= 0)
+        {
+            return UpdateEngineTest.RunLive(Console.Out);
+        }
+
         // Тестирование производительности вкладки «Диагностика»
         if (Array.IndexOf(args, "--test-diagnostics") >= 0)
         {
