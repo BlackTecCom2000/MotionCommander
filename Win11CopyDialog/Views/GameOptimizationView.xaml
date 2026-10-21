@@ -1,0 +1,170 @@
+<UserControl x:Class="Win11CopyDialog.Views.GameOptimizationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent"
+             TextOptions.TextFormattingMode="Display">
+    <Grid Margin="14,6,14,10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ШАПКА -->
+        <Border Background="{DynamicResource CardBackgroundBrush}"
+                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="14,12">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <Button x:Name="RefreshAllBtn" Style="{StaticResource CyberToolButton}" Content="↻ Обновить"
+                            Padding="10,5" Margin="0,0,6,0" Click="RefreshAllBtn_Click"
+                            ToolTip="Перечитать состояние настроек и список игр"/>
+                    <Button x:Name="ApplyRecommendedBtn" Style="{StaticResource CyberButton}" Content="⚡ Применить рекомендуемое"
+                            Padding="12,6" Margin="0,0,6,0" Click="ApplyRecommendedBtn_Click"
+                            ToolTip="Применить только безопасные рекомендуемые настройки; каждое изменение обратимо"/>
+                    <Button x:Name="RevertAllBtn" Style="{StaticResource CyberToolButton}" Content="↩ Откатить всё"
+                            Padding="10,5" Click="RevertAllBtn_Click"
+                            ToolTip="Вернуть исходные значения из резервной копии"/>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Text="🎮 ОПТИМИЗАЦИЯ ИГР" FontSize="15" FontWeight="Bold"
+                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    <TextBlock FontSize="10.5" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,3,0,0"
+                               Text="Настоящие настройки Windows и конфигов игр с проверкой записи. FPS измеряется через ETW; разница меньше 3% называется погрешностью, а не приростом."/>
+                    <TextBlock x:Name="AdminBadgeText" FontSize="10.5" FontWeight="SemiBold" Margin="0,4,0,0"
+                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Margin="0,10,0,0" Padding="0,0,4,0">
+            <StackPanel>
+
+                <!-- ЖЕЛЕЗО -->
+                <WrapPanel x:Name="HardwarePanel" Margin="0,0,0,10"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="430"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- ЛЕВАЯ КОЛОНКА: ИГРА -->
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <Border Background="{DynamicResource CardBackgroundBrush}"
+                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                                CornerRadius="10" Padding="14,12">
+                            <StackPanel>
+                                <TextBlock Text="ИГРА" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                <TextBlock FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,3,0,8"
+                                           Text="Список собран автопоиском по реестру и библиотекам Steam/Epic. Для настроек нужен путь к exe."/>
+
+                                <ComboBox x:Name="GameCombo" Height="28" VerticalContentAlignment="Center"
+                                          SelectionChanged="GameCombo_SelectionChanged"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="RefreshGamesBtn" Style="{StaticResource CyberToolButton}" Content="↻ Найти игры"
+                                            Padding="10,5" Margin="0,0,6,0" Click="RefreshGamesBtn_Click"/>
+                                    <Button x:Name="PickExeBtn" Style="{StaticResource CyberToolButton}" Content="Указать exe…"
+                                            Padding="10,5" Click="PickExeBtn_Click"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="GamePathText" FontSize="10" Style="{StaticResource MutedText}"
+                                           TextWrapping="Wrap" Margin="0,8,0,0" Text="Игра не выбрана"/>
+
+                                <Separator Margin="0,10,0,8" Background="{DynamicResource GlassBorderSubtle}"/>
+
+                                <TextBlock Text="НАСТРОЙКИ ДЛЯ ВЫБРАННОЙ ИГРЫ" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                <StackPanel x:Name="PerGameHost" Margin="0,8,0,0"/>
+
+                                <Separator Margin="0,6,0,8" Background="{DynamicResource GlassBorderSubtle}"/>
+
+                                <TextBlock Text="ПРЕСЕТ КОНФИГА ИГРЫ" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                <ComboBox x:Name="PresetCombo" Height="28" VerticalContentAlignment="Center"
+                                          Margin="0,6,0,0" SelectionChanged="PresetCombo_SelectionChanged"/>
+                                <TextBlock x:Name="PresetInfoText" FontSize="10" Style="{StaticResource MutedText}"
+                                           TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <StackPanel x:Name="PresetChangesHost" Margin="0,6,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="ApplyPresetBtn" Style="{StaticResource CyberButton}" Content="Применить пресет"
+                                            Padding="10,5" Margin="0,0,6,0" Click="ApplyPresetBtn_Click"/>
+                                    <Button x:Name="RestorePresetBtn" Style="{StaticResource CyberToolButton}" Content="Вернуть конфиг"
+                                            Padding="10,5" Click="RestorePresetBtn_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ПРАВАЯ КОЛОНКА: СИСТЕМНЫЕ ТВИКИ -->
+                    <StackPanel Grid.Column="1">
+                        <Border Background="{DynamicResource CardBackgroundBrush}"
+                                BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                                CornerRadius="10" Padding="14,12">
+                            <StackPanel>
+                                <TextBlock Text="НАСТРОЙКИ WINDOWS" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                <TextBlock FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,3,0,8"
+                                           Text="Каждый пункт подписан тем, что он реально меняет. Перед изменением сохраняется исходное значение, поэтому откат возвращает именно вашу настройку."/>
+                                <StackPanel x:Name="SystemTweaksHost"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- FPS -->
+                <Border Background="{DynamicResource CardBackgroundBrush}"
+                        BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1"
+                        CornerRadius="10" Padding="14,12" Margin="0,10,0,0">
+                    <StackPanel>
+                        <DockPanel LastChildFill="True">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <ComboBox x:Name="FpsSecondsCombo" Width="92" Height="28" VerticalContentAlignment="Center" Margin="0,0,6,0"/>
+                                <Button x:Name="MeasureFpsBtn" Style="{StaticResource CyberButton}" Content="▶ Измерить FPS"
+                                        Padding="12,6" Margin="0,0,6,0" Click="MeasureFpsBtn_Click"/>
+                                <Button x:Name="DwmTestBtn" Style="{StaticResource CyberToolButton}" Content="Тест измерителя"
+                                        Padding="10,5" Click="DwmTestBtn_Click"
+                                        ToolTip="Проверяет ETW-конвейер на композиции рабочего стола (DWM). Это не FPS игры."/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="ИЗМЕРЕНИЕ FPS" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                <TextBlock FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                           Text="Источник: события Present Microsoft-Windows-DXGI и D3D9 (ETW). Игры на Vulkan/OpenGL не измеряются. Нужны права администратора."/>
+                            </StackPanel>
+                        </DockPanel>
+
+                        <ProgressBar x:Name="FpsProgressBar" Height="4" Margin="0,10,0,2"
+                                     Minimum="0" Maximum="1" Value="0" Visibility="Collapsed"/>
+
+                        <TextBlock x:Name="FpsStatusText" FontSize="10.5" Style="{StaticResource MutedText}"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        <TextBlock x:Name="FpsResultText" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="FpsComparisonText" FontSize="10.5" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock x:Name="FpsHistoryText" FontSize="10" Style="{StaticResource MutedText}"
+                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ЧЕСТНОЕ ПРЕДУПРЕЖДЕНИЕ -->
+                <Border Background="{DynamicResource ChipBackgroundBrush}"
+                        BorderBrush="{DynamicResource GlassBorderSubtle}" BorderThickness="1"
+                        CornerRadius="8" Padding="12,9" Margin="0,10,0,0">
+                    <StackPanel>
+                        <TextBlock Text="⚠ Что здесь честно, а что нет" FontSize="10.5" FontWeight="Bold" Foreground="#F59E0B"/>
+                        <TextBlock FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                   Text="• Прирост FPS не гарантируется: программа измеряет фактический результат и не округляет его в свою пользу.&#x0a;• Разница меньше 3% между замерами считается погрешностью.&#x0a;• Настройки ввода (ускорение мыши) не повышают FPS — они меняют только ощущение управления.&#x0a;• Конфиги игр правятся только по существующим ключам и с резервной копией; отсутствующие параметры не добавляются.&#x0a;• Очистка standby-кэша — разовое действие; FPS она напрямую не повышает."/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock x:Name="OperationStatusText" FontSize="10.5" TextWrapping="Wrap"
+                           Margin="0,10,0,4" Foreground="{DynamicResource AccentBrush}"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

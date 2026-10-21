@@ -486,6 +486,7 @@ public partial class App : Application
             string? startDir = null;
             int initialTab = 0;
             if (e.Args.Contains("--tab-settings")) initialTab = 5;
+            else if (e.Args.Contains("--tab-games")) initialTab = 6;
             else if (e.Args.Contains("--tab-tools")) initialTab = 4;
             else if (e.Args.Contains("--tab-diagnostics")) initialTab = 3;
             else if (e.Args.Contains("--tab-storage") || e.Args.Contains("--storage")) initialTab = 2;

@@ -49,6 +49,34 @@ internal static class Program
             return UpdateEngineTest.Run(Console.Out);
         }
 
+        // Проверка системы оптимизации игр: математика кадров, откат реестра,
+        // правка конфигов только по существующим ключам.
+        if (Array.IndexOf(args, "--test-gametuning") >= 0)
+        {
+            return GameTuningTest.Run(Console.Out);
+        }
+
+        // Чтение состояния игровых настроек и предпросмотр конфигов.
+        // Ничего не применяет: диагностика не меняет систему пользователя.
+        int gameOptAt = Array.IndexOf(args, "--game-opt");
+        if (gameOptAt >= 0)
+        {
+            string exe = gameOptAt + 1 < args.Length ? args[gameOptAt + 1] : null;
+            return GameTuningProbe.Run(Console.Out, exe);
+        }
+
+        // Настоящий замер FPS через ETW. Без прав администратора честно
+        // отказывает: подставлять числа вместо измерения запрещено.
+        int fpsAt = Array.IndexOf(args, "--fps");
+        if (fpsAt >= 0)
+        {
+            string process = fpsAt + 1 < args.Length ? args[fpsAt + 1] : "dwm";
+            int seconds = fpsAt + 2 < args.Length && int.TryParse(args[fpsAt + 2], out int parsedSeconds)
+                ? parsedSeconds
+                : 10;
+            return GameTuningProbe.Fps(Console.Out, process, seconds);
+        }
+
         // Проверка ЖИВОГО канала обновления: манифест, контрольные суммы,
         // реальная загрузка патча через зеркала.
         if (Array.IndexOf(args, "--test-update-live") >= 0)
@@ -121,6 +149,15 @@ internal static class Program
             autoplay.WriteLine();
             autoplay.WriteLine("Отчёт S.M.A.R.T. с самих накопителей:");
             autoplay.WriteLine("  MotionCommanderDiagnostics.exe --smart-report [файл.txt]");
+            autoplay.WriteLine();
+            autoplay.WriteLine("Оптимизация игр (только чтение, без изменений):");
+            autoplay.WriteLine("  MotionCommanderDiagnostics.exe --game-opt [путь к exe игры]");
+            autoplay.WriteLine();
+            autoplay.WriteLine("Проверки оптимизации игр:");
+            autoplay.WriteLine("  MotionCommanderDiagnostics.exe --test-gametuning");
+            autoplay.WriteLine();
+            autoplay.WriteLine("Настоящий замер FPS через ETW (нужны права администратора):");
+            autoplay.WriteLine("  MotionCommanderDiagnostics.exe --fps <имя процесса|PID> [секунды]");
             autoplay.WriteLine();
             autoplay.WriteLine("Это единственный способ получить настоящие показания");
             autoplay.WriteLine("S.M.A.R.T. вне программы: Windows не открывает накопитель");

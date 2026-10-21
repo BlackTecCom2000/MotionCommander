@@ -6,6 +6,7 @@
         xmlns:uninstaller="clr-namespace:Win11CopyDialog.Modules.Utilities.Uninstaller.Views"
         xmlns:dm="clr-namespace:Win11CopyDialog.Modules.Utilities.DownloadManager.Views"
         xmlns:models="clr-namespace:Win11CopyDialog.Models"
+        xmlns:views="clr-namespace:Win11CopyDialog.Views"
         Title="Motion Commander — Все-в-одном Файловый Менеджер и Архиватор"
         Height="780" Width="1160"
         MinWidth="920" MinHeight="620"
@@ -394,6 +395,15 @@
                                     <Path Data="{StaticResource Icon_NavTools}" Width="13" Height="13" Stretch="Uniform"
                                           Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
                                     <TextBlock Text="Утилиты" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="TabGamesRadio" Style="{StaticResource FuturisticNavTab}"
+                                         GroupName="TopNav" Click="NavTab_Click" Checked="NavTab_Checked" PreviewMouseLeftButtonDown="NavTab_PreviewMouseDown"
+                                         ToolTip="Оптимизация игр: настройки Windows, конфиги и настоящий замер FPS (Alt+6)">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource Icon_NavGame}" Width="13" Height="13" Stretch="Uniform"
+                                          Fill="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                                    <TextBlock Text="Игры" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </RadioButton>
                         </StackPanel>
@@ -2024,11 +2034,11 @@
                                 <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
                                     <DockPanel>
                                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
-                                            <Button x:Name="DiagRollbackBtn" Style="{StaticResource CyberButton}" Content="⮌ ВОССТАНОВИТЬ ИСХОДНЫЕ НАСТРОЙКИ (Откат)" Padding="14,8" FontWeight="Bold" Click="DiagRollbackProfile_Click"/>
+                                            <Button x:Name="DiagRollbackBtn" Style="{StaticResource CyberButton}" Content="⮌ ВОССТАНОВИТЬ ИСХОДНУЮ СХЕМУ ПИТАНИЯ" Padding="14,8" FontWeight="Bold" Click="DiagRollbackProfile_Click"/>
                                         </StackPanel>
                                         <StackPanel VerticalAlignment="Center">
                                             <TextBlock Text="Безопасность и доверие: 1-клик откат и аудит" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                            <TextBlock Text="Перед применением любого твика создается снимок параметров. В любой момент можно вернуть стандартное состояние." FontSize="10" Style="{StaticResource MutedText}"/>
+                                            <TextBlock Text="Перед применением профиля сохраняется активная схема питания. Откат возвращает именно её." FontSize="10" Style="{StaticResource MutedText}"/>
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>
@@ -2042,9 +2052,9 @@
                                                 <TextBlock Text="🎮 Игры и минимальная задержка" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                                                 <Button Style="{StaticResource CyberButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyGamingProfile_Click"/>
                                             </DockPanel>
-                                            <TextBlock Text="Приоритет FPS и устранение микрофризов I/O" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
-                                            <TextBlock Text="• Схема питания: Высокая производительность Windows&#x0a;• Отключение парковки ядер CPU и задержек пробуждения&#x0a;• Понижение фонового приоритета служб Windows Search&#x0a;• Очистка SLC-кэша SSD перед запуском" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                            <TextBlock Text="Ожидаемый эффект: устранение просадок 1% low FPS, плавная загрузка текстур." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Text="Схема питания без энергосбережения" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="• Схема питания: Высокая производительность Windows&#x0a;• Проверка активной схемы после переключения&#x0a;• Другие параметры Windows не изменяются&#x0a;• Настройки игр и замер FPS — на вкладке «Игры»" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Ожидаемый эффект: меньше просадок 1% low. Средний FPS обычно не меняется; прирост этим профилем не измеряется." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
 
@@ -2055,9 +2065,9 @@
                                                 <TextBlock Text="🍃 Тихая работа и тишина СО" FontSize="13" FontWeight="Bold" Foreground="#10B981"/>
                                                 <Button Style="{StaticResource CyberButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyQuietProfile_Click"/>
                                             </DockPanel>
-                                            <TextBlock Text="Энергосбережение и минимальный нагрев" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
-                                            <TextBlock Text="• Схема питания: Энергосбережение (Power Saver)&#x0a;• Ограничение пикового тепловыделения ядер процессора&#x0a;• Щадящий режим для вентиляторов охлаждения&#x0a;• Таймаут отключения механических дисков при простое" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                            <TextBlock Text="Ожидаемый эффект: снижение температуры на 6-12 °C, тихая работа вентиляторов." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Text="Штатная схема «Экономия энергии»" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="• Схема питания: Энергосбережение (Power Saver)&#x0a;• Проверка активной схемы после переключения&#x0a;• Максимальное состояние CPU и таймауты дисков не меняются" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Ожидаемый эффект: штатное ограничение буста. Температура и шум программой не измеряются." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
 
@@ -2068,9 +2078,9 @@
                                                 <TextBlock Text="🚀 Копирование файлов и I/O" FontSize="13" FontWeight="Bold" Foreground="#F59E0B"/>
                                                 <Button Style="{StaticResource CyberButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyTransferProfile_Click"/>
                                             </DockPanel>
-                                            <TextBlock Text="Максимальная линейная пропускная способность" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
-                                            <TextBlock Text="• Схема питания: Высокая производительность&#x0a;• Вызов Optimize-Volume ReTrim для очистки SLC-буфера&#x0a;• Direct I/O буфер в Motion Commander (до 4 МБ)&#x0a;• Повышенный приоритет дисковой очереди для операций" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                            <TextBlock Text="Ожидаемый эффект: прирост линейной скорости на 15–35%, стабильный поток без задержек." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Text="Схема питания без засыпания накопителей" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
+                                            <TextBlock Text="• Схема питания: Высокая производительность&#x0a;• Проверка активной схемы после переключения&#x0a;• ReTrim, буферы и приоритеты I/O не настраиваются" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Ожидаемый эффект: накопитель не уходит в сон во время длинной операции. Прирост скорости не измерялся." FontSize="9.5" Foreground="#10B981" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
 
@@ -2082,7 +2092,7 @@
                                                 <Button Style="{StaticResource CyberToolButton}" Content="Применить" Padding="10,4" HorizontalAlignment="Right" Click="DiagApplyBalancedProfile_Click"/>
                                             </DockPanel>
                                             <TextBlock Text="Штатный режим Windows 11 по умолчанию" FontSize="10.5" FontWeight="SemiBold" Style="{StaticResource MutedText}" Margin="0,0,0,6"/>
-                                            <TextBlock Text="• Схема питания: Сбалансированная (Balanced)&#x0a;• Автоматическое динамическое управление тактовой частотой&#x0a;• Стандартное распределение приоритетов Windows" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="• Схема питания: Сбалансированная (Balanced)&#x0a;• Проверка активной схемы после переключения&#x0a;• Прочие параметры Windows не изменяются" FontSize="10" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                             <TextBlock Text="Ожидаемый эффект: стандартное поведение системы без специальных твиков." FontSize="9.5" Style="{StaticResource MutedText}" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
@@ -2240,6 +2250,9 @@
 
                     </Grid>
                 </Grid>
+
+                <!-- ================= 6. ОПТИМИЗАЦИЯ ИГР ================= -->
+                <views:GameOptimizationView x:Name="GamesView" Grid.Column="0" Grid.ColumnSpan="5" Visibility="Collapsed"/>
             </Grid>
 
             <!-- FOOTER & COMMANDER FUNCTION KEYS -->

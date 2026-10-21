@@ -229,6 +229,7 @@ public partial class MainWindow : Window
         else if (TabStorageRadio.IsChecked == true) tabIndex = 2;
         else if (TabDiagnosticsRadio.IsChecked == true) tabIndex = 3;
         else if (TabToolsRadio.IsChecked == true) tabIndex = 4;
+        else if (TabGamesRadio.IsChecked == true) tabIndex = 6;
 
         return new AppState
         {
@@ -418,17 +419,16 @@ public partial class MainWindow : Window
 
     public void SelectTab(int index)
     {
-        // Индекс 5 в приложении не существует: отдельной вкладки настроек
-        // в TopNav нет (настройки открываются отдельным диалогом). Раньше
-        // этот индекс молча проваливался в TabFilesRadio, из-за чего флаги
-        // --tab-settings и --check-update-demo открывали вкладку «Файлы».
-        // Теперь индекс 5 корректно открывает вкладку «Инструменты».
+        // Вкладки «Игры» нет среди старых индексов: 0–4 и 5 (алиас «Утилит»)
+        // сохранены как были, чтобы не сломать флаги --tab-settings и
+        // сохранённое состояние. Новая вкладка получила индекс 6.
         RadioButton target = index switch
         {
             1 => TabTransferRadio,
             2 => TabStorageRadio,
             3 => TabDiagnosticsRadio,
             4 or 5 => TabToolsRadio,
+            6 => TabGamesRadio,
             _ => TabFilesRadio
         };
         SwitchTab(target);
@@ -1654,57 +1654,27 @@ public partial class MainWindow : Window
 
     private void SwitchTab(object sender)
     {
-        if (FilesView == null || TransferView == null || StorageView == null || DiagnosticsView == null || ToolsView == null)
+        if (FilesView == null || TransferView == null || StorageView == null || DiagnosticsView == null || ToolsView == null || GamesView == null)
             return;
 
         HapticAudio.PlayClick();
 
-        if (sender == TabFilesRadio)
-        {
-            TabFilesRadio.IsChecked = true;
-            TabTransferRadio.IsChecked = false;
-            TabStorageRadio.IsChecked = false;
-            TabDiagnosticsRadio.IsChecked = false;
-            TabToolsRadio.IsChecked = false;
-        }
-        else if (sender == TabTransferRadio)
-        {
-            TabFilesRadio.IsChecked = false;
-            TabTransferRadio.IsChecked = true;
-            TabStorageRadio.IsChecked = false;
-            TabDiagnosticsRadio.IsChecked = false;
-            TabToolsRadio.IsChecked = false;
-        }
-        else if (sender == TabStorageRadio)
-        {
-            TabFilesRadio.IsChecked = false;
-            TabTransferRadio.IsChecked = false;
-            TabStorageRadio.IsChecked = true;
-            TabDiagnosticsRadio.IsChecked = false;
-            TabToolsRadio.IsChecked = false;
-        }
-        else if (sender == TabDiagnosticsRadio)
-        {
-            TabFilesRadio.IsChecked = false;
-            TabTransferRadio.IsChecked = false;
-            TabStorageRadio.IsChecked = false;
-            TabDiagnosticsRadio.IsChecked = true;
-            TabToolsRadio.IsChecked = false;
-        }
-        else if (sender == TabToolsRadio)
-        {
-            TabFilesRadio.IsChecked = false;
-            TabTransferRadio.IsChecked = false;
-            TabStorageRadio.IsChecked = false;
-            TabDiagnosticsRadio.IsChecked = false;
-            TabToolsRadio.IsChecked = true;
-        }
+        // Один источник истины: ровно та вкладка, которая пришла в событии.
+        // Повторная установка того же значения Checked не вызывает,
+        // поэтому рекурсии нет.
+        TabFilesRadio.IsChecked = sender == TabFilesRadio;
+        TabTransferRadio.IsChecked = sender == TabTransferRadio;
+        TabStorageRadio.IsChecked = sender == TabStorageRadio;
+        TabDiagnosticsRadio.IsChecked = sender == TabDiagnosticsRadio;
+        TabToolsRadio.IsChecked = sender == TabToolsRadio;
+        TabGamesRadio.IsChecked = sender == TabGamesRadio;
 
         UIElement activeView = FilesView;
         if (TabTransferRadio.IsChecked == true) activeView = TransferView;
         else if (TabStorageRadio.IsChecked == true) activeView = StorageView;
         else if (TabDiagnosticsRadio.IsChecked == true) activeView = DiagnosticsView;
         else if (TabToolsRadio.IsChecked == true) activeView = ToolsView;
+        else if (TabGamesRadio.IsChecked == true) activeView = GamesView;
 
         bool isFiles = (activeView == FilesView);
         UpdateSpeedGraphTimer(activeView == TransferView);
@@ -1735,10 +1705,18 @@ public partial class MainWindow : Window
         StorageView.Visibility = activeView == StorageView ? Visibility.Visible : Visibility.Collapsed;
         DiagnosticsView.Visibility = activeView == DiagnosticsView ? Visibility.Visible : Visibility.Collapsed;
         ToolsView.Visibility = activeView == ToolsView ? Visibility.Visible : Visibility.Collapsed;
+        GamesView.Visibility = activeView == GamesView ? Visibility.Visible : Visibility.Collapsed;
         UninstallerViewContainer.Visibility = Visibility.Collapsed;
         DownloadManagerViewContainer.Visibility = Visibility.Collapsed;
 
         SmoothFadeIn(activeView);
+
+        // Экран игр читает оборудование и автопоиск игр при первом показе,
+        // а не при старте программы: файловый менеджер открывается сразу.
+        if (activeView == GamesView)
+        {
+            _ = GamesView.ActivateAsync();
+        }
 
         if (DiagnosticsView.Visibility == Visibility.Visible)
         {
@@ -2011,9 +1989,9 @@ public partial class MainWindow : Window
         var profile = SystemProfileOptimizerService.CurrentProfile;
         string profName = profile switch
         {
-            OptimizationProfileId.Gaming => "🎮 Игры (низкая задержка)",
+            OptimizationProfileId.Gaming => "🎮 Игры (схема: высокая производительность)",
             OptimizationProfileId.Quiet => "🍃 Тихий режим (энергосбережение)",
-            OptimizationProfileId.FileTransfer => "🚀 Копирование (Direct I/O)",
+            OptimizationProfileId.FileTransfer => "🚀 Копирование (схема: высокая производительность)",
             _ => "⚖ Сбалансированный"
         };
         if (DiagOverviewProfileBadge != null)
@@ -2510,9 +2488,9 @@ public partial class MainWindow : Window
             OptimizationProfileId.Gaming,
             "Игры и минимальная задержка",
             "• Схема питания: Высокая производительность Windows\n" +
-            "• Отключение парковки ядер процессора\n" +
-            "• Понижение приоритета фоновых служб поиска\n" +
-            "• Очистка SLC-кэша накопителей");
+            "• Проверка: активная схема перечитывается после переключения\n" +
+            "• Другие параметры Windows этим профилем не меняются\n" +
+            "• Настройки игр и измерение FPS — на вкладке «Игры»");
     }
 
     private void DiagApplyQuietProfile_Click(object sender, RoutedEventArgs e)
@@ -2521,9 +2499,9 @@ public partial class MainWindow : Window
             OptimizationProfileId.Quiet,
             "Тихая работа и тишина СО",
             "• Схема питания: Энергосбережение (Power Saver)\n" +
-            "• Ограничение пикового тепловыделения процессора\n" +
-            "• Щадящий режим для вентиляторов охлаждения\n" +
-            "• Таймаут отключения механических дисков");
+            "• Проверка: активная схема перечитывается после переключения\n" +
+            "• Другие параметры Windows этим профилем не меняются\n" +
+            "• Температура и шум программой не измеряются");
     }
 
     private void DiagApplyTransferProfile_Click(object sender, RoutedEventArgs e)
@@ -2532,9 +2510,9 @@ public partial class MainWindow : Window
             OptimizationProfileId.FileTransfer,
             "Копирование файлов и максимальный I/O",
             "• Схема питания: Высокая производительность\n" +
-            "• Очистка освобожденных блоков SSD (ReTrim)\n" +
-            "• Direct I/O буфер в Motion Commander (до 4 МБ)\n" +
-            "• Повышенный приоритет дисковой очереди");
+            "• Проверка: активная схема перечитывается после переключения\n" +
+            "• ReTrim, буферы и приоритеты I/O этим профилем не настраиваются\n" +
+            "• Прирост скорости копирования не измеряется");
     }
 
     private void DiagApplyBalancedProfile_Click(object sender, RoutedEventArgs e)
@@ -2543,8 +2521,8 @@ public partial class MainWindow : Window
             OptimizationProfileId.Balanced,
             "Сбалансированный режим (Windows)",
             "• Схема питания: Сбалансированная (Balanced Windows 11)\n" +
-            "• Динамическое управление тактовой частотой\n" +
-            "• Стандартные дисковые приоритеты системы");
+            "• Проверка: активная схема перечитывается после переключения\n" +
+            "• Прочие параметры Windows не изменяются");
     }
 
     private async void DiagApplyProfileWithConfirmation(OptimizationProfileId profileId, string profileName, string effectDescription)
@@ -2579,7 +2557,8 @@ public partial class MainWindow : Window
     private async void DiagRollbackProfile_Click(object sender, RoutedEventArgs e)
     {
         var confirm = MessageBox.Show(
-            "Вы уверены, что хотите отменить все примененные твики и восстановить исходную конфигурацию Windows из резервной копии?",
+            "Восстановить схему электропитания, которая была до применения профиля?\n\n" +
+            "Профиль меняет только схему питания; остальные параметры Windows не затрагивались.",
             "Откат к исходным настройкам",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);

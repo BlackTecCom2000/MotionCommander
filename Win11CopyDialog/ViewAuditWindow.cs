@@ -184,6 +184,7 @@ public sealed class ViewAuditWindow : Window
             Audit(outp, listener, "StorageControlCenterView", () => new Modules.StorageControlCenter.Views.StorageControlCenterView());
             Audit(outp, listener, "MigrationWizardView", () => new Modules.StorageControlCenter.Views.MigrationWizardView());
             Audit(outp, listener, "UninstallerView", () => new Modules.Utilities.Uninstaller.Views.UninstallerView());
+            Audit(outp, listener, "GameOptimizationView", () => new Views.GameOptimizationView());
 
             // Отдельно: загрузка данных в коллекции.
             //

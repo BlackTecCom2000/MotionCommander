@@ -1,22 +1,24 @@
 ﻿{
-    "version":  "3.8.54",
-    "releaseDate":  "2026-10-20",
+    "version":  "3.8.55",
+    "releaseDate":  "2026-10-22",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Обновлятор: перед обращением к зеркалу jsDelivr автоматически сбрасывается кэш плавающей ссылки (@latest/@main). Измерено 20.10.2026: после публикации 3.8.53 ссылка @latest отдавала 3.8.52, а @v3.8.53 — уже 3.8.53; после сброса @latest тоже отдаёт 3.8.53",
-                      "Без этого исправления в регионах с недоступным raw.githubusercontent зеркало показывало бы «обновлений нет» до истечения кэша (до 12 часов)",
-                      "Сброс ограничен 5 секундами, ошибки не срывают обновление; файлы, привязанные к тегу версии, не сбрасываются — их содержимое неизменяемо",
-                      "Проверено на живом канале: зеркало @latest после сброса — 3.8.53 (совпадает с raw), checksums.json 0,57 с, патч 3 722 239 байт скачан за 27,3 с (медленнее прежнего 15-секундного лимита) и сверен по SHA-256",
-                      "Сборка 0 ошибок / 0 предупреждений; 16/16 тестов движка; 22/22 экрана"
+                      "Новая вкладка «Игры» (индекс 6, запуск через --tab-games): измеренное железо, пресеты конфигов игр и 11 системных твиков с откатом",
+                      "FPS измеряется через события Present DXGI/D3D9 (ETW). Без прав администратора программа честно отказывается показывать цифры, а не придумывает их",
+                      "Разница меньше 3% помечается как «в пределах погрешности» и никогда не выдаётся за прирост",
+                      "Каждый твик сохраняет исходное значение реестра (наличие, тип, данные), «Откатить всё» возвращает именно их, а не «значения по умолчанию»",
+                      "Пресеты конфигов меняют только уже существующие ключи, кладут резервную копию с меткой времени рядом с файлом и перечитывают результат; отсутствующий файл только показывается, но не создаётся",
+                      "Исправлено: профили оптимизации теперь меняют только схему электропитания и перечитывают её после переключения. Несуществующие обещания (парковка ядер, TRIM/SLC, буферы ввода-вывода, вентиляторы, «-6…12 °C») убраны из профилей и интерфейса",
+                      "Диагностика: 18/18 тестов игрового модуля, 23/23 экрана проходят аудит, сборка решения без ошибок и предупреждений"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.54-Patch.zip",
-    "patchSizeMb":  3.55,
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Patch.zip",
+    "patchSizeMb":  9.28,
     "patchMinVersion":  "3.8.0",
-    "fullSizeMb":  38.22,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.54-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.54-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.54-Setup.exe"
+    "fullSizeMb":  43.98,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Setup.exe"
 }

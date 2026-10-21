@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Win11CopyDialog.Modules.GameTuning;
 
 namespace Win11CopyDialog.Modules.PerformanceEngine;
 
@@ -60,51 +61,53 @@ public static class SystemProfileOptimizerService
                 Id = OptimizationProfileId.Gaming,
                 Name = "Игры и минимальная задержка",
                 Icon = "🎮",
-                Tagline = "Приоритет FPS и устранение микрофризов I/O",
-                Description = "Переводит контроллеры процессора и накопителей в режим готовности без перехода в глубокие энергосберегающие C-States.",
+                Tagline = "Схема питания без энергосбережения",
+                Description = "Переключает только схему электропитания Windows на «Высокая производительность». " +
+                              "Парковка ядер, приоритет ввода-вывода и TRIM этим профилем не настраиваются. " +
+                              "Настройки самих игр и измерение FPS — на вкладке «Игры».",
                 MeasurableSettings = new()
                 {
-                    "Схема электропитания: Высокая производительность (powercfg)",
-                    "Отключение парковки ядер CPU и задержек пробуждения",
-                    "Фоновый приоритет I/O: понижен для системных служб",
-                    "TRIM: принудительная очистка свободных ячеек перед запуском"
+                    "Схема электропитания: Высокая производительность (powercfg /setactive)",
+                    "Проверка: активная схема перечитывается после переключения"
                 },
-                ExpectedEffect = "Устранение просадок 1% low FPS, мгновенная подгрузка игровых локаций и текстур.",
-                SafetyNote = "Полностью безопасно. Настройки возвращаются нажатием кнопки «Отмена»."
+                ExpectedEffect = "Схема запрещает простой ядер и снижение частоты во время игры. " +
+                                 "Средний FPS обычно не меняется; возможен эффект на 1% low. " +
+                                 "Прирост этим профилем не измеряется — для честного замера используйте вкладку «Игры».",
+                SafetyNote = "Схема питания обратима: исходная схема сохраняется в резервную копию."
             },
             new()
             {
                 Id = OptimizationProfileId.Quiet,
                 Name = "Тихая работа и энергосбережение",
                 Icon = "🍃",
-                Tagline = "Тишина системы охлаждения и щадящий нагрев",
-                Description = "Снижает пиковые всплески частот процессора, ограничивает фоновые обращения к дискам, позволяя кулерам работать на минимальных оборотах.",
+                Tagline = "Штатная схема «Экономия энергии»",
+                Description = "Переключает только схему электропитания Windows на «Экономия энергии». " +
+                              "Максимальное состояние процессора, таймауты накопителей и прочие параметры схемы не изменяются.",
                 MeasurableSettings = new()
                 {
-                    "Схема электропитания: Энергосбережение (powercfg)",
-                    "Максимальное состояние процессора: 95% (без агрессивного буста)",
-                    "Снижение тепловыделения ядер на 8-15 Вт",
-                    "Таймаут отключения шпиндельных накопителей при простое"
+                    "Схема электропитания: Энергосбережение (powercfg /setactive)",
+                    "Проверка: активная схема перечитывается после переключения"
                 },
-                ExpectedEffect = "Снижение температуры CPU/SSD на 6–12 °C, тихая работа СО, продление работы от батареи.",
-                SafetyNote = "Полностью безопасно. Никакого вреда компонентам."
+                ExpectedEffect = "Windows ограничивает буст и энергопотребление штатными средствами схемы. " +
+                                 "Температура и уровень шума программой не измеряются: фактический эффект зависит от охлаждения.",
+                SafetyNote = "Схема питания обратима: исходная схема сохраняется в резервную копию."
             },
             new()
             {
                 Id = OptimizationProfileId.FileTransfer,
                 Name = "Копирование файлов и максимальный I/O",
                 Icon = "🚀",
-                Tagline = "Предельная пропускная способность накопителей",
-                Description = "Оптимизирует файловую подсистему для непрерывной передачи больших массивов данных через многопоточный Direct I/O буфер.",
+                Tagline = "Схема питания без засыпания накопителей",
+                Description = "Переключает только схему электропитания на «Высокая производительность». " +
+                              "ReTrim, размер буфера и приоритеты ввода-вывода этот профиль не настраивает.",
                 MeasurableSettings = new()
                 {
-                    "Схема электропитания: Высокая производительность",
-                    "Вызов Optimize-Volume ReTrim для очистки SLC-буфера SSD",
-                    "Адаптивный буфер ввода/вывода в Motion Commander (до 4 МБ)",
-                    "Повышенный дисковый приоритет процесса копирования"
+                    "Схема электропитания: Высокая производительность (powercfg /setactive)",
+                    "Проверка: активная схема перечитывается после переключения"
                 },
-                ExpectedEffect = "Ровная скорость передачи без ступенчатых просадок, прирост линейной скорости на 15–35%.",
-                SafetyNote = "Полностью безопасно для данных."
+                ExpectedEffect = "Схема не даёт накопителю уходить в сон во время длинной операции. " +
+                                 "Прирост скорости копирования этим профилем не измерялся и не гарантируется.",
+                SafetyNote = "Схема питания обратима: исходная схема сохраняется в резервную копию."
             },
             new()
             {
@@ -116,8 +119,8 @@ public static class SystemProfileOptimizerService
                 MeasurableSettings = new()
                 {
                     "Схема электропитания: Сбалансированная (Balanced)",
-                    "Штатное управление питанием ядер и накопителей",
-                    "Стандартные дисковые приоритеты Windows"
+                    "Проверка: активная схема перечитывается после переключения",
+                    "Прочие параметры Windows не изменяются"
                 },
                 ExpectedEffect = "Стандартная работа всех компонентов ПК без специфических твиков.",
                 SafetyNote = "Исходное состояние Windows."
@@ -137,7 +140,7 @@ public static class SystemProfileOptimizerService
                 await CreateBackupSnapshotAsync();
             }
 
-            // 2. Применяем схему электропитания
+            // 2. Применяем схему электропитания — единственное, что меняет профиль.
             string targetSchemeGuid = profileId switch
             {
                 OptimizationProfileId.Gaming => SchemeHighPerformance,
@@ -146,15 +149,37 @@ public static class SystemProfileOptimizerService
                 _ => SchemeBalanced
             };
 
-            await RunPowerCfgAsync($"/setactive {targetSchemeGuid}");
+            (int exitCode, string output) = await RunPowerCfgAsync($"/setactive {targetSchemeGuid}");
+            if (exitCode != 0)
+            {
+                string reason = string.IsNullOrWhiteSpace(output)
+                    ? $"powercfg завершился с кодом {exitCode}"
+                    : output;
+                await AppendAuditLogAsync($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ОШИБКА схемы питания для {profileId}: {reason}");
+                return (false, "Не удалось переключить схему питания: " + reason);
+            }
+
+            // Проверка после команды: заявлять об успехе без перечитывания нельзя.
+            (string activeGuid, string activeName) = PowerScheme.GetActive();
+            if (!string.Equals(activeGuid, targetSchemeGuid, StringComparison.OrdinalIgnoreCase))
+            {
+                string actual = string.IsNullOrEmpty(activeGuid)
+                    ? "активную схему прочитать не удалось"
+                    : $"активна другая схема: {activeName} ({activeGuid})";
+                await AppendAuditLogAsync($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ПРОВЕРКА НЕ ПРОЙДЕНА для {profileId}: {actual}");
+                return (false, "Схема питания не подтвердилась: " + actual + ".");
+            }
 
             CurrentProfile = profileId;
 
             // 3. Запись в журнал аудита
-            string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Применён профиль: {profileId} (Схема питания: {targetSchemeGuid}). Исходное состояние сохранено в бэкап.";
+            string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Применён профиль: {profileId}. " +
+                              $"Схема питания: {PowerScheme.FriendlyName(activeGuid)} ({activeGuid}), проверено. " +
+                              "Другие параметры Windows не изменялись. Исходная схема сохранена в резервную копию.";
             await AppendAuditLogAsync(logEntry);
 
-            return (true, $"Профиль «{profileId}» успешно применен. Исходное состояние зафиксировано в резервной копии.");
+            return (true, $"Профиль «{profileId}»: схема питания переключена на «{PowerScheme.FriendlyName(activeGuid)}» (проверено). " +
+                          "Другие параметры Windows не изменялись.");
         }
         catch (Exception ex)
         {
@@ -167,36 +192,56 @@ public static class SystemProfileOptimizerService
     {
         try
         {
-            if (!HasBackup)
+            string targetGuid = SchemeBalanced;
+            SystemProfileBackupState? state = null;
+
+            if (File.Exists(BackupFilePath))
             {
-                // Если бэкапа нет, просто возвращаем сбалансированную схему
-                await RunPowerCfgAsync($"/setactive {SchemeBalanced}");
-                CurrentProfile = OptimizationProfileId.Balanced;
-                await AppendAuditLogAsync($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Откат: установлена стандартная сбалансированная схема Windows (бэкап отсутствовал).");
-                return (true, "Восстановлена стандартная сбалансированная схема Windows.");
+                string json = await File.ReadAllTextAsync(BackupFilePath);
+                state = JsonSerializer.Deserialize<SystemProfileBackupState>(json);
+                if (state != null && !string.IsNullOrWhiteSpace(state.OriginalPowerSchemeGuid))
+                    targetGuid = state.OriginalPowerSchemeGuid;
             }
 
-            string json = await File.ReadAllTextAsync(BackupFilePath);
-            var state = JsonSerializer.Deserialize<SystemProfileBackupState>(json);
-
-            if (state != null && !string.IsNullOrWhiteSpace(state.OriginalPowerSchemeGuid))
+            (int exitCode, string output) = await RunPowerCfgAsync($"/setactive {targetGuid}");
+            if (exitCode != 0)
             {
-                await RunPowerCfgAsync($"/setactive {state.OriginalPowerSchemeGuid}");
-            }
-            else
-            {
-                await RunPowerCfgAsync($"/setactive {SchemeBalanced}");
+                string reason = string.IsNullOrWhiteSpace(output)
+                    ? $"powercfg завершился с кодом {exitCode}"
+                    : output;
+                await AppendAuditLogAsync($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ОШИБКА отката: {reason}");
+                return (false, "Не удалось восстановить схему питания: " + reason);
             }
 
-            CurrentProfile = OptimizationProfileId.Balanced;
+            (string activeGuid, string activeName) = PowerScheme.GetActive();
+            bool verified = string.Equals(activeGuid, targetGuid, StringComparison.OrdinalIgnoreCase);
 
-            // Удаляем файл бэкапа после успешного отката
+            CurrentProfile = activeGuid switch
+            {
+                SchemeHighPerformance or SchemeUltimatePerformance => OptimizationProfileId.Gaming,
+                SchemePowerSaver => OptimizationProfileId.Quiet,
+                _ => OptimizationProfileId.Balanced
+            };
+
+            if (!verified)
+            {
+                // Копию не удаляем: откат не подтверждён, и исходные данные ещё нужны.
+                string actual = string.IsNullOrEmpty(activeGuid)
+                    ? "активную схему прочитать не удалось"
+                    : $"{activeName} ({activeGuid})";
+                await AppendAuditLogAsync($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ОТКАТ НЕ ПОДТВЕРЖДЁН: ожидалась {targetGuid}, {actual}.");
+                return (false, "Откат не подтверждён: " + actual + ". Резервная копия сохранена.");
+            }
+
+            // Удаляем файл бэкапа только после подтверждённого отката.
             try { File.Delete(BackupFilePath); } catch { }
 
-            string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Успешный откат к исходным системным настройкам Windows от {state?.CreatedAt:dd.MM.yyyy HH:mm}.";
+            string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Откат подтверждён: схема питания «{PowerScheme.FriendlyName(activeGuid)}» ({activeGuid})" +
+                              (state != null ? $", состояние от {state.CreatedAt:dd.MM.yyyy HH:mm}" : ", резервная копия отсутствовала") + ".";
             await AppendAuditLogAsync(logEntry);
 
-            return (true, $"Все исходные параметры Windows успешно восстановлены (состояние от {state?.CreatedAt:dd.MM.yyyy HH:mm}).");
+            return (true, $"Схема питания восстановлена: «{PowerScheme.FriendlyName(activeGuid)}» (проверено). " +
+                          "Другие параметры Windows этим профилем не менялись.");
         }
         catch (Exception ex)
         {
@@ -207,55 +252,30 @@ public static class SystemProfileOptimizerService
 
     private static async Task CreateBackupSnapshotAsync()
     {
-        string currentGuid = await GetCurrentPowerSchemeGuidAsync();
+        (string currentGuid, string currentName) = PowerScheme.GetActive();
+        if (string.IsNullOrWhiteSpace(currentGuid))
+        {
+            // Без снимка исходной схемы откат невозможен. Менять настройку
+            // «наугад» нельзя: пользователь потеряет своё значение.
+            throw new InvalidOperationException(
+                "не удалось прочитать текущую схему питания — изменение отменено, чтобы не потерять исходное значение");
+        }
+
         var state = new SystemProfileBackupState
         {
             CreatedAt = DateTime.Now,
-            OriginalPowerSchemeGuid = string.IsNullOrWhiteSpace(currentGuid) ? SchemeBalanced : currentGuid,
-            OriginalPowerSchemeName = "Исходная схема пользователя",
-            AppliedProfileId = OptimizationProfileId.Balanced
+            OriginalPowerSchemeGuid = currentGuid,
+            OriginalPowerSchemeName = string.IsNullOrWhiteSpace(currentName)
+                ? PowerScheme.FriendlyName(currentGuid)
+                : currentName,
+            AppliedProfileId = CurrentProfile
         };
 
         string json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
         await File.WriteAllTextAsync(BackupFilePath, json);
     }
 
-    private static async Task<string> GetCurrentPowerSchemeGuidAsync()
-    {
-        try
-        {
-            using var proc = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "powercfg.exe",
-                    Arguments = "/getactivescheme",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                }
-            };
-            proc.Start();
-            string output = await proc.StandardOutput.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-
-            // Пример: "Схема питания GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Сбалансированная)"
-            int guidIdx = output.IndexOf("GUID:", StringComparison.OrdinalIgnoreCase);
-            if (guidIdx >= 0)
-            {
-                string rest = output.Substring(guidIdx + 5).Trim();
-                int spaceIdx = rest.IndexOf(' ');
-                if (spaceIdx > 0)
-                {
-                    return rest.Substring(0, spaceIdx).Trim();
-                }
-            }
-        }
-        catch { }
-        return SchemeBalanced;
-    }
-
-    private static async Task RunPowerCfgAsync(string arguments)
+    private static async Task<(int ExitCode, string Output)> RunPowerCfgAsync(string arguments)
     {
         using var proc = new Process
         {
@@ -264,11 +284,16 @@ public static class SystemProfileOptimizerService
                 FileName = "powercfg.exe",
                 Arguments = arguments,
                 UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 CreateNoWindow = true
             }
         };
         proc.Start();
+        string output = await proc.StandardOutput.ReadToEndAsync();
+        output += await proc.StandardError.ReadToEndAsync();
         await proc.WaitForExitAsync();
+        return (proc.ExitCode, output.Trim());
     }
 
     private static async Task AppendAuditLogAsync(string entry)
