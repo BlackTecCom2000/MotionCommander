@@ -4,7 +4,7 @@
 ![Platforms: Windows | Linux | macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D4.svg)
 ![Framework: .NET 8](https://img.shields.io/badge/.NET-8.0%20Multiplatform-512BD4.svg?logo=dotnet)
 [![Author: BlackTecCom - Jaborov Daler](https://img.shields.io/badge/Author-BlackTecCom%20--%20Jaborov%20Daler-00F0FF.svg)](https://github.com/BlackTecCom2000)
-[![Version: v3.0.0](https://img.shields.io/badge/Version-3.0.0%20Release-10B981.svg)](https://github.com/BlackTecCom2000/MotionCommander/releases)
+[![Version: v3.8.55](https://img.shields.io/badge/Version-3.8.55%20Release-10B981.svg)](https://github.com/BlackTecCom2000/MotionCommander/releases)
 [![Donate: Visa Direct](https://img.shields.io/badge/Donate-VISA%20Direct-1A1F71.svg?logo=visa&logoColor=white)](#donate)
 
 > **Motion Commander** — это ультра-современная высокопроизводительная кроссплатформенная экосистема для **Windows 10/11**, **Linux (Ubuntu, Debian, Fedora, Arch)** и **macOS (Apple Silicon M1-M4 & Intel)**. 
@@ -76,13 +76,13 @@ motion info
 ## 📥 Установка и запуск
 
 ### Windows (GUI)
-1. Скачайте **[MotionCommander-v3.0.0-Portable.zip (Прямая загрузка)](https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.0.0-Portable.zip)**.
+1. Скачайте **[MotionCommander-v3.8.55-Portable.zip (Прямая загрузка)](https://github.com/BlackTecCom2000/MotionCommander/raw/main/dist/MotionCommander-v3.8.55-Portable.zip)**.
 2. Распакуйте архив и запустите `Win11CopyDialog.exe`.
 
 ### Linux (x64 / ARM64)
 ```bash
 # Скачайте архив для Linux
-wget https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.0.0/motion-linux-x64.tar.gz
+wget https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.8.55/motion-linux-x64.tar.gz
 tar -xzf motion-linux-x64.tar.gz
 chmod +x motion
 sudo mv motion /usr/local/bin/
@@ -94,7 +94,7 @@ motion info
 ### macOS (Apple Silicon / Intel)
 ```bash
 # Скачайте архив для macOS
-curl -LO https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.0.0/motion-macos-arm64.tar.gz
+curl -LO https://github.com/BlackTecCom2000/MotionCommander/releases/download/v3.8.55/motion-macos-arm64.tar.gz
 tar -xzf motion-macos-arm64.tar.gz
 chmod +x motion
 sudo mv motion /usr/local/bin/

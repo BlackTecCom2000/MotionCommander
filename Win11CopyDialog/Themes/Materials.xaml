@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System">
 
-    <!-- ================= LIQUID GLASS MATERIAL SYSTEM (Levels 0 - 6) ================= -->
+    <!-- ================= LIQUID GLASS MATERIAL SYSTEM (Levels 0 - 8) ================= -->
 
     <!-- Level 0: Background (Deep near-black ambient radial surface) -->
     <SolidColorBrush x:Key="LiquidGlassBackground" Color="#050912"/>
@@ -25,11 +25,22 @@
     <!-- Level 6: Active / Focused Glass (Accent-tinted interactive highlights) -->
     <SolidColorBrush x:Key="LiquidGlassActiveHighlight" Color="#40168CFF"/>
 
+    <!-- Level 7: Ultra-Floating Glass (Toast notifications, flyouts - 96% Translucent) -->
+    <SolidColorBrush x:Key="LiquidGlassSurfaceUltraFloating" Color="#F20B1424"/>
+
+    <!-- Level 8: Glass Overlay / Backdrop (Fullscreen scrims, 98% Translucent) -->
+    <SolidColorBrush x:Key="LiquidGlassSurfaceOverlay" Color="#FA0A1220"/>
+
     <!-- Borders -->
     <SolidColorBrush x:Key="LiquidGlassBorderSubtle" Color="#1578BEFF"/>
     <SolidColorBrush x:Key="LiquidGlassBorder" Color="#2E78BEFF"/>
     <SolidColorBrush x:Key="LiquidGlassBorderStrong" Color="#4578BEFF"/>
     <SolidColorBrush x:Key="LiquidGlassHighlight" Color="#30FFFFFF"/>
+
+    <!-- Inner Shadow / Inset Depth Colors -->
+    <Color x:Key="LiquidGlassInsetShadowTop">#1AFFFFFF</Color>
+    <Color x:Key="LiquidGlassInsetShadowBottom">#0A000000</Color>
+    <Color x:Key="LiquidGlassInsetGlowAccent">#2A00D4FF</Color>
 
     <!-- Shadows -->
     <Color x:Key="LiquidGlassShadowColor">#80000000</Color>
@@ -39,6 +50,7 @@
     <sys:Double x:Key="LiquidGlassBlurSmall">8</sys:Double>
     <sys:Double x:Key="LiquidGlassBlurMedium">16</sys:Double>
     <sys:Double x:Key="LiquidGlassBlurLarge">28</sys:Double>
+    <sys:Double x:Key="LiquidGlassBlurXLarge">40</sys:Double>
 
     <sys:Double x:Key="LiquidGlassOpacityLow">0.25</sys:Double>
     <sys:Double x:Key="LiquidGlassOpacityMedium">0.65</sys:Double>
@@ -48,7 +60,7 @@
     <SolidColorBrush x:Key="LiquidGlassAccentSoft" Color="#25168CFF"/>
     <SolidColorBrush x:Key="LiquidGlassAccentStrong" Color="#168CFF"/>
 
-    <!-- Level 0 to 6 Brushes (Initial Design-Time Tokens) -->
+    <!-- Level 0 to 8 Brushes (Initial Design-Time Tokens) -->
     <SolidColorBrush x:Key="LiquidGlassMaterialLevel0Brush" Color="#050912"/>
     <SolidColorBrush x:Key="LiquidGlassMaterialLevel1Brush" Color="#D90A1426"/>
     <SolidColorBrush x:Key="LiquidGlassMaterialLevel2Brush" Color="#B2081222"/>
@@ -56,6 +68,8 @@
     <SolidColorBrush x:Key="LiquidGlassMaterialLevel4Brush" Color="#D00F1E38"/>
     <SolidColorBrush x:Key="LiquidGlassMaterialLevel5Brush" Color="#EB0B1424"/>
     <SolidColorBrush x:Key="LiquidGlassMaterialLevel6Brush" Color="#40168CFF"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel7Brush" Color="#F20B1424"/>
+    <SolidColorBrush x:Key="LiquidGlassMaterialLevel8Brush" Color="#FA0A1220"/>
 
     <!-- Border Level Brushes -->
     <SolidColorBrush x:Key="LiquidGlassBorderLevel1Brush" Color="#1578BEFF"/>
@@ -63,6 +77,9 @@
     <SolidColorBrush x:Key="LiquidGlassBorderLevel3Brush" Color="#3878BEFF"/>
     <SolidColorBrush x:Key="LiquidGlassBorderLevel4Brush" Color="#4578BEFF"/>
     <SolidColorBrush x:Key="LiquidGlassBorderLevel5Brush" Color="#6078BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel6Brush" Color="#8078BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel7Brush" Color="#A078BEFF"/>
+    <SolidColorBrush x:Key="LiquidGlassBorderLevel8Brush" Color="#C078BEFF"/>
     <SolidColorBrush x:Key="LiquidGlassSubtleBorderBrush" Color="#1578BEFF"/>
     <SolidColorBrush x:Key="LiquidGlassHoverBorderBrush" Color="#168CFF"/>
 
@@ -81,6 +98,38 @@
     <SolidColorBrush x:Key="ScrollbarThumbHoverBrush" Color="#168CFF"/>
 
     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#B2081222"/>
+
+    <!-- Glass Blur Simulation Brushes (Backdrop blur approximation via layered gradients) -->
+    <LinearGradientBrush x:Key="GlassBlurTopOverlay" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#1AFFFFFF" Offset="0.0"/>
+        <GradientStop Color="#08FFFFFF" Offset="0.35"/>
+        <GradientStop Color="Transparent" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="GlassBlurBottomOverlay" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="Transparent" Offset="0.0"/>
+        <GradientStop Color="#0A000000" Offset="0.65"/>
+        <GradientStop Color="#1A000000" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="GlassBlurLeftOverlay" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#14FFFFFF" Offset="0.0"/>
+        <GradientStop Color="#08FFFFFF" Offset="0.4"/>
+        <GradientStop Color="Transparent" Offset="1.0"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="GlassBlurRightOverlay" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="Transparent" Offset="0.0"/>
+        <GradientStop Color="#08FFFFFF" Offset="0.4"/>
+        <GradientStop Color="#14FFFFFF" Offset="1.0"/>
+    </LinearGradientBrush>
+
+    <!-- Chromatic specular rim for ultra-deep glass panels -->
+    <LinearGradientBrush x:Key="LiquidGlassChromaticRimDeep" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#2A00E5FF" Offset="0.0"/>
+        <GradientStop Color="#45FFFFFF" Offset="0.1"/>
+        <GradientStop Color="#10FFFFFF" Offset="0.3"/>
+        <GradientStop Color="#0A78BEFF" Offset="0.5"/>
+        <GradientStop Color="#18B366FF" Offset="0.7"/>
+        <GradientStop Color="#20F43F5E" Offset="1.0"/>
+    </LinearGradientBrush>
 
     <!-- ================= SEMANTIC BORDER SYSTEM (Rules 14 & 15) ================= -->
     <!-- GlassBorderInvisible: 0% opacity -->

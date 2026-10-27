@@ -5,6 +5,7 @@
 - Обновить версию в `Win11CopyDialog/Win11CopyDialog.csproj` (`<Version>`, `<AssemblyVersion>`, `<FileVersion>`)
 - Обновить версию в `src/MotionCommander.Core/MotionCommander.Core.csproj`
 - Обновить версию в `src/MotionCommander.Cli/MotionCommander.Cli.csproj`
+- Обновить версию в `src/MotionCommander.Diagnostics/MotionCommander.Diagnostics.csproj`
 - Обновить `MyAppVersion` в `installer/MotionCommander.iss`
 - Обновить `version` и URL-адреса в `version.json`
 - Собрать и упаковать релизные артефакты:

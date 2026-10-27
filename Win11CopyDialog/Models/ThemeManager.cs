@@ -25,6 +25,7 @@ public enum AppTheme
     SunsetAmber,
     RoyalIndigo,
     MotionGlass,
+    MotionGlassLight,
     MinimalWhite,
     /// <summary>Космос: глубокий индиго, туманности, живой звёздный фон.</summary>
     CosmicNebula,
@@ -207,6 +208,13 @@ public sealed class ThemeManager : INotifyPropertyChanged
             Window = C("#050912"), Card = C("#0A1426", 0xB8), Border = C("#78BEFF", 0x14),
             Success = C("#00D68F"), Warning = C("#FFB020"), Danger = C("#FF4567"), Info = C("#00D4FF"),
             WindowRadius = 16, HasLiveBackdrop = true, PreferredAccent = C("#168CFF")
+        },
+        [AppTheme.MotionGlassLight] = new Palette
+        {
+            Name = "✨ Motion Commander Glass OS (Light)", IsDark = false,
+            Window = C("#F3F3F3", 0xE8), Card = C("#FFFFFF", 0xF0), Border = C("#E0E0E0"),
+            Success = C("#0F9D68"), Warning = C("#B8860B"), Danger = C("#C42B1C"), Info = C("#0F6CBD"),
+            WindowRadius = 16, HasLiveBackdrop = true, DefaultBackdrop = BackdropType.Acrylic, PreferredAccent = C("#168CFF")
         },
         [AppTheme.MinimalWhite] = new Palette
         {

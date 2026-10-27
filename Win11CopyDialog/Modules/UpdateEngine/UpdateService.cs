@@ -336,18 +336,34 @@ public static class UpdateService
                                 if (a.TryGetProperty("browser_download_url", out var dlUrl))
                                 {
                                     string dl = dlUrl.GetString() ?? "";
-                                    if (dl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                                    if (dl.EndsWith("-Portable.zip", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(info.DownloadUrl))
                                     {
                                         info.DownloadUrl = dl;
                                         info.InstallerUrl = dl;
-                                        break;
+                                    }
+                                    else if (dl.EndsWith("-Setup.exe", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(info.SetupExeUrl))
+                                    {
+                                        info.SetupExeUrl = dl;
+                                    }
+                                    else if (dl.EndsWith("-Patch.zip", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(info.PatchUrl))
+                                    {
+                                        info.PatchUrl = dl;
                                     }
                                 }
                             }
                         }
                         if (string.IsNullOrEmpty(info.DownloadUrl))
                         {
-                            info.DownloadUrl = $"{GitHubRepoUrl}/releases/download/{tag}/MotionCommander-Windows-x64.zip";
+                            info.DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{ver}-Portable.zip";
+                            info.InstallerUrl = info.DownloadUrl;
+                        }
+                        if (string.IsNullOrEmpty(info.PatchUrl) && !string.IsNullOrWhiteSpace(info.LatestVersion))
+                        {
+                            info.PatchUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{info.LatestVersion}-Patch.zip";
+                        }
+                        if (string.IsNullOrEmpty(info.SetupExeUrl))
+                        {
+                            info.SetupExeUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{ver}-Setup.exe";
                         }
                         return info;
                     }
@@ -424,11 +440,15 @@ public static class UpdateService
                                 if (a.TryGetProperty("browser_download_url", out var dlProp))
                                 {
                                     string dl = dlProp.GetString() ?? "";
-                                    if (dl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(item.DownloadUrl))
+                                    if (dl.EndsWith("-Portable.zip", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(item.DownloadUrl))
                                     {
                                         item.DownloadUrl = dl;
                                     }
-                                    if (dl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(item.SetupExeUrl))
+                                    else if (dl.EndsWith("-Patch.zip", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(item.PatchUrl))
+                                    {
+                                        item.PatchUrl = dl;
+                                    }
+                                    if (dl.EndsWith("-Setup.exe", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(item.SetupExeUrl))
                                     {
                                         item.SetupExeUrl = dl;
                                     }
@@ -439,6 +459,10 @@ public static class UpdateService
                         if (string.IsNullOrEmpty(item.DownloadUrl))
                         {
                             item.DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Portable.zip";
+                        }
+                        if (string.IsNullOrEmpty(item.PatchUrl) && CompareVersions(verNum, "3.8.5") >= 0)
+                        {
+                            item.PatchUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Patch.zip";
                         }
 
                         // setupExeUrl НЕ достраивается по шаблону.
@@ -481,16 +505,22 @@ public static class UpdateService
                         string verNum = tagName.TrimStart('v', 'V');
                         seenTags.Add(tagName);
 
-                        var item = new ReleaseVersionItem
+var item = new ReleaseVersionItem
                         {
                             Version = verNum,
                             TagName = tagName,
                             Name = $"Motion Commander {tagName}",
                             DownloadUrl = $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Portable.zip",
+                            // Патч публикуется в dist начиная с 3.8.5.
+                            PatchUrl = CompareVersions(verNum, "3.8.5") >= 0
+                                ? $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Patch.zip"
+                                : "",
                             // Инсталлятор появился в dist начиная с 3.8.2.
                             // Для более старых тегов ссылка не строится:
                             // иначе пользователь получал бы 404 на кнопке
                             // «скачать установщик».
+                            // Пустое значение означает «инсталлятора для этой
+                            // версии нет», и интерфейс предлагает portable-архив.
                             SetupExeUrl = CompareVersions(verNum, "3.8.2") >= 0
                                 ? $"https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v{verNum}-Setup.exe"
                                 : "",
