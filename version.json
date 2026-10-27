@@ -1,5 +1,5 @@
 ﻿{
-    "version":  "3.8.55",
+    "version":  "3.8.56",
     "releaseDate":  "2026-10-22",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
@@ -14,11 +14,11 @@
                       "Исправлено: профили оптимизации теперь меняют только схему электропитания и перечитывают её после переключения. Несуществующие обещания (парковка ядер, TRIM/SLC, буферы ввода-вывода, вентиляторы, «-6…12 °C») убраны из профилей и интерфейса",
                       "Диагностика: 18/18 тестов игрового модуля, 23/23 экрана проходят аудит, сборка решения без ошибок и предупреждений"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Patch.zip",
-    "patchSizeMb":  9.28,
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Patch.zip",
+    "patchSizeMb":  9.50,
     "patchMinVersion":  "3.8.0",
-    "fullSizeMb":  43.98,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.55-Setup.exe"
+    "fullSizeMb":  44.50,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Setup.exe"
 }
