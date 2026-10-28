@@ -1,25 +1,24 @@
-{
-  "version":  "3.8.56",
-  "releaseDate":  "2026-10-22",
-  "productName":  "Motion Commander",
-  "author":  "BlackTecCom - Jaborov Daler",
-  "license":  "MIT",
-  "minWindowsVersion":  "10.0.19041",
-  "changelog":  [
-    "Исправлено: улучшены контраст и цветовые фиксы MotionGlassLight; подготовлена версия 3.8.56",
-    "Новая вкладка «Игры» (индекс 6, запуск через --tab-games): измеренное железо, пресеты конфигов игр и 11 системных твиков с откатом",
-    "FPS измеряется через события Present DXGI/D3D9 (ETW). Без прав администратора программа честно отказывается показывать цифры, а не придумывает их",
-    "Разница меньше 3% помечается как «в пределах погрешности» и никогда не выдаётся за прирост",
-    "Каждый твик сохраняет исходное значение реестра (наличие, тип, данные), «Откатить всё» возвращает именно их, а не «значения по умолчанию»",
-    "Пресеты конфигов меняют только уже существующие ключи, кладут резервную копию с меткой времени рядом с файлом и перечитывают результат; отсутствующий файл только показывается, но не создаётся",
-    "Исправлено: профили оптимизации теперь меняют только схему электропитания и перечитывают её после переключения. Несуществующие обещания (парковка ядер, TRIM/SLC, буферы ввода-вывода, вентиляторы, «-6…12 °C») убраны из профилей и интерфейса",
-    "Диагностика: 18/18 тестов игрового модуля, 23/23 экрана проходят аудит, сборка решения без ошибок и предупреждений"
-  ],
-  "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Patch.zip",
-  "patchSizeMb":  9.50,
-  "patchMinVersion":  "3.8.0",
-  "fullSizeMb":  44.50,
-  "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Portable.zip",
-  "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Portable.zip",
-  "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.56-Setup.exe"
+﻿{
+    "version":  "3.8.57",
+    "releaseDate":  "2026-10-28",
+    "productName":  "Motion Commander",
+    "author":  "BlackTecCom - Jaborov Daler",
+    "license":  "MIT",
+    "minWindowsVersion":  "10.0.19041",
+    "changelog":  [
+                      "Обновлятор: скачанный архив проверяется ДО применения — версия внутри него обязана совпасть с версией из манифеста, иначе архив отвергается. Раньше версия полного пакета узнавалась только после замены файлов, и подсунутый сервером раздачи архив прошлого релиза молча откатывал программу",
+                      "Обновлятор: пакет без исполняемого файла программы (motion.exe / Win11CopyDialog.exe) больше не применяется — иначе библиотеки заменились бы, а запускать было бы нечего",
+                      "Обновлятор: перед загрузкой и перед распаковкой проверяется свободное место; при нехватке сообщаются три числа — нужно, свободно, не хватает",
+                      "Обновлятор: размеры пакета больше не выдумываются. Если манифест не сообщил размер, интерфейс пишет «размер уточнится при загрузке», а точные цифры появляются из заголовков ответа",
+                      "Исправлено: Win11CopyDialog/MainWindow.xaml.cs не компилировался — в коммите 27b1c22 остались литеральные \\n вместо переводов строк. Горячая клавиша Ctrl+P и окно предпросмотра темы снова работают",
+                      "Удалены фиктивные артефакты 3.8.56 (Patch.zip 161 байт с одним patch-readme.txt и Setup.exe 24 байта с текстом-заглушкой), из-за которых живой канал предлагал нерабочее обновление",
+                      "Диагностика: 20/20 тестов обновлятора (включая новые проверки версии пакета, состава и свободного места), 18/18 тестов игрового модуля, 23/23 экрана, сборка без ошибок и предупреждений"
+                  ],
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Patch.zip",
+    "patchSizeMb":  9.29,
+    "patchMinVersion":  "3.8.0",
+    "fullSizeMb":  43.98,
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Setup.exe"
 }

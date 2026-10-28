@@ -125,7 +125,18 @@ public partial class MainWindow : Window
         ThemeManager.Instance.PropertyChanged += OnThemePropertyChanged;
 
         // Горячие клавиши (Ctrl+K: Поиск, Ctrl+Q: Очередь, F5: Обновить)
-        PreviewKeyDown += MainWindow_PreviewKeyDown;\n        // Quick-Preview: Ctrl+P toggles a Theme Preview window (dark vs light glass)\n        PreviewKeyDown += (s, e) => {\n            if (e.Key == Key.P && (e.KeyboardDevice.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)\n            {\n                var w = new Win11CopyDialog.Views.Dialogs.ThemePreviewWindow { Owner = this };\n                w.Show();\n                e.Handled = true;\n            }\n        };
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
+
+        // Quick-Preview: Ctrl+P открывает окно предпросмотра темы (тёмное и светлое стекло)
+        PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key == Key.P && (e.KeyboardDevice.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                var w = new Win11CopyDialog.Views.Dialogs.ThemePreviewWindow { Owner = this };
+                w.Show();
+                e.Handled = true;
+            }
+        };
 
         // Подписка на обновление очереди операций
         UnifiedOperationsQueueService.Instance.QueueChanged += (s, ev) => Dispatcher.Invoke(UpdateQueueHeaderBadge);

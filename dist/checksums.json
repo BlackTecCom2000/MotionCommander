@@ -1,11 +1,11 @@
 ﻿{
-    "version":  "3.8.55",
-    "releaseDate":  "2026-10-22",
+    "version":  "3.8.57",
+    "releaseDate":  "2026-10-28",
     "algorithm":  "SHA-256",
     "signed":  false,
     "files":  {
-                  "MotionCommander-v3.8.55-Portable.zip":  "955D8943EAF8ABA3D98459AF277CD41F2F6D75F94F8A4A6C22EAFB172EF5B8D8",
-                  "MotionCommander-v3.8.55-Patch.zip":  "32F019670C59E360ED33F3509751E04543F00E6906D5F608BE6CACB733E5FF31",
-                  "MotionCommander-v3.8.55-Setup.exe":  "84A4934EE1FA3EAF074F9F3DE5E629BD13869D0F1A84BBEE2345E5A1A6355F0C"
+                  "MotionCommander-v3.8.57-Portable.zip":  "60A9F4DCD77CAF776D7295BAF7BD9E30C2B8EF42708E432E7370A44CB2351F49",
+                  "MotionCommander-v3.8.57-Patch.zip":  "3EEDD7E257B01C57F88CB62053CED870000B83679EEBBD5045B1C083BA903AE7",
+                  "MotionCommander-v3.8.57-Setup.exe":  "9FAE52103B77377CCD22F82531D280E2079C48AC9F73C2EF6F2142F02A91C0C4"
               }
 }

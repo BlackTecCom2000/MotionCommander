@@ -50,7 +50,17 @@ public sealed class UpdateInfo
     public string PatchUrl { get; set; } = "";
     public double PatchSizeMb { get; set; }
     public string PatchMinVersion { get; set; } = "3.8.0";
-    public double FullSizeMb { get; set; } = 40.5;
+
+    /// <summary>
+    /// Размер полного архива в МБ, как он указан в манифесте.
+    /// </summary>
+    /// <remarks>
+    /// Ноль означает «манифест не сообщил размер» (например, ответ пришёл
+    /// от GitHub API, а не от version.json). Раньше здесь стояло 40.5 —
+    /// выдуманное число, которое показывалось пользователю как факт и
+    /// расходилось с реальным размером архива после каждого релиза.
+    /// </remarks>
+    public double FullSizeMb { get; set; }
     public string DownloadUrl { get; set; } = "";
     public string InstallerUrl { get; set; } = "";
     public string SetupExeUrl { get; set; } = "";
@@ -89,10 +99,11 @@ public sealed class UpdateInfo
 
     /// <summary>
     /// Фактический размер загрузки в МБ в зависимости от выбранного типа пакета.
+    /// Ноль — размер неизвестен; выдуманное значение не подставляется.
     /// </summary>
     public double DownloadSizeMb => (PackageType == UpdatePackageType.Patch && HasPatch)
         ? PatchSizeMb
-        : (FullSizeMb > 0 ? FullSizeMb : 40.5);
+        : FullSizeMb;
 
     /// <summary>
     /// Процент экономии трафика при использовании патча по сравнению с полным пакетом.
@@ -102,7 +113,10 @@ public sealed class UpdateInfo
         get
         {
             if (PackageType != UpdatePackageType.Patch || PatchSizeMb <= 0) return 0;
-            double full = FullSizeMb > 0 ? FullSizeMb : 40.5;
+
+            // Без размера полного архива экономию посчитать нельзя:
+            // любая цифра здесь была бы выдумкой.
+            double full = FullSizeMb;
             if (full <= PatchSizeMb) return 0;
             return (int)Math.Round((1.0 - (PatchSizeMb / full)) * 100.0);
         }
@@ -118,11 +132,14 @@ public sealed class UpdateInfo
             if (PackageType == UpdatePackageType.Patch && HasPatch)
             {
                 int saving = TrafficSavingPercent;
-                return saving > 0
-                    ? $"Быстрый патч: ~{PatchSizeMb:F1} МБ (экономия {saving}% трафика вместо ~{FullSizeMb:F1} МБ)"
-                    : $"Быстрый патч: ~{PatchSizeMb:F1} МБ";
+                if (saving > 0)
+                    return $"Быстрый патч: ~{PatchSizeMb:F1} МБ (экономия {saving}% трафика вместо ~{FullSizeMb:F1} МБ)";
+                return $"Быстрый патч: ~{PatchSizeMb:F1} МБ";
             }
-            return $"Полный пакет: ~{DownloadSizeMb:F1} МБ";
+
+            return FullSizeMb > 0
+                ? $"Полный пакет: ~{FullSizeMb:F1} МБ"
+                : "Полный пакет: размер уточнится при загрузке";
         }
     }
 }
@@ -602,7 +619,8 @@ var item = new ReleaseVersionItem
     public static async Task<string> DownloadUpdateAsync(
         string downloadUrl, 
         IProgress<(long bytesRead, long totalBytes, int percent, double speedMBps)>? progress = null, 
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        long expectedBytes = 0)
     {
         if (string.IsNullOrWhiteSpace(downloadUrl))
             throw new ArgumentException("Ссылка на загрузку обновления не указана.");
@@ -610,6 +628,16 @@ var item = new ReleaseVersionItem
         string tempFolder = Path.Combine(Path.GetTempPath(), "MotionCommander-Update");
         Directory.CreateDirectory(tempFolder);
         CleanStaleTempFiles(tempFolder);
+
+        // Место проверяется ДО первого байта загрузки. Иначе диск
+        // заполнялся бы на середине архива, загрузка падала бы с
+        // невнятным IOException, а пользователь искал бы причину в сети.
+        // Запас сверх размера файла нужен на служебные записи NTFS и на
+        // уже существующий .part, с которого загрузка продолжится.
+        EnsureFreeSpace(
+            tempFolder,
+            expectedBytes > 0 ? expectedBytes + FreeSpaceReserveBytes : 0,
+            "загрузки обновления");
 
         var sourceUri = new Uri(downloadUrl);
         ValidateDownloadHost(sourceUri);
@@ -709,6 +737,68 @@ var item = new ReleaseVersionItem
         if (uri.IsLoopback) return true;
         return uri.Scheme == Uri.UriSchemeHttps && TrustedDownloadHosts.Contains(uri.Host);
     }
+
+    /// <summary>Запас сверх размера файла: служебные записи тома и .part.</summary>
+    private const long FreeSpaceReserveBytes = 64L * 1024 * 1024;
+
+    /// <summary>Свободно байт на томе, где лежит каталог; -1 — определить не удалось.</summary>
+    public static long GetAvailableFreeBytes(string directory)
+    {
+        try
+        {
+            string? root = Path.GetPathRoot(Path.GetFullPath(directory));
+            if (string.IsNullOrEmpty(root)) return -1;
+            return new DriveInfo(root).AvailableFreeSpace;
+        }
+        catch
+        {
+            // Сетевой путь, пустой том или нет прав: проверка места
+            // невозможна. Это не повод отменять обновление — просто
+            // решение принимается без неё, о чём пишется в журнал.
+            return -1;
+        }
+    }
+
+    /// <summary>
+    /// Проверяет, что на томе достаточно места для операции.
+    /// </summary>
+    /// <remarks>
+    /// Сообщение содержит оба числа — сколько нужно и сколько есть: по
+    /// «недостаточно места» пользователь не может решить, что удалять.
+    /// </remarks>
+    public static void EnsureFreeSpace(string directory, long requiredBytes, string purpose)
+    {
+        if (requiredBytes <= 0) return;
+
+        long free = GetAvailableFreeBytes(directory);
+        if (free < 0)
+        {
+            UpdateLog.Warn("space", $"Свободное место для {purpose} определить не удалось ({directory})");
+            return;
+        }
+
+        if (free >= requiredBytes)
+        {
+            UpdateLog.Info("space",
+                $"{purpose}: нужно {FormatMegabytes(requiredBytes)}, свободно {FormatMegabytes(free)} ({directory})");
+            return;
+        }
+
+        long missing = requiredBytes - free;
+        UpdateLog.Error("space",
+            $"{purpose}: нужно {FormatMegabytes(requiredBytes)}, свободно {FormatMegabytes(free)} " +
+            $"(не хватает {FormatMegabytes(missing)}, {directory})");
+
+        throw new IOException(
+            $"Недостаточно места на диске для {purpose}.{Environment.NewLine}{Environment.NewLine}" +
+            $"Нужно:    {FormatMegabytes(requiredBytes)}{Environment.NewLine}" +
+            $"Свободно: {FormatMegabytes(free)}{Environment.NewLine}" +
+            $"Не хватает {FormatMegabytes(missing)}.{Environment.NewLine}{Environment.NewLine}" +
+            "Освободите место и повторите. Файлы программы не изменены.");
+    }
+
+    private static string FormatMegabytes(long bytes) =>
+        $"{bytes / (1024.0 * 1024.0):F1} МБ";
 
     /// <summary>
     /// Проверяет, что пакет скачивается по HTTPS с адреса проекта.
@@ -1165,6 +1255,19 @@ var item = new ReleaseVersionItem
         string stagingDir = AppPaths.StagingDirectory;
         UpdateLog.Info("staging", $"Распаковка {Path.GetFileName(zipPath)} в {stagingDir}");
 
+        // Архив и его распакованное содержимое занимают место одновременно:
+        // каталог подготовки освобождается только после успешного применения.
+        // Двойной размер — измеренная оценка для сборок Motion Commander
+        // (dll и json не сжимаются заметно), плюс запас на служебные записи.
+        long zipBytes = 0;
+        try { zipBytes = new FileInfo(zipPath).Length; }
+        catch { zipBytes = 0; }
+
+        EnsureFreeSpace(
+            stagingDir,
+            zipBytes > 0 ? zipBytes * 2 + FreeSpaceReserveBytes : 0,
+            "распаковки обновления");
+
         try
         {
             if (Directory.Exists(stagingDir))
@@ -1264,6 +1367,10 @@ var item = new ReleaseVersionItem
             }
         }
 
+        // Целевая версия и состав пакета проверяются до применения:
+        // см. ValidateStagedPackage.
+        ValidateStagedPackage(stagingDir, expectedTargetVersion);
+
         return stagingDir;
     }
 
@@ -1343,6 +1450,10 @@ var item = new ReleaseVersionItem
         var files = Directory.GetFiles(stagingFolder, "*", SearchOption.AllDirectories);
         if (files.Length == 0)
             throw new IOException("В подготовленном обновлении нет ни одного файла — применяться нечего.");
+
+        // Повторная проверка состава непосредственно перед заменой файлов:
+        // staging мог быть изменён или очищен после PrepareStagingAsync.
+        ValidateStagedPackage(stagingFolder, expectedTargetVersion: null);
 
         // Подготовка каталога резервной копии перед заменой файлов
         string backupRoot = AppPaths.BackupDirectory;
@@ -1616,6 +1727,64 @@ var item = new ReleaseVersionItem
         }
 
         return "?";
+    }
+
+    /// <summary>
+    /// Проверяет, что распакованный пакет действительно можно применять.
+    /// </summary>
+    /// <remarks>
+    /// <para>Две проверки, обе — до единой записи в каталог программы.</para>
+    ///
+    /// <para>1. <b>Версия.</b> Полный пакет не содержит patch_manifest.json,
+    /// поэтому раньше его версия узнавалась только после замены файлов —
+    /// маркер писал «обновление применено», а следующий запуск сообщал
+    /// «не подтвердилось». Если CDN отдавал архив предыдущего релиза,
+    /// программа молча откатывалась на него. Теперь архив, ведущий не в
+    /// ту версию, отвергается до применения.</para>
+    ///
+    /// <para>2. <b>Состав.</b> Пакет без исполняемого файла программы
+    /// заменял бы библиотеки, оставляя старый exe: запуск после такого
+    /// «успеха» невозможен, а откат уже некому выполнить.</para>
+    ///
+    /// <para>Если версию определить не удалось (нестандартная сборка),
+    /// проверка не блокирует обновление: SHA-256 архива уже подтверждён,
+    /// и молчаливое «не могу прочитать» не должно запрещать апдейт.
+    /// Итог проверки всегда попадает в журнал.</para>
+    /// </remarks>
+    public static void ValidateStagedPackage(string stagingFolder, string? expectedTargetVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(expectedTargetVersion))
+        {
+            string staged = TryReadTargetVersion(stagingFolder);
+            if (staged != "?" && CompareVersions(staged, expectedTargetVersion) != 0)
+            {
+                UpdateLog.Error("staging",
+                    $"Архив ведёт в v{staged}, а ожидалась v{expectedTargetVersion}: применение отменено");
+                throw new PatchIncompatibleException(
+                    $"Скачанный архив ведёт в версию v{staged}, а ожидалась v{expectedTargetVersion}. " +
+                    "Скорее всего, сервер раздачи отдал файл другого релиза. " +
+                    "Файлы программы не изменены; повторите обновление через минуту.",
+                    GetCurrentVersion(), staged, expectedTargetVersion);
+            }
+
+            UpdateLog.Info("staging",
+                staged == "?"
+                    ? "Версию архива определить не удалось; целостность подтверждена контрольной суммой"
+                    : $"Версия архива подтверждена: v{staged}");
+        }
+
+        string[] launchers = { "motion.exe", "Win11CopyDialog.exe" };
+        bool hasLauncher = launchers.Any(name =>
+            File.Exists(Path.Combine(stagingFolder, name)));
+        if (!hasLauncher)
+        {
+            UpdateLog.Error("staging",
+                "В пакете нет исполняемого файла программы: применение отменено до замены файлов");
+            throw new IOException(
+                "В скачанном архиве нет исполняемого файла программы (motion.exe / Win11CopyDialog.exe). " +
+                "Применять такой пакет нельзя: программа перестала бы запускаться. " +
+                "Файлы не изменены; скачайте пакет повторно или установите версию установщиком.");
+        }
     }
 
     /// <summary>Приводит «3.8.52.0» к «3.8.52», чтобы сравнение версий не врало.</summary>

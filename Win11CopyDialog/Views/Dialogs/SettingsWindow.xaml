@@ -415,7 +415,7 @@
                                         </StackPanel>
                                     </DockPanel>
 
-                                    <TextBlock Text="Позволяет выбрать любую версию Motion Commander из истории релизов и выполнить мгновенное обновление или безопасный откат назад без потери настроек."
+                                    <TextBlock Text="Позволяет выбрать любую версию Motion Commander из истории релизов и загрузить выбранную версию или безопасно откатиться назад без потери настроек. Загрузка идёт с официального адреса проекта, целостность архива проверяется по SHA-256 до применения."
                                                FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,14"/>
 
                                     <Button Style="{StaticResource GlassPrimaryButton}" Content="⏳ Выбрать версию программы (Обновить или откатить назад)" HorizontalAlignment="Left" Padding="16,7" Click="OpenVersionSelector_Click"/>

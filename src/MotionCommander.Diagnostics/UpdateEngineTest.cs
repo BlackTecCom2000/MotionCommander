@@ -91,6 +91,10 @@ public static class UpdateEngineTest
                 string srcDir = Path.Combine(testTmp, "staging_src");
                 Directory.CreateDirectory(srcDir);
                 File.WriteAllText(Path.Combine(srcDir, "MotionCommander.dll"), "TEST_DLL_BINARY_DATA");
+
+                // Пакет обязан содержать исполняемый файл программы: без него
+                // применение оставило бы старый exe рядом с новыми библиотеками.
+                File.WriteAllText(Path.Combine(srcDir, "Win11CopyDialog.exe"), "TEST_EXE_PLACEHOLDER");
                 File.WriteAllText(Path.Combine(srcDir, "patch_manifest.json"), @"{""targetVersion"":""3.8.46"",""minCompatibleVersion"":""3.8.0""}");
 
                 string testZip = Path.Combine(testTmp, "Valid-Patch.zip");
@@ -567,6 +571,129 @@ exit /b 1
 
                 if (!File.Exists(dstFile) || File.ReadAllText(dstFile) != "ESCAPE_OK")
                     throw new Exception("Файл не скопирован через cmd — экранирование не работает");
+            });
+
+            // --- TEST 17: Полный пакет другой версии отвергается ДО применения ---
+            RunTest(output, "Full package leading to another version is rejected before apply", ref passed, ref failed, () =>
+            {
+                string srcDir = Path.Combine(testTmp, "full_pkg_src");
+                Directory.CreateDirectory(srcDir);
+
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                File.Copy(Path.Combine(baseDir, "Win11CopyDialog.dll"), Path.Combine(srcDir, "Win11CopyDialog.dll"), true);
+                File.Copy(Path.Combine(baseDir, "Win11CopyDialog.exe"), Path.Combine(srcDir, "Win11CopyDialog.exe"), true);
+
+                string zip = Path.Combine(testTmp, "Full-Package.zip");
+                ZipFile.CreateFromDirectory(srcDir, zip);
+
+                // 17a. Ожидается другая версия — архив обязан быть отвергнут.
+                bool rejected = false;
+                string message = "";
+                try
+                {
+                    UpdateService.PrepareStagingAsync(zip, CancellationToken.None, "9.9.9").GetAwaiter().GetResult();
+                }
+                catch (PatchIncompatibleException ex)
+                {
+                    rejected = true;
+                    message = ex.Message;
+                }
+
+                if (!rejected)
+                    throw new Exception("Архив другой версии был принят к применению");
+                if (!message.Contains("9.9.9"))
+                    throw new Exception($"В сообщении нет ожидаемой версии: {message}");
+
+                // 17b. Ожидается фактическая версия — тот же архив проходит.
+                string current = UpdateService.GetCurrentVersion();
+                string staging = UpdateService.PrepareStagingAsync(zip, CancellationToken.None, current).GetAwaiter().GetResult();
+                if (!File.Exists(Path.Combine(staging, "Win11CopyDialog.dll")))
+                    throw new Exception("Подготовка совпадающего по версии пакета не выполнена");
+            });
+
+            // --- TEST 18: Пакет без исполняемого файла отвергается ---
+            RunTest(output, "Package without the program executable is rejected before apply", ref passed, ref failed, () =>
+            {
+                string srcDir = Path.Combine(testTmp, "noexe_src");
+                Directory.CreateDirectory(srcDir);
+                File.WriteAllText(Path.Combine(srcDir, "readme.txt"), "no launcher here");
+                File.WriteAllText(Path.Combine(srcDir, "MotionCommander.Core.dll"), "DUMMY");
+
+                string zip = Path.Combine(testTmp, "NoExe-Package.zip");
+                ZipFile.CreateFromDirectory(srcDir, zip);
+
+                bool rejected = false;
+                string message = "";
+                try
+                {
+                    UpdateService.PrepareStagingAsync(zip, CancellationToken.None).GetAwaiter().GetResult();
+                }
+                catch (IOException ex)
+                {
+                    rejected = true;
+                    message = ex.Message;
+                }
+
+                if (!rejected)
+                    throw new Exception("Пакет без исполняемого файла был принят к применению");
+                if (!message.Contains("исполняемого файла"))
+                    throw new Exception($"Неинформативное сообщение: {message}");
+            });
+
+            // --- TEST 19: Нехватка места сообщается с числами ---
+            RunTest(output, "Free space preflight reports required and available megabytes", ref passed, ref failed, () =>
+            {
+                long free = UpdateService.GetAvailableFreeBytes(testTmp);
+                if (free <= 0)
+                    throw new Exception($"Свободное место не определено: {free}");
+
+                // Малый запрос проходит без исключения.
+                UpdateService.EnsureFreeSpace(testTmp, 1024 * 1024, "теста");
+
+                // Заведомо недостижимый — отвергается с числами.
+                bool rejected = false;
+                string message = "";
+                try
+                {
+                    UpdateService.EnsureFreeSpace(testTmp, 500L * 1024 * 1024 * 1024 * 1024, "загрузки обновления");
+                }
+                catch (IOException ex)
+                {
+                    rejected = true;
+                    message = ex.Message;
+                }
+
+                if (!rejected) throw new Exception("Нехватка места не обнаружена");
+                if (!message.Contains("Нужно:") || !message.Contains("Свободно:") || !message.Contains("Не хватает"))
+                    throw new Exception($"Сообщение не содержит чисел: {message}");
+            });
+
+            // --- TEST 20: Размер пакета не выдумывается ---
+            RunTest(output, "Unknown package size is reported as unknown, not invented", ref passed, ref failed, () =>
+            {
+                var unknown = new UpdateInfo { PackageType = UpdatePackageType.FullPackage, FullSizeMb = 0 };
+                if (unknown.DownloadSizeMb != 0)
+                    throw new Exception($"Неизвестный размер подменён числом: {unknown.DownloadSizeMb}");
+                if (!unknown.FormattedPackageDescription.Contains("уточнится"))
+                    throw new Exception($"Описание не признаёт неизвестность: {unknown.FormattedPackageDescription}");
+                if (unknown.TrafficSavingPercent != 0)
+                    throw new Exception("Экономия трафика посчитана без размера полного пакета");
+
+                var known = new UpdateInfo
+                {
+                    PackageType = UpdatePackageType.Patch,
+                    PatchUrl = "https://raw.githubusercontent.com/x/MotionCommander-v3.8.56-Patch.zip",
+                    PatchSizeMb = 4.0,
+                    FullSizeMb = 40.0
+                };
+                if (known.TrafficSavingPercent != 90)
+                    throw new Exception($"Экономия посчитана неверно: {known.TrafficSavingPercent}%");
+
+                // Форматирование идёт по текущей культуре (запятая в ru-RU),
+                // поэтому сравнивается результат того же форматирования.
+                string expectedSize = (40.0).ToString("F1");
+                if (!known.FormattedPackageDescription.Contains(expectedSize))
+                    throw new Exception($"В описании нет размера полного пакета: {known.FormattedPackageDescription}");
             });
         }
         finally

@@ -83,9 +83,15 @@ public partial class UpdateProgressWindow : Window
             DownloadStatsText.Text = totalMb > 0
                 ? $"{downloadedMb:F1} / {totalMb:F1} МБ ({p.speedMBps:F1} МБ/с){etaText}"
                 : $"{downloadedMb:F1} МБ ({p.speedMBps:F1} МБ/с)";
-            StatusText.Text = isPatch
-                ? $"Загрузка патча: {downloadedMb:F1} МБ из {totalMb:F1} МБ..."
-                : $"Загрузка полного пакета: {downloadedMb:F1} МБ из {totalMb:F1} МБ...";
+
+            // Сервер не сообщил полный размер — «из 0.0 МБ» было бы враньём.
+            StatusText.Text = totalMb > 0
+                ? (isPatch
+                    ? $"Загрузка патча: {downloadedMb:F1} МБ из {totalMb:F1} МБ..."
+                    : $"Загрузка полного пакета: {downloadedMb:F1} МБ из {totalMb:F1} МБ...")
+                : (isPatch
+                    ? $"Загрузка патча: {downloadedMb:F1} МБ..."
+                    : $"Загрузка полного пакета: {downloadedMb:F1} МБ...");
         });
 
         while (!_cts.IsCancellationRequested)
@@ -118,7 +124,11 @@ public partial class UpdateProgressWindow : Window
                     ? _updateInfo.GetEffectivePatchUrl() 
                     : _updateInfo.GetEffectiveFullZipUrl();
 
-                string downloadedFile = await UpdateService.DownloadUpdateAsync(url, progress, _cts.Token);
+                string downloadedFile = await UpdateService.DownloadUpdateAsync(
+                    url,
+                    progress,
+                    _cts.Token,
+                    expectedBytes: (long)Math.Round(_updateInfo.DownloadSizeMb * 1024 * 1024));
                 string stagingDir;
 
                 StatusText.Text = isPatch
@@ -171,10 +181,18 @@ public partial class UpdateProgressWindow : Window
                     _ => ex.Message
                 };
 
-                double fullSizeMb = _updateInfo.FullSizeMb > 0 ? _updateInfo.FullSizeMb : 38.0;
+                // Размер берётся из манифеста. Если его там нет (ответ пришёл
+                // от GitHub API, а не от version.json), цифра не выдумывается:
+                // пользователь увидит «уточнится при загрузке», а точные
+                // значения появятся из заголовков ответа.
+                double fullSizeMb = _updateInfo.FullSizeMb;
                 FallbackNoticeText.Text = $"Быстрый патч не удалось применить ({userReason}). Автоматический переход к загрузке полной версии программы поверх текущей установки.";
-                FallbackPackageSizeText.Text = $"Размер полного архива: ~{fullSizeMb:F1} МБ. Файлы программы сохранены без изменений.";
-                DownloadFullBtn.Content = $"📦 Скачать полный пакет (~{fullSizeMb:F1} МБ)";
+                FallbackPackageSizeText.Text = fullSizeMb > 0
+                    ? $"Размер полного архива: ~{fullSizeMb:F1} МБ. Файлы программы сохранены без изменений."
+                    : "Размер полного архива уточнится при загрузке. Файлы программы сохранены без изменений.";
+                DownloadFullBtn.Content = fullSizeMb > 0
+                    ? $"📦 Скачать полный пакет (~{fullSizeMb:F1} МБ)"
+                    : "📦 Скачать полный пакет";
 
                 UpdateLog.Warn("ui", $"Патч не применён, переход к полному пакету: {userReason}");
 
