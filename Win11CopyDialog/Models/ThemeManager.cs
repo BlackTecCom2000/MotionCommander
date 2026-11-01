@@ -11,30 +11,13 @@ using Win11CopyDialog.Helpers;
 
 namespace Win11CopyDialog.Models;
 
-/// <summary>Темы оформления. Порядок НЕ важен: настройки хранятся по имени, UI — по имени.</summary>
+/// <summary>Темы оформления. Упрощены до двух режимов: день и ночь.</summary>
 public enum AppTheme
 {
-    Light,
-    Dark,
-    MicaLight,
-    MicaDark,
-    Acrylic,
-    CyberpunkDark,
-    OledMidnight,
-    MatrixEmerald,
-    SunsetAmber,
-    RoyalIndigo,
-    MotionGlass,
-    MotionGlassLight,
-    MinimalWhite,
-    /// <summary>Космос: глубокий индиго, туманности, живой звёздный фон.</summary>
-    CosmicNebula,
-    /// <summary>Терминал: амбер-фосфор на почти чёрном.</summary>
-    TerminalAmber,
-    /// <summary>Глубина океана: холодные бирюзовые тона.</summary>
-    DeepSea,
-    /// <summary>Розовый кварц: светлая пастельная тема.</summary>
-    RoseQuartz
+    /// <summary>День: светлое акриловое стекло с дневным размытием рабочего стола.</summary>
+    Day,
+    /// <summary>Ночь: глубокое тёмное стекло, аппаратный акрил и живой звёздный фон.</summary>
+    Night
 }
 
 /// <summary>Качество анимаций. Управляет FPS, числом слоёв и объёмом эффектов.</summary>
@@ -132,124 +115,26 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
     private static readonly Dictionary<AppTheme, Palette> Palettes = new()
     {
-        [AppTheme.Light] = new Palette
+        // Ночь: глубокое тёмное стекло. Аппаратный акрил DWM размывает рабочий
+        // стол за окном, а полупрозрачные слои накладывают поверх него тонировку —
+        // отсюда настоящая глубина вместо плоской заливки.
+        [AppTheme.Night] = new Palette
         {
-            Name = "☀ Windows Светлая", IsDark = false,
-            Window = C("#F3F3F3"), Card = C("#FFFFFF"), Border = C("#E5E5E5"),
-            Success = C("#0F9D68"), Warning = C("#B8860B"), Danger = C("#C42B1C"), Info = C("#0F6CBD"),
-            WindowRadius = 8
-        },
-        [AppTheme.Dark] = new Palette
-        {
-            Name = "☾ Windows Тёмная", IsDark = true,
-            Window = C("#202020"), Card = C("#2D2D2D"), Border = C("#3A3A3A"),
-            Success = C("#00D68F"), Warning = C("#FFB020"), Danger = C("#FF4567"), Info = C("#4CC2FF"),
-            WindowRadius = 8
-        },
-        [AppTheme.MicaLight] = new Palette
-        {
-            Name = "◈ Windows 11 Mica (Светлая)", IsDark = false,
-            Window = C("#F3F3F3", 0xE8), Card = C("#FFFFFF", 0xB0), Border = C("#E0E0E0"),
-            Success = C("#0F9D68"), Warning = C("#B8860B"), Danger = C("#C42B1C"), Info = C("#0F6CBD"),
-            WindowRadius = 8, DefaultBackdrop = BackdropType.Mica
-        },
-        [AppTheme.MicaDark] = new Palette
-        {
-            Name = "◈ Windows 11 Mica (Тёмная)", IsDark = true,
-            Window = C("#202020", 0xE8), Card = C("#2C2C2C", 0xA8), Border = C("#3A3A3A"),
-            Success = C("#00D68F"), Warning = C("#FFB020"), Danger = C("#FF4567"), Info = C("#4CC2FF"),
-            WindowRadius = 8, DefaultBackdrop = BackdropType.MicaAlt
-        },
-        [AppTheme.Acrylic] = new Palette
-        {
-            Name = "⬣ Fluent Acrylic", IsDark = true,
-            Window = C("#1E1E1E", 0xC8), Card = C("#2B2B2B", 0x90), Border = C("#404040"),
-            Success = C("#00D68F"), Warning = C("#FFB020"), Danger = C("#FF4567"), Info = C("#4CC2FF"),
-            WindowRadius = 12, DefaultBackdrop = BackdropType.Acrylic
-        },
-        [AppTheme.CyberpunkDark] = new Palette
-        {
-            Name = "⚡ Cyberpunk 2077", IsDark = true,
-            Window = C("#0B0E14"), Card = C("#111827"), Border = C("#1F2937"),
-            Success = C("#00FF9C"), Warning = C("#FFD166"), Danger = C("#FF2E6B"), Info = C("#00E5FF"),
-            WindowRadius = 4, PreferredAccent = C("#00E5FF")
-        },
-        [AppTheme.OledMidnight] = new Palette
-        {
-            Name = "🌑 OLED Midnight (True Black)", IsDark = true,
-            Window = C("#000000"), Card = C("#0A0A0A"), Border = C("#1F1F1F"),
-            Success = C("#00D68F"), Warning = C("#FFB020"), Danger = C("#FF4567"), Info = C("#4CC2FF"),
-            WindowRadius = 0
-        },
-        [AppTheme.MatrixEmerald] = new Palette
-        {
-            Name = "💻 Matrix Emerald (Terminal)", IsDark = true,
-            Window = C("#040D07"), Card = C("#0A1A0F"), Border = C("#12381E"),
-            Success = C("#00FF6A"), Warning = C("#B7FF3C"), Danger = C("#FF3B3B"), Info = C("#00D68F"),
-            WindowRadius = 4, PreferredAccent = C("#00FF6A")
-        },
-        [AppTheme.SunsetAmber] = new Palette
-        {
-            Name = "🔥 Sunset Amber (Warm Gold)", IsDark = true,
-            Window = C("#14100E"), Card = C("#1F1815"), Border = C("#382A22"),
-            Success = C("#9BE15D"), Warning = C("#FFB020"), Danger = C("#FF5E3A"), Info = C("#FFD166"),
-            WindowRadius = 14, PreferredAccent = C("#FFB020")
-        },
-        [AppTheme.RoyalIndigo] = new Palette
-        {
-            Name = "🔮 Royal Indigo (Deep Violet)", IsDark = true,
-            Window = C("#0B0E1F"), Card = C("#131936"), Border = C("#222B57"),
-            Success = C("#00D68F"), Warning = C("#FFC857"), Danger = C("#FF5C8A"), Info = C("#9D7BFF"),
-            WindowRadius = 16, PreferredAccent = C("#7C5CFF")
-        },
-        [AppTheme.MotionGlass] = new Palette
-        {
-            Name = "✨ Motion Commander Glass OS", IsDark = true,
-            Window = C("#050912"), Card = C("#0A1426", 0xB8), Border = C("#78BEFF", 0x14),
+            Name = "☾ Ночь — Liquid Glass", IsDark = true,
+            Window = C("#070C18", 0x88), Card = C("#0C1526", 0xC4), Border = C("#78BEFF", 0x26),
             Success = C("#00D68F"), Warning = C("#FFB020"), Danger = C("#FF4567"), Info = C("#00D4FF"),
-            WindowRadius = 16, HasLiveBackdrop = true, PreferredAccent = C("#168CFF")
+            WindowRadius = 16, HasLiveBackdrop = true, DefaultBackdrop = BackdropType.Acrylic,
+            PreferredAccent = C("#168CFF")
         },
-        [AppTheme.MotionGlassLight] = new Palette
+        // День: светлое стекло. Акрил в светлом режиме даёт молочное размытие
+        // рабочего стола, поверхности — полупрозрачный белый с холодным подтоном.
+        [AppTheme.Day] = new Palette
         {
-            Name = "✨ Motion Commander Glass OS (Light)", IsDark = false,
-            Window = C("#F3F3F3", 0xE8), Card = C("#FFFFFF", 0xF0), Border = C("#E0E0E0"),
+            Name = "☀ День — Liquid Glass", IsDark = false,
+            Window = C("#EAF0F8", 0xB8), Card = C("#FFFFFF", 0xE0), Border = C("#0F6CBD", 0x30),
             Success = C("#0F9D68"), Warning = C("#B8860B"), Danger = C("#C42B1C"), Info = C("#0F6CBD"),
-            WindowRadius = 16, HasLiveBackdrop = true, DefaultBackdrop = BackdropType.Acrylic, PreferredAccent = C("#168CFF")
-        },
-        [AppTheme.MinimalWhite] = new Palette
-        {
-            Name = "⬜ Minimal White (чистая светлая)", IsDark = false,
-            Window = C("#FFFFFF"), Card = C("#F9F9F9"), Border = C("#EAEAEA"),
-            Success = C("#0F9D68"), Warning = C("#B8860B"), Danger = C("#C42B1C"), Info = C("#0F6CBD"),
-            WindowRadius = 0
-        },
-        [AppTheme.CosmicNebula] = new Palette
-        {
-            Name = "🌌 Cosmic Nebula (космос)", IsDark = true,
-            Window = C("#04050F"), Card = C("#0B0E22", 0xC4), Border = C("#8B7BFF", 0x26),
-            Success = C("#3DF5B0"), Warning = C("#FFB84D"), Danger = C("#FF5C8A"), Info = C("#00E5FF"),
-            WindowRadius = 18, HasLiveBackdrop = true, PreferredAccent = C("#7B5CFF")
-        },
-        [AppTheme.TerminalAmber] = new Palette
-        {
-            Name = "🖥 Terminal Amber (фосфор)", IsDark = true,
-            Window = C("#0A0700"), Card = C("#140F02"), Border = C("#3D2E0A"),
-            Success = C("#FFB000"), Warning = C("#FFCC44"), Danger = C("#FF5544"), Info = C("#FFD280"),
-            WindowRadius = 2, PreferredAccent = C("#FFB000")
-        },
-        [AppTheme.DeepSea] = new Palette
-        {
-            Name = "🌊 Deep Sea (глубина)", IsDark = true,
-            Window = C("#03121B"), Card = C("#06202E", 0xC0), Border = C("#0F4A63", 0x60),
-            Success = C("#2FE0B0"), Warning = C("#FFC24D"), Danger = C("#FF6B6B"), Info = C("#35D0E8"),
-            WindowRadius = 14, HasLiveBackdrop = true, PreferredAccent = C("#00C2D6")
-        },
-        [AppTheme.RoseQuartz] = new Palette
-        {
-            Name = "🌸 Rose Quartz (пастель)", IsDark = false,
-            Window = C("#FDF4F6"), Card = C("#FFFFFF"), Border = C("#F0DCE2"),
-            Success = C("#0F9D68"), Warning = C("#B8860B"), Danger = C("#D6336C"), Info = C("#845EC2"),
-            WindowRadius = 16, PreferredAccent = C("#E6679B")
+            WindowRadius = 16, HasLiveBackdrop = true, DefaultBackdrop = BackdropType.Acrylic,
+            PreferredAccent = C("#168CFF")
         }
     };
 
@@ -274,7 +159,7 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
     // ================= Состояние =================
 
-    private AppTheme _theme = AppTheme.MotionGlass;
+    private AppTheme _theme = AppTheme.Night;
     public AppTheme Theme
     {
         get => _theme;
@@ -347,18 +232,11 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
     public bool IsDark => Current.IsDark;
 
-    public bool IsAiEnabled => Theme != AppTheme.MinimalWhite;
+    public bool IsAiEnabled => true;
     public Visibility AiVisibility => IsAiEnabled ? Visibility.Visible : Visibility.Collapsed;
 
-    private BackdropType? _backdropOverride;
-    /// <summary>Ручной выбор фона окна. null = следовать теме.</summary>
-    public BackdropType? BackdropOverride
-    {
-        get => _backdropOverride;
-        set { if (_backdropOverride != value) { _backdropOverride = value; Refresh(); } }
-    }
-
-    public BackdropType Backdrop => _backdropOverride ?? Current.DefaultBackdrop;
+    /// <summary>Материал окна всегда следует теме: обе темы используют акрил DWM.</summary>
+    public BackdropType Backdrop => Current.DefaultBackdrop;
 
     private Palette Current => Palettes[_theme];
 
@@ -396,7 +274,7 @@ public sealed class ThemeManager : INotifyPropertyChanged
     private ThemeManager()
     {
         _accent = Accents.First(a => a.Name == "Motion Glass Blue");
-        _theme = AppTheme.MotionGlass;
+        _theme = AppTheme.Night;
         Load();
     }
 
@@ -462,6 +340,14 @@ public sealed class ThemeManager : INotifyPropertyChanged
 
         var p = Current;
         bool dark = p.IsDark;
+
+        // Жидкое стекло существует только с backdrop DWM: акрил размывает рабочий
+        // стол за окном, а полупрозрачные слои tint'ят его. На Windows 10 акрила
+        // нет, и полупрозрачные слои сложились бы в чёрную пустоту — там палитра
+        // сплющивается в непрозрачную подложку.
+        if (!BackdropHelper.IsWindows11)
+            p = p with { Window = Over(p.Window, dark), Card = Over(p.Card, dark) };
+
         Color accent = AccentColor;
         Color accentHover = Lighten(accent, dark ? 0.14f : -0.10f);
         Color accentPressed = Lighten(accent, dark ? -0.14f : -0.18f);
@@ -481,14 +367,14 @@ public sealed class ThemeManager : INotifyPropertyChanged
         d["SubtleBorderBrush"] = Br(Color.FromArgb(dark ? (byte)0x12 : (byte)0x14, accent.R, accent.G, accent.B));
         d["ChipBackgroundBrush"] = Br(dark ? C("#FFFFFF", 0x1A) : C("#000000", 0x14));
 
-        // --- Уровни стекла ---
-        // Раньше уровни 1/2/4/5/6 были жёстко тёмно-синими для всех тем — светлые темы
-        // рисовали тёмные карточки на белом окне.
-        byte a1 = dark ? (byte)0xF2 : (byte)0xFA;
-        byte a2 = dark ? (byte)0xC4 : (byte)0xF0;
-        byte a4 = dark ? (byte)0xF5 : (byte)0xFA;
-        byte a5 = dark ? (byte)0xFF : (byte)0xFF;
-        byte a6 = dark ? (byte)0xFF : (byte)0xFF;
+        // Уровни стекла полупрозрачны, чтобы сквозь них читалось размытие акрила:
+        // чем выше уровень (плавающие поверхности), тем плотнее стекло и тем
+        // стабильнее читаемость текста поверх него.
+        byte a1 = dark ? (byte)0xB0 : (byte)0xE0;
+        byte a2 = dark ? (byte)0x99 : (byte)0xCC;
+        byte a4 = dark ? (byte)0xCC : (byte)0xEE;
+        byte a5 = dark ? (byte)0xE6 : (byte)0xF8;
+        byte a6 = dark ? (byte)0xF0 : (byte)0xFF;
         d["LiquidGlassMaterialLevel0Brush"] = Br(p.Window);
         d["LiquidGlassMaterialLevel1Brush"] = Br(Mix(p.Window, p.Card, dark ? 0.35f : 0.30f, a1));
         d["LiquidGlassMaterialLevel2Brush"] = Br(Mix(p.Window, p.Card, dark ? 0.55f : 0.55f, a2));
@@ -672,15 +558,9 @@ public sealed class ThemeManager : INotifyPropertyChanged
         d["ContextMenuDivider"] = Br(dark ? C("#FFFFFF", 0x12) : C("#000000", 0x0E));
         d["ContextMenuShadowColor"] = dark ? C("#000000", 0x80) : C("#000000", 0x28);
 
-        // --- Типографика: темы с моноширинным характером ---
-        FontFamily? body = Theme is AppTheme.MatrixEmerald or AppTheme.TerminalAmber or AppTheme.CyberpunkDark
-            ? new FontFamily("Cascadia Mono, Consolas, Courier New, monospace")
-            : null;
-        FontFamily? display = Theme == AppTheme.CyberpunkDark
-            ? new FontFamily("Bahnschrift, Segoe UI, sans-serif")
-            : null;
-        FontFamily? defBody = body ?? new FontFamily("Segoe UI Variable Text, Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, sans-serif");
-        FontFamily? defDisplay = display ?? new FontFamily("Segoe UI Variable Display, Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, sans-serif");
+        // --- Типографика: единая гарнитура для обоих режимов ---
+        FontFamily defBody = new("Segoe UI Variable Text, Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, sans-serif");
+        FontFamily defDisplay = new("Segoe UI Variable Display, Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, sans-serif");
         TryFreeze(defBody); TryFreeze(defDisplay);
         d["BaseFontFamily"] = defBody;
         d["BaseFontFamilyDisplay"] = defDisplay;
@@ -814,6 +694,25 @@ public sealed class ThemeManager : INotifyPropertyChanged
             (byte)Math.Round(layer.B * a));
     }
 
+    /// <summary>
+    /// Складывает полупрозрачный слой палитры поверх непрозрачной подложки.
+    /// Нужен для систем без backdrop DWM (Windows 10): там размытия нет,
+    /// и полупрозрачное окно/карточка показывали бы чёрную пустоту.
+    /// </summary>
+    private static Color Over(Color layer, bool dark)
+    {
+        if (layer.A >= 255) return layer;
+
+        // Подложка повторяет средний тон темы: глубокий сине-чёрный ночью,
+        // молочно-белый днём. Ровно то, что пользователь увидит вместо акрила.
+        Color baseColor = dark ? C("#0A0F1C") : C("#F1F5FB");
+        double a = layer.A / 255.0;
+        return Color.FromRgb(
+            (byte)Math.Round(layer.R * a + baseColor.R * (1 - a)),
+            (byte)Math.Round(layer.G * a + baseColor.G * (1 - a)),
+            (byte)Math.Round(layer.B * a + baseColor.B * (1 - a)));
+    }
+
     private static LinearGradientBrush Grad(Color[] stops, double x1, double y1, double x2, double y2)
     {
         var b = new LinearGradientBrush(
@@ -909,7 +808,6 @@ public sealed class ThemeManager : INotifyPropertyChanged
     {
         public string? Theme { get; set; }
         public string? Accent { get; set; }
-        public string? Backdrop { get; set; }
         public int Quality { get; set; } = 1;
         public bool LiveBackdrop { get; set; } = true;
         public double BackdropIntensity { get; set; } = 0.65;
@@ -932,15 +830,25 @@ public sealed class ThemeManager : INotifyPropertyChanged
                 var a = Accents.FirstOrDefault(x => string.Equals(x.Name, s.Accent, StringComparison.OrdinalIgnoreCase));
                 if (a != null) _accent = a;
             }
-            if (s.Theme is not null && Enum.TryParse<AppTheme>(s.Theme, true, out var t) && Palettes.ContainsKey(t))
+            // Миграция старых названий тем (до упрощения до «день/ночь»):
+            // сохранённая настройка не должна теряться — тёмные темы уходят
+            // в «Ночь», светлые — в «День».
+            if (s.Theme is not null)
             {
+                if (!Enum.TryParse<AppTheme>(s.Theme, true, out var t) || !Palettes.ContainsKey(t))
+                {
+                    bool isLight = s.Theme.Equals("Light", StringComparison.OrdinalIgnoreCase)
+                        || s.Theme.Equals("MicaLight", StringComparison.OrdinalIgnoreCase)
+                        || s.Theme.Equals("MotionGlassLight", StringComparison.OrdinalIgnoreCase)
+                        || s.Theme.Equals("MinimalWhite", StringComparison.OrdinalIgnoreCase)
+                        || s.Theme.Equals("RoseQuartz", StringComparison.OrdinalIgnoreCase);
+                    t = isLight ? AppTheme.Day : AppTheme.Night;
+                }
                 _theme = t;
                 // Акцент темы восстанавливаем только если пользователь его не выбирал.
                 if (s.Accent is null && Palettes[t].PreferredAccent is Color pc)
                     _accent = FindAccent(pc) ?? _accent;
             }
-            if (s.Backdrop is not null && Enum.TryParse<BackdropType>(s.Backdrop, true, out var b))
-                _backdropOverride = b;
             if (Enum.IsDefined(typeof(AnimationQuality), s.Quality))
                 _animationQuality = (AnimationQuality)s.Quality;
             _liveBackdropEnabled = s.LiveBackdrop;
@@ -963,7 +871,6 @@ public sealed class ThemeManager : INotifyPropertyChanged
             {
                 Theme = _theme.ToString(),
                 Accent = _accent.IsSystem ? null : _accent.Name,
-                Backdrop = _backdropOverride?.ToString(),
                 Quality = (int)_animationQuality,
                 LiveBackdrop = _liveBackdropEnabled,
                 BackdropIntensity = _backdropIntensity

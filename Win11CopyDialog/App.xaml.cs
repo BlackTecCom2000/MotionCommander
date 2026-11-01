@@ -169,11 +169,11 @@ public partial class App : Application
         // Явные аргументы командной строки имеют приоритет над сохранённым конфигом.
         if (e.Args.Contains("--dark"))
         {
-            ThemeManager.Instance.Theme = AppTheme.MicaDark;
+            ThemeManager.Instance.Theme = AppTheme.Night;
         }
         else if (e.Args.Contains("--light"))
         {
-            ThemeManager.Instance.Theme = AppTheme.MicaLight;
+            ThemeManager.Instance.Theme = AppTheme.Day;
         }
 
         // Применить тему до показа окон, чтобы Mica/тёмный режим встали сразу

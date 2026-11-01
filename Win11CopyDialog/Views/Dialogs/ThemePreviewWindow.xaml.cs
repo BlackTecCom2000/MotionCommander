@@ -9,9 +9,9 @@ public partial class ThemePreviewWindow : Window
     public ThemePreviewWindow()
     {
         InitializeComponent();
-        // Initialize preview panels with two themes: Dark MotionGlass and Light MotionGlassLight
-        ApplyPreview(AppTheme.MotionGlass, LeftCard, LeftSampleText, LeftBtn, LeftTitle);
-        ApplyPreview(AppTheme.MotionGlassLight, RightCard, RightSampleText, RightBtn, RightTitle);
+        // Initialize preview panels with the two available themes: Night and Day
+        ApplyPreview(AppTheme.Night, LeftCard, LeftSampleText, LeftBtn, LeftTitle);
+        ApplyPreview(AppTheme.Day, RightCard, RightSampleText, RightBtn, RightTitle);
         // Optional: set title text color to be contrast-friendly
     }
 

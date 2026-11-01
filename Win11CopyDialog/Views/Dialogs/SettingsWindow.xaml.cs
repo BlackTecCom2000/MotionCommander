@@ -16,9 +16,8 @@ namespace Win11CopyDialog.Views.Dialogs;
 public sealed class AppConfigData
 {
     // ---------- Оформление ----------
-    public string Theme { get; set; } = nameof(AppTheme.MotionGlass);
+    public string Theme { get; set; } = nameof(AppTheme.Night);
     public string Accent { get; set; } = "Неон Циан";
-    public string Backdrop { get; set; } = "";          // пусто = следовать теме
     public double BackdropIntensity { get; set; } = 0.65; // 0.0 .. 1.0 (яркость аур и фона)
     public bool HapticAudioEnabled { get; set; } = true;
     public bool ClickSoundsEnabled { get; set; } = true;
@@ -160,7 +159,6 @@ public partial class SettingsWindow : Window
 
         InitThemes();
         InitAccents();
-        InitBackdrop();
         InitBackdropIntensity();
         InitAnimationQuality();
         InitInstallMode();
@@ -357,48 +355,23 @@ public partial class SettingsWindow : Window
 
     // ================= Темы и акценты =================
 
-    private static readonly AppTheme[] ThemeOrder =
-    {
-        AppTheme.MotionGlass,
-        AppTheme.CosmicNebula,
-        AppTheme.DeepSea,
-        AppTheme.CyberpunkDark,
-        AppTheme.RoyalIndigo,
-        AppTheme.SunsetAmber,
-        AppTheme.MicaDark,
-        AppTheme.Dark,
-        AppTheme.OledMidnight,
-        AppTheme.MatrixEmerald,
-        AppTheme.TerminalAmber,
-        AppTheme.RoseQuartz,
-        AppTheme.MicaLight,
-        AppTheme.Acrylic,
-        AppTheme.Light,
-        AppTheme.MinimalWhite,
-    };
-
     private void InitThemes()
     {
-        ThemesComboBox.Items.Clear();
-        foreach (var t in ThemeOrder)
-            ThemesComboBox.Items.Add(ThemeManager.Instance.ThemeDisplayName(t));
-
-        int idx = Array.IndexOf(ThemeOrder, ThemeManager.Instance.Theme);
-        ThemesComboBox.SelectedIndex = idx >= 0 ? idx : 0;
+        bool night = ThemeManager.Instance.Theme != AppTheme.Day;
+        ThemeNightRadio.IsChecked = night;
+        ThemeDayRadio.IsChecked = !night;
         UpdateThemeDescription(ThemeManager.Instance.Theme);
     }
 
-    private void ThemesComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void ThemeMode_Checked(object sender, RoutedEventArgs e)
     {
-        if (_initializing) return;
+        if (_initializing || ThemeNightRadio == null || ThemeDayRadio == null) return;
         HapticAudio.PlayClick();
 
-        int i = ThemesComboBox.SelectedIndex;
-        if (i < 0 || i >= ThemeOrder.Length) return;
+        var selectedTheme = ThemeDayRadio.IsChecked == true ? AppTheme.Day : AppTheme.Night;
+        if (ThemeManager.Instance.Theme == selectedTheme) return;
 
-        var selectedTheme = ThemeOrder[i];
         ThemeManager.Instance.Theme = selectedTheme;
-        ThemeManager.Instance.BackdropOverride = null;
         BackdropHelper.Apply(this, ThemeManager.Instance.Backdrop, ThemeManager.Instance.IsDark);
         UpdateThemeDescription(selectedTheme);
         SaveCurrentStateToConfig();
@@ -408,23 +381,8 @@ public partial class SettingsWindow : Window
     {
         ThemeDescriptionText.Text = t switch
         {
-            AppTheme.MotionGlass => "✨ Motion Commander Glass OS: фирменная полупрозрачная кибер-эстетика с эффектами Liquid Glass и акцентным неоном.",
-            AppTheme.CosmicNebula => "🌌 Cosmic Nebula: глубокий индиго #04050F, фиолетовые туманности и живой звёздный фон с планетами.",
-            AppTheme.DeepSea => "🌊 Deep Sea: холодная глубина океана с бирюзовыми тонами и спокойным фоновым градиентом.",
-            AppTheme.CyberpunkDark => "⚡ Cyberpunk Dark: глубокий тёмный индиго #0B0E14 с неоновым акцентом и максимальным контрастом.",
-            AppTheme.OledMidnight => "🌑 OLED Midnight: абсолютный чёрный #000000 для экономии энергии на OLED-панелях. Без размытия.",
-            AppTheme.MatrixEmerald => "💻 Matrix Emerald: стиль терминала хакера, тёмно-зелёные карточки, изумрудный неон.",
-            AppTheme.TerminalAmber => "🖥 Terminal Amber: янтарный фосфор на глубоком чёрном фоне. Ретро-терминал высокой чёткости.",
-            AppTheme.SunsetAmber => "🔥 Sunset Amber: тёплые угольные тона #14100E с янтарным и золотым свечением элементов.",
-            AppTheme.RoyalIndigo => "🔮 Royal Indigo: глубокий сапфировый ультрамарин с фиолетовыми переливами.",
-            AppTheme.MicaDark => "◈ Windows 11 Mica Dark: полупрозрачный материал Mica Alt в тёмном исполнении.",
-            AppTheme.MicaLight => "◈ Windows 11 Mica Light: воздушный матовый стиль Windows 11 Mica со светлыми поверхностями.",
-            AppTheme.Acrylic => "⬣ Fluent Acrylic: эффект матового стекла с глубоким аппаратным размытием DWM.",
-            AppTheme.RoseQuartz => "🌸 Rose Quartz: светлая пастельная тема: розовый кварц, мягкие тени и высокая читаемость.",
-            AppTheme.Dark => "☾ Windows Тёмная: классический строгий тёмный интерфейс без прозрачности.",
-            AppTheme.Light => "☀ Windows Светлая: классический светлый интерфейс высокой чёткости.",
-            AppTheme.MinimalWhite => "⬜ Minimal White: абсолютно плоский минималистичный белый дизайн.",
-            _ => "Стиль оформления интерфейса."
+            AppTheme.Day => "☀ День: светлое акриловое стекло, молочное размытие рабочего стола и мягкие полупрозрачные поверхности.",
+            _ => "☾ Ночь: глубокое тёмное стекло, аппаратное размытие акрила, живой звёздный фон и акцент Motion Glass."
         };
 
         if (LiveBackdropHint != null)
@@ -485,27 +443,6 @@ public partial class SettingsWindow : Window
 
             AccentsWrapPanel.Children.Add(btn);
         }
-    }
-
-    private void InitBackdrop()
-    {
-        var b = ThemeManager.Instance.Backdrop;
-        if (b == BackdropType.Acrylic) BackdropAcrylicRadio.IsChecked = true;
-        else if (b == BackdropType.None) BackdropSolidRadio.IsChecked = true;
-        else BackdropMicaRadio.IsChecked = true;
-    }
-
-    private void BackdropRadio_Checked(object sender, RoutedEventArgs e)
-    {
-        if (_initializing) return;
-        HapticAudio.PlayClick();
-
-        BackdropType bType = BackdropType.None;
-        if (BackdropMicaRadio.IsChecked == true) bType = BackdropType.MicaAlt;
-        else if (BackdropAcrylicRadio.IsChecked == true) bType = BackdropType.Acrylic;
-
-        ThemeManager.Instance.BackdropOverride = bType == BackdropType.None ? null : bType;
-        SaveCurrentStateToConfig();
     }
 
     private void InitBackdropIntensity()
@@ -900,7 +837,6 @@ public partial class SettingsWindow : Window
             _initializing = true;
             InitThemes();
             InitAccents();
-            InitBackdrop();
             InitBackdropIntensity();
             InitAnimationQuality();
             InitInstallMode();
@@ -950,7 +886,6 @@ public partial class SettingsWindow : Window
             _initializing = true;
             InitThemes();
             InitAccents();
-            InitBackdrop();
             InitBackdropIntensity();
             InitAnimationQuality();
             InitInstallMode();
@@ -995,7 +930,6 @@ public partial class SettingsWindow : Window
             _initializing = true;
             InitThemes();
             InitAccents();
-            InitBackdrop();
             InitBackdropIntensity();
             InitAnimationQuality();
             InitInstallMode();
@@ -1051,8 +985,6 @@ public partial class SettingsWindow : Window
 
             data.Theme = ThemeManager.Instance.Theme.ToString();
             data.Accent = ThemeManager.Instance.Accent.IsSystem ? "" : ThemeManager.Instance.Accent.Name;
-            data.Backdrop = BackdropMicaRadio?.IsChecked == true ? "MicaAlt"
-                : (BackdropAcrylicRadio?.IsChecked == true ? "Acrylic" : (BackdropSolidRadio?.IsChecked == true ? "None" : ""));
             data.BackdropIntensity = BackdropIntensitySlider != null ? BackdropIntensitySlider.Value / 100.0 : 0.65;
             data.AnimationQuality = (int)ThemeManager.Instance.AnimationQuality;
             data.LiveBackdropEnabled = ThemeManager.Instance.LiveBackdropEnabled;
@@ -1128,12 +1060,6 @@ public partial class SettingsWindow : Window
                 .FirstOrDefault(a => string.Equals(a.Name, data.Accent, StringComparison.OrdinalIgnoreCase));
             if (acc != null) ThemeManager.Instance.Accent = acc;
         }
-
-        ThemeManager.Instance.BackdropOverride =
-            !string.IsNullOrWhiteSpace(data.Backdrop) &&
-            Enum.TryParse<BackdropType>(data.Backdrop, ignoreCase: true, out var bd) && bd != BackdropType.None
-                ? bd
-                : null;
 
         ThemeManager.Instance.BackdropIntensity = data.BackdropIntensity > 0 ? data.BackdropIntensity : 0.65;
 

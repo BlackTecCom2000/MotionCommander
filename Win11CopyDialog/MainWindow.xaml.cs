@@ -3807,7 +3807,7 @@ public partial class MainWindow : Window
     private void QuickTheme_Click(object sender, RoutedEventArgs e)
     {
         HapticAudio.PlayClick();
-        ThemeManager.Instance.Theme = ThemeManager.Instance.IsDark ? AppTheme.MicaLight : AppTheme.MicaDark;
+        ThemeManager.Instance.Theme = ThemeManager.Instance.IsDark ? AppTheme.Day : AppTheme.Night;
         QuickThemeIcon.Text = ThemeManager.Instance.IsDark ? "☾" : "☀";
     }
 
