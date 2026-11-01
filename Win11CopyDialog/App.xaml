@@ -27,17 +27,20 @@
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             
             <!-- Базовые кисти (обновляются в ThemeManager.Apply) -->
-            <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#E8F3F3F3"/>
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#B0FFFFFF"/>
-            <SolidColorBrush x:Key="CardBorderBrush" Color="#E0E0E0"/>
+            <!-- Живое стекло: нейтральные откаты до срабатывания ThemeManager.Apply().
+                 Держем тёмной гаммой MotionGlass, чтобы при первом кадре не было
+                 светлой вспышки, а акцент — циан, как в остальной палитре стекла. -->
+            <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#050912"/>
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#D90A1426"/>
+            <SolidColorBrush x:Key="CardBorderBrush" Color="#1678BEFF"/>
             <SolidColorBrush x:Key="GlassBorderBrush" Color="#28FFFFFF"/>
             <SolidColorBrush x:Key="SubtleBorderBrush" Color="#18FFFFFF"/>
             <SolidColorBrush x:Key="ChipBackgroundBrush" Color="#22000000"/>
-            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1B1B1B"/>
-            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#605E5C"/>
-            <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
-            <SolidColorBrush x:Key="AccentHoverBrush" Color="#106EBE"/>
-            <SolidColorBrush x:Key="AccentPressedBrush" Color="#005A9E"/>
+            <SolidColorBrush x:Key="PrimaryTextBrush" Color="#F8FAFC"/>
+            <SolidColorBrush x:Key="SecondaryTextBrush" Color="#94A3B8"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#00D4FF"/>
+            <SolidColorBrush x:Key="AccentHoverBrush" Color="#38E1FF"/>
+            <SolidColorBrush x:Key="AccentPressedBrush" Color="#00B4D8"/>
             <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#600D111A"/>
             <SolidColorBrush x:Key="AccentForegroundBrush" Color="White"/>
 
@@ -55,8 +58,8 @@
             <Color x:Key="ContextMenuShadowColor">#80000000</Color>
             <Color x:Key="GlowAccentColor">#400078D4</Color>
             <SolidColorBrush x:Key="GlowAccentBrush" Color="#400078D4"/>
-            <SolidColorBrush x:Key="ProgressTrackBrush" Color="#E6E6E6"/>
-            <SolidColorBrush x:Key="TitleForegroundBrush" Color="#1B1B1B"/>
+            <SolidColorBrush x:Key="ProgressTrackBrush" Color="#28168CFF"/>
+            <SolidColorBrush x:Key="TitleForegroundBrush" Color="#F8FAFC"/>
             <SolidColorBrush x:Key="HoverBrush" Color="#EAEAEA"/>
             <SolidColorBrush x:Key="ListHoverBrush" Color="#F5F5F5"/>
             <SolidColorBrush x:Key="GraphGridBrush" Color="#E3E3E3"/>
