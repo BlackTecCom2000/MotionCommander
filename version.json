@@ -1,22 +1,24 @@
 ﻿{
-    "version":  "3.8.58",
+    "version":  "3.8.59",
     "releaseDate":  "2026-11-01",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Interface fully migrated to Liquid Glass design: App.xaml fallback brushes aligned to MotionGlass palette (dark background #050912, glass card, primary text #F8FAFF, cyan accent #00D4FF) - no light flash on first frame, accent matches the rest of the glass palette",
-                      "All structural colors (background, cards, text, borders, accent, navigation, inputs, scrollbars, context menus) resolved through ThemeManager.Apply() into liquid LiquidGlass*/GlassBorder* tokens",
-                      "Status colors kept semantic (green success / red danger / amber warning)",
-                      "TAJ ARENA branding left untouched",
-                      "Verified: build 0 errors / 0 warnings, 23/23 screens (RESULT: OK)"
+                      "Theme system simplified to exactly two modes: Day (light) and Night (dark) - the previous 16 themes are removed",
+                      "Real liquid glass: both modes use DWM Acrylic backdrop with genuinely translucent surface brushes, so the desktop blur shows through the UI instead of flat panels",
+                      "Old saved theme names migrate automatically (light themes become Day, everything else becomes Night)",
+                      "Backdrop override option removed - the window always uses the theme\u0027s Acrylic material, fixing stale MicaAlt overrides that disabled the blur",
+                      "Day/Night radio toggle in Settings replaces the theme dropdown; typography unified to Segoe UI Variable",
+                      "Win10 fallback flattens translucent layers to solid colors when DWM Acrylic is unavailable",
+                      "Verified: build 0 errors / 0 warnings, 23/23 screens OK, update tests 20/20, game tuning 18/18, DWM backdrop = Acrylic (3)"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.59-Patch.zip",
     "patchSizeMb":  9.29,
     "patchMinVersion":  "3.8.0",
     "fullSizeMb":  43.98,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.59-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.59-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.59-Setup.exe"
 }
