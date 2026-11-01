@@ -1,24 +1,22 @@
 ﻿{
-    "version":  "3.8.57",
-    "releaseDate":  "2026-10-28",
+    "version":  "3.8.58",
+    "releaseDate":  "2026-11-01",
     "productName":  "Motion Commander",
     "author":  "BlackTecCom - Jaborov Daler",
     "license":  "MIT",
     "minWindowsVersion":  "10.0.19041",
     "changelog":  [
-                      "Обновлятор: скачанный архив проверяется ДО применения — версия внутри него обязана совпасть с версией из манифеста, иначе архив отвергается. Раньше версия полного пакета узнавалась только после замены файлов, и подсунутый сервером раздачи архив прошлого релиза молча откатывал программу",
-                      "Обновлятор: пакет без исполняемого файла программы (motion.exe / Win11CopyDialog.exe) больше не применяется — иначе библиотеки заменились бы, а запускать было бы нечего",
-                      "Обновлятор: перед загрузкой и перед распаковкой проверяется свободное место; при нехватке сообщаются три числа — нужно, свободно, не хватает",
-                      "Обновлятор: размеры пакета больше не выдумываются. Если манифест не сообщил размер, интерфейс пишет «размер уточнится при загрузке», а точные цифры появляются из заголовков ответа",
-                      "Исправлено: Win11CopyDialog/MainWindow.xaml.cs не компилировался — в коммите 27b1c22 остались литеральные \\n вместо переводов строк. Горячая клавиша Ctrl+P и окно предпросмотра темы снова работают",
-                      "Удалены фиктивные артефакты 3.8.56 (Patch.zip 161 байт с одним patch-readme.txt и Setup.exe 24 байта с текстом-заглушкой), из-за которых живой канал предлагал нерабочее обновление",
-                      "Диагностика: 20/20 тестов обновлятора (включая новые проверки версии пакета, состава и свободного места), 18/18 тестов игрового модуля, 23/23 экрана, сборка без ошибок и предупреждений"
+                      "Interface fully migrated to Liquid Glass design: App.xaml fallback brushes aligned to MotionGlass palette (dark background #050912, glass card, primary text #F8FAFF, cyan accent #00D4FF) - no light flash on first frame, accent matches the rest of the glass palette",
+                      "All structural colors (background, cards, text, borders, accent, navigation, inputs, scrollbars, context menus) resolved through ThemeManager.Apply() into liquid LiquidGlass*/GlassBorder* tokens",
+                      "Status colors kept semantic (green success / red danger / amber warning)",
+                      "TAJ ARENA branding left untouched",
+                      "Verified: build 0 errors / 0 warnings, 23/23 screens (RESULT: OK)"
                   ],
-    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Patch.zip",
+    "patchUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Patch.zip",
     "patchSizeMb":  9.29,
     "patchMinVersion":  "3.8.0",
     "fullSizeMb":  43.98,
-    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Portable.zip",
-    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Portable.zip",
-    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.57-Setup.exe"
+    "downloadUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Portable.zip",
+    "installerUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Portable.zip",
+    "setupExeUrl":  "https://raw.githubusercontent.com/BlackTecCom2000/MotionCommander/main/dist/MotionCommander-v3.8.58-Setup.exe"
 }
